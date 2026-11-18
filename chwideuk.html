@@ -1268,6 +1268,13 @@ if (typeof module !== 'undefined') module.exports = ACQ;
   var won = function (v) { return Math.round(v).toLocaleString('ko-KR') + '원'; };
   function eok(v) { v = Math.round(+v || 0); var e = Math.floor(v / 1e8), m = Math.floor((v % 1e8) / 1e4); if (!e && !m) return won(v); return (e ? e.toLocaleString('ko-KR') + '억' : '') + (m ? (e ? ' ' : '') + m.toLocaleString('ko-KR') + '만' : '') + '원'; }
   function manTxt(man) { var v = Math.round(+man * 1e4); if (!(v > 0)) return ''; return '= ' + eok(v); }
+
+  
+  function eokToMan(x) { x = String(x == null ? '' : x).trim(); if (x === '') return ''; if (!/^\d*\.?\d*$/.test(x) || x === '.') return NaN;
+    var p = x.split('.'), i = p[0] || '0', f = p[1] || '', m = Number(i) * 10000 + Number((f + '0000').slice(0, 4)); if (f.length > 4 && +f.charAt(4) >= 5) m += 1; return m; }
+  function manToEok(v) { if (v === '' || v == null) return ''; var n = Math.round(+v); if (!isFinite(n)) return ''; var e = Math.floor(n / 10000), r = n % 10000; return r ? e + '.' + ('000' + r).slice(-4).replace(/0+$/, '') : String(e); }
+  var EOKQ = { price: 1, std: 1, debt: 1 };   
+  function isEok(s) { return !!(s && (EOKQ[s.id] || /^$/.test(s.id))); }
   function esc(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;'); }
   function strip(s) { return String(s).replace(/<[^>]+>/g, ''); }
 
@@ -1481,7 +1488,7 @@ if (typeof module !== 'undefined') module.exports = ACQ;
     else {
       var inp = '';
       if (s.t === 'd') inp = '<input type="date" data-pkwi="0" value="' + esc(v || '') + '">';
-      if (s.t === 'm') inp = '<div class="pk-wm"><input type="number" inputmode="decimal" min="0" data-pkwi="0" value="' + esc(v == null ? '' : v) + '" placeholder=""><span>만원</span></div><div class="pk-we" id="pkWe">' + manTxt(v) + '</div>' + (s.unk ? '<div class="pk-wbl">빈칸으로 [다음] = 「' + s.unk + '」</div>' : '');   
+      if (s.t === 'm') inp = '<div class="pk-wm"><input type="number" inputmode="decimal" min="0" step="any" data-pkwi="0" value="' + esc(v == null ? '' : isEok(s) ? manToEok(v) : v) + '" placeholder=""><span>' + (isEok(s) ? '억' : '만원') + '</span></div><div class="pk-we" id="pkWe">' + manTxt(v) + '</div>' + (s.unk ? '<div class="pk-wbl">빈칸으로 [다음] = 「' + s.unk + '」</div>' : '');   
       if (s.t === 'n') inp = '<div class="pk-wm"><input type="number" inputmode="decimal" min="0" step="0.01" data-pkwi="0" value="' + esc(v == null ? '' : v) + '" placeholder=""><span>㎡</span></div>' + (s.unk ? '<div class="pk-wbl">빈칸으로 [다음] = 「' + s.unk + '」</div>' : '');
       h += '<div class="pk-wi">' + inp + '</div><div class="pk-wn"><button type="button" class="pk-go" data-pkwn="1">다음</button>' + (s.unk ? '<button type="button" class="pk-wz0" data-pkwu="1">' + s.unk + '</button>' : '') + '</div><div class="pk-wer" id="pkWer"></div>';
     }
@@ -1560,6 +1567,7 @@ if (typeof module !== 'undefined') module.exports = ACQ;
   var REQ = { price: '취득가액(시가, 공시가격) = 취득세 과세표준의 기준이라 0보다 큰 금액이 꼭 필요해요(만원)', debt: '넘겨받는 채무액이 있어야 무상분, 유상분을 나눌 수 있어 0보다 큰 금액이 꼭 필요해요 · 채무가 없으면 [이전] → 증여로' };
   function readIn() {
     var s = step(W.cur), x = ($('pkWz').querySelector('[data-pkwi="0"]') || {}).value; x = x == null ? '' : String(x).trim();
+    if (s.t === 'm' && isEok(s) && x !== '') { var mm = eokToMan(x); if (isNaN(mm)) return { err: '숫자로 넣어 주세요(억 · 예 1.29)' }; x = String(mm); }   
     if (s.t === 'd' && x === '' && s.unk) return { v: '' };   
     if (s.t === 'd') { if (!/^\d{4}-\d{2}-\d{2}$/.test(x)) return { err: '날짜를 숫자 8자리로 넣어 주세요(예 20261130)' + (s.unk ? '' : ' — 신고기한, 적용 세율(시행일) 판정에 꼭 필요해요') + '' }; return { v: x }; }
     
@@ -1592,7 +1600,7 @@ if (typeof module !== 'undefined') module.exports = ACQ;
     if (d.pkxp) { xp(!XP); var r0 = XP ? $('tabs') : $('pkRoot'); if (r0) r0.scrollIntoView({ block: 'start' }); return; }
     if (d.pkspx) { spxSet(d.pkspx, !SPXS[d.pkspx]); return; }
   });
-  document.addEventListener('input', function (e) { var t = e.target; if (!t || !t.dataset || t.dataset.pkwi === undefined) return; var s = step(W.cur); if (s && s.t === 'm' && $('pkWe')) $('pkWe').textContent = manTxt(t.value); if ($('pkWer')) $('pkWer').textContent = ''; }, true);
+  document.addEventListener('input', function (e) { var t = e.target; if (!t || !t.dataset || t.dataset.pkwi === undefined) return; var s = step(W.cur); if (s && s.t === 'm' && $('pkWe')) $('pkWe').textContent = manTxt(isEok(s) ? eokToMan(t.value) : t.value); if ($('pkWer')) $('pkWer').textContent = ''; }, true);
   document.addEventListener('keydown', function (e) { var t = e.target; if (e.key !== 'Enter' || !t || !t.dataset || t.dataset.pkwi === undefined) return; e.preventDefault(); var b = $('pkWz').querySelector('[data-pkwn]'); if (b) b.click(); }, true);
   var ex = $('exSel'); if (ex) ex.addEventListener('change', function () { restart(); });   
 
@@ -2238,11 +2246,21 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     el.innerHTML = '<summary>용어 설명 : ' + L.map(function (d) { return d[1]; }).join(', ') + '</summary><ul>' + L.map(function (d) { return '<li><b>' + d[1] + '</b> : ' + d[2] + '</li>'; }).join('') + '</ul>';
     (h || q).insertAdjacentElement('afterend', el);
   }
-  function scan() { [].forEach.call(document.querySelectorAll('.pk-wq:not([data-easy]),.qa-q:not([data-easy])'), one); }
+  
+  var EOKRE = /(^|[^\d,.(])(\d{1,3}(?:,\d{3})+|\d+)원(?!\))/g;
+  function eokTxt(t) { return t.replace(EOKRE, function (m, pre, num) { var v = +num.replace(/,/g, ''); if (!(v >= 1e8)) return m; var e = Math.round(v / 1e6) / 100; return pre + e.toLocaleString('ko-KR', { maximumFractionDigits: 2 }) + '억 (' + v.toLocaleString('ko-KR') + '원)'; }); }
+  function eokFmt() {
+    [].forEach.call(document.querySelectorAll('#pkWz,#wzQs'), function (root) {
+      var tw = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, { acceptNode: function (n) { var p = n.parentElement; if (!p || p.closest('.pk-wa,.pk-wq,.pk-wh,.pk-easy,.pk-wi,.pk-wdf,script,style,input,select,textarea,button')) return NodeFilter.FILTER_REJECT; return /\d원/.test(n.nodeValue) ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_SKIP; } });
+      var L = [], n; while ((n = tw.nextNode())) L.push(n);
+      L.forEach(function (x) { var t = eokTxt(x.nodeValue); if (t !== x.nodeValue) x.nodeValue = t; });
+    });
+  }
+  function scan() { [].forEach.call(document.querySelectorAll('.pk-wq:not([data-easy]),.qa-q:not([data-easy])'), one); eokFmt(); }
   var busy = 0;
   new MutationObserver(function () { if (busy) return; busy = 1; setTimeout(function () { busy = 0; scan(); }, 0); }).observe(document.body, { childList: true, subtree: true });
   scan();
-  window.EASYWORD = { D: D, scan: scan };
+  window.EASYWORD = { D: D, scan: scan, eokTxt: eokTxt };
 })();
 
 </script>
