@@ -33,9 +33,13 @@ html.fwait body{visibility:hidden}
 *{box-sizing:border-box}
 html,body{margin:0;height:100%;background:#fff;color:var(--ink);font-family:Freesentation,-apple-system,BlinkMacSystemFont,'Apple SD Gothic Neo','Malgun Gothic','Noto Sans KR',sans-serif}
 body{display:flex;flex-direction:column;min-height:100dvh}
-header{position:sticky;top:0;z-index:5;background:#fff;border-bottom:1px solid var(--line);padding:10px 12px 0}
-h1{margin:0 0 8px;font-size:19px;font-weight:700;letter-spacing:-.3px}
-nav{display:flex;gap:4px;overflow-x:auto;scrollbar-width:none}
+header{position:sticky;top:0;z-index:5;background:#fff;border-bottom:1px solid var(--line);padding:0}
+.top{background:var(--ink);border-bottom:3px solid var(--acc);padding:8px 8px}
+h1{margin:0;font-size:19px;font-weight:700;letter-spacing:-.3px}
+#home{display:inline-flex;align-items:center;gap:8px;border:0;background:none;color:#fff;font:inherit;font-size:inherit;font-weight:700;letter-spacing:inherit;padding:6px 8px;border-radius:8px;cursor:pointer;-webkit-tap-highlight-color:transparent;transition:background .12s,transform .08s}
+#home:hover{background:rgba(255,255,255,.08)}#home:active{background:rgba(255,255,255,.16);transform:scale(.98)}#home:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
+#home small{font-size:13px;font-weight:500;color:#B8BEC6}
+nav{display:flex;gap:4px;overflow-x:auto;scrollbar-width:none;padding:2px 12px 0}
 nav::-webkit-scrollbar{display:none}
 nav button{flex:1 0 auto;min-width:72px;border:0;background:none;padding:10px 12px 11px;font:inherit;font-size:16px;color:var(--sub);border-bottom:3px solid transparent;cursor:pointer;white-space:nowrap}
 nav button[aria-selected="true"]{color:var(--ink);font-weight:700;border-bottom-color:var(--acc)}
@@ -43,16 +47,17 @@ main{flex:1;display:flex}
 iframe{flex:1;width:100%;border:0;min-height:calc(100dvh - 160px)}
 footer{border-top:1px solid var(--line);padding:12px 14px 16px;font-size:13px;line-height:1.6;color:var(--sub);text-align:center}
 @media (max-width:599px){nav{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:0}nav button{min-width:0;padding:9px 2px 10px;letter-spacing:-.3px}}   /* 2026-11-18 탭 7개(상속·증여세 더함) — 폴드7 접힘 너비 = 4칸 × 2줄(종전 탭 6개 3칸 × 2줄) */
-@media (min-width:900px){header{padding:14px 24px 0}h1{font-size:22px}nav button{flex:0 0 auto;padding:10px 22px 12px;font-size:17px}}
+@media (min-width:900px){.top{padding:10px 18px}nav{padding:2px 24px 0}h1{font-size:22px}nav button{flex:0 0 auto;padding:10px 22px 12px;font-size:17px}}
 </style></head>
 <body>
-<header><h1>세금 계산기</h1><nav role="tablist"><button role="tab" data-src="chwideuk.html" aria-selected="true">취득세</button><button role="tab" data-src="yangdo.html" aria-selected="false">양도세</button><button role="tab" data-src="jongbu.html" aria-selected="false">종부세</button><button role="tab" data-src="sangjeung.html" aria-selected="false">상속·증여세</button><button role="tab" data-src="geonbo.html" aria-selected="false">건강보험료</button><button role="tab" data-src="bigeoju.html" aria-selected="false">비거주자</button><button role="tab" data-src="stock.html" aria-selected="false">법인보고서</button></nav></header>
+<header><div class="top"><h1><button type="button" id="home" title="처음 화면으로 새로고침" aria-label="세금 계산기 — 지금 탭 처음 화면으로 새로고침">세금 계산기<small aria-hidden="true">처음으로</small></button></h1></div><nav role="tablist"><button role="tab" data-src="chwideuk.html" aria-selected="true">취득세</button><button role="tab" data-src="yangdo.html" aria-selected="false">양도세</button><button role="tab" data-src="jongbu.html" aria-selected="false">종부세</button><button role="tab" data-src="sangjeung.html" aria-selected="false">상속·증여세</button><button role="tab" data-src="geonbo.html" aria-selected="false">건강보험료</button><button role="tab" data-src="bigeoju.html" aria-selected="false">비거주자</button><button role="tab" data-src="stock.html" aria-selected="false">법인보고서</button></nav></header>
 <main><iframe id="pg" title="계산기"></iframe></main>
 <footer>본 자료 = 일반적 정보 제공 목적, 실제 적용 시 개별 사안별 법률적 검토 및 전문가 자문 필수<br>계산은 이 기기 안에서만 하며 입력값은 어디에도 보내지 않습니다.</footer>
 <script>
 (function(){var B=[].slice.call(document.querySelectorAll('nav button')),F=document.getElementById('pg');
 function go(b,push){B.forEach(function(x){x.setAttribute('aria-selected',x===b)});if(F.getAttribute('src')!==b.dataset.src)F.setAttribute('src',b.dataset.src);if(push)history.replaceState(null,'','#'+b.dataset.src.replace('.html',''))}
 B.forEach(function(b){b.addEventListener('click',function(){go(b,true)})});
+document.getElementById('home').addEventListener('click',function(){location.reload()});
 var h=location.hash.slice(1),first=B[0];B.forEach(function(b){if(h&&b.dataset.src===h+'.html')first=b});
 (window.__fontsP||Promise.resolve()).then(function(){if(!F.getAttribute('src'))go(first,false)});})();
 </script>
