@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8">
+<link rel="preload" href="fonts/Freesentation-400.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="fonts/Freesentation-700.woff2" as="font" type="font/woff2" crossorigin>
+<style id="pubFont">
+@font-face{font-family:'Freesentation';font-style:normal;font-weight:400;font-display:block;src:local('Freesentation'),url(fonts/Freesentation-400.woff2) format('woff2')}
+@font-face{font-family:'Freesentation';font-style:normal;font-weight:500;font-display:swap;src:local('Freesentation'),url(fonts/Freesentation-500.woff2) format('woff2')}
+@font-face{font-family:'Freesentation';font-style:normal;font-weight:600;font-display:swap;src:local('Freesentation'),url(fonts/Freesentation-600.woff2) format('woff2')}
+@font-face{font-family:'Freesentation';font-style:normal;font-weight:700;font-display:block;src:local('Freesentation'),url(fonts/Freesentation-700.woff2) format('woff2')}
+@font-face{font-family:'Freesentation';font-style:normal;font-weight:800;font-display:swap;src:local('Freesentation'),url(fonts/Freesentation-800.woff2) format('woff2')}
+@font-face{font-family:'Freesentation 4 Regular';font-style:normal;font-weight:normal;font-display:block;src:local('Freesentation 4 Regular'),url(fonts/Freesentation-400.woff2) format('woff2')}
+@font-face{font-family:'Freesentation 5 Medium';font-style:normal;font-weight:normal;font-display:swap;src:local('Freesentation 5 Medium'),url(fonts/Freesentation-500.woff2) format('woff2')}
+@font-face{font-family:'Freesentation 6 SemiBold';font-style:normal;font-weight:normal;font-display:swap;src:local('Freesentation 6 SemiBold'),url(fonts/Freesentation-600.woff2) format('woff2')}
+@font-face{font-family:'Freesentation 7 Bold';font-style:normal;font-weight:normal;font-display:block;src:local('Freesentation 7 Bold'),url(fonts/Freesentation-700.woff2) format('woff2')}
+@font-face{font-family:'Freesentation 8 ExtraBold';font-style:normal;font-weight:normal;font-display:swap;src:local('Freesentation 8 ExtraBold'),url(fonts/Freesentation-800.woff2) format('woff2')}
+@font-face{font-family:'프리젠테이션 4 Regular';font-style:normal;font-weight:normal;font-display:block;src:local('프리젠테이션 4 Regular'),url(fonts/Freesentation-400.woff2) format('woff2')}
+@font-face{font-family:'프리젠테이션 5 Medium';font-style:normal;font-weight:normal;font-display:swap;src:local('프리젠테이션 5 Medium'),url(fonts/Freesentation-500.woff2) format('woff2')}
+@font-face{font-family:'프리젠테이션 7 Bold';font-style:normal;font-weight:normal;font-display:block;src:local('프리젠테이션 7 Bold'),url(fonts/Freesentation-700.woff2) format('woff2')}
+html,body,body *:not(code):not(pre):not(kbd):not(samp){font-family:'Freesentation','Apple SD Gothic Neo','Malgun Gothic',sans-serif!important}
+html.fwait body{visibility:hidden}
+</style>
+<script>(function(){var d=document.documentElement;d.classList.add('fwait');var k=0,rs,done=function(){if(!k){k=1;d.classList.remove('fwait');if(rs)rs();}};try{window.__fontsP=new Promise(function(r){rs=r;});}catch(e){}setTimeout(done,3000);try{Promise.all([400,700].map(function(w){return document.fonts.load(w+' 16px Freesentation');})).then(done,done);}catch(e){done();}})();</script>
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>세금 계산기</title>
+<meta name="description" content="취득세, 양도세, 종부세, 비상장주식 평가 계산기 — 기기 안에서만 계산">
+<link rel="icon" href="data:,">
+<style>
+:root{--ink:#191F28;--sub:#6B7684;--line:#E5E8EB;--acc:#E8590C}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:#fff;color:var(--ink);font-family:Freesentation,-apple-system,BlinkMacSystemFont,'Apple SD Gothic Neo','Malgun Gothic','Noto Sans KR',sans-serif}
+body{display:flex;flex-direction:column;min-height:100dvh}
+header{position:sticky;top:0;z-index:5;background:#fff;border-bottom:1px solid var(--line);padding:10px 12px 0}
+h1{margin:0 0 8px;font-size:19px;font-weight:700;letter-spacing:-.3px}
+nav{display:flex;gap:4px;overflow-x:auto;scrollbar-width:none}
+nav::-webkit-scrollbar{display:none}
+nav button{flex:1 0 auto;min-width:72px;border:0;background:none;padding:10px 12px 11px;font:inherit;font-size:16px;color:var(--sub);border-bottom:3px solid transparent;cursor:pointer;white-space:nowrap}
+nav button[aria-selected="true"]{color:var(--ink);font-weight:700;border-bottom-color:var(--acc)}
+main{flex:1;display:flex}
+iframe{flex:1;width:100%;border:0;min-height:calc(100dvh - 160px)}
+footer{border-top:1px solid var(--line);padding:12px 14px 16px;font-size:13px;line-height:1.6;color:var(--sub);text-align:center}
+@media (min-width:900px){header{padding:14px 24px 0}h1{font-size:22px}nav button{flex:0 0 auto;padding:10px 22px 12px;font-size:17px}}
+</style></head>
+<body>
+<header><h1>세금 계산기</h1><nav role="tablist"><button role="tab" data-src="chwideuk.html" aria-selected="true">취득세</button><button role="tab" data-src="yangdo.html" aria-selected="false">양도세</button><button role="tab" data-src="jongbu.html" aria-selected="false">종부세</button><button role="tab" data-src="stock.html" aria-selected="false">비상장주식 평가</button></nav></header>
+<main><iframe id="pg" title="계산기"></iframe></main>
+<footer>본 자료 = 일반적 정보 제공 목적, 실제 적용 시 개별 사안별 법률적 검토 및 전문가 자문 필수<br>계산은 이 기기 안에서만 하며 입력값은 어디에도 보내지 않습니다.</footer>
+<script>
+(function(){var B=[].slice.call(document.querySelectorAll('nav button')),F=document.getElementById('pg');
+function go(b,push){B.forEach(function(x){x.setAttribute('aria-selected',x===b)});if(F.getAttribute('src')!==b.dataset.src)F.setAttribute('src',b.dataset.src);if(push)history.replaceState(null,'','#'+b.dataset.src.replace('.html',''))}
+B.forEach(function(b){b.addEventListener('click',function(){go(b,true)})});
+var h=location.hash.slice(1),first=B[0];B.forEach(function(b){if(h&&b.dataset.src===h+'.html')first=b});
+(window.__fontsP||Promise.resolve()).then(function(){if(!F.getAttribute('src'))go(first,false)});})();
+</script>
+</body></html>
