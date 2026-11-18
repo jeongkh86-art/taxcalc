@@ -2218,6 +2218,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports.CIT = CIT;
 
 
 
+
 var GBR = (function () {
   var R = {
     year: 2026,
@@ -2244,6 +2245,7 @@ var GBR = (function () {
     [127000,1141],[142000,1191],[158000,1241],[176000,1291],[196000,1341],[218000,1391],[242000,1451],[270000,1511],[300000,1571],[330000,1641],
     [363000,1711],[399300,1781],[439230,1851],[483153,1921],[531468,1991],[584615,2061],[643077,2131],[707385,2201],[778124,2271],[Infinity,2341]];
   function n(v) { v = +v; return isFinite(v) && v > 0 ? v : 0; }
+  function T10(x) { return Math.floor(x / 10) * 10; }   
   function grade(base) { 
     if (base <= 0) return { grade: 0, point: 0 };
     for (var i = 0; i < G.length; i++) if (base <= G[i][0]) return { grade: i + 1, point: G[i][1] };
@@ -2305,10 +2307,10 @@ var GBR = (function () {
     var propPrem = g.point * R.point;
     
     var raw = Math.floor(incPrem) + Math.floor(propPrem);
-    var health0 = Math.floor(Math.min(R.capOther, Math.max(R.floor, raw)));
+    var health0 = T10(Math.min(R.capOther, Math.max(R.floor, raw)));   
     var cut = Math.min(100, n(h.cutPct)) / 100;
-    var health = Math.floor(health0 * (1 - cut));
-    var ltc = Math.floor(health * R.ltcRatio);
+    var health = T10(health0 * (1 - cut));
+    var ltc = T10(health * R.ltcRatio);
     return { annualIncome: annual, health0: health0, cut: cut, fin: fin, finIn: finIn, incM: incM, incFloor: incFloor, incPrem: Math.floor(incPrem), prop: prop, rent: rent, loan: loan,
              base: base, grade: g.grade, point: g.point, propPrem: Math.floor(propPrem), raw: raw, capped: raw > R.capOther,
              health: health, ltc: ltc, month: health + ltc, year: (health + ltc) * 12 };
@@ -2316,17 +2318,17 @@ var GBR = (function () {
   
   function employee(wageM, p) {
     var w = n(wageM) * 10000;
-    var wp = Math.floor(Math.min(R.capWage, Math.max(R.floor, w * R.rate)));
+    var wp = T10(Math.min(R.capWage, Math.max(R.floor, w * R.rate)));
     var I = income(p), S = I.total, extraM = 0, ep = 0;
     if (S > R.extraCut) {
       var share = (I.full + I.half * 0.5) / S;     
       extraM = (S - R.extraCut) * 10000 / 12 * share;
-      ep = Math.floor(Math.min(R.capOther, extraM * R.rate));
+      ep = T10(Math.min(R.capOther, extraM * R.rate));
     }
-    var wSelf = Math.floor(wp / 2);
-    return { wage: w, wagePrem: wp, wageSelf: wSelf, wageLtcSelf: Math.floor(wSelf * R.ltcRatio),
-             extraTotal: S, extraM: extraM, extraPrem: ep, extraLtc: Math.floor(ep * R.ltcRatio),
-             selfMonth: wSelf + Math.floor(wSelf * R.ltcRatio) + ep + Math.floor(ep * R.ltcRatio) };
+    var wSelf = T10(wp / 2);
+    return { wage: w, wagePrem: wp, wageSelf: wSelf, wageLtcSelf: T10(wSelf * R.ltcRatio),
+             extraTotal: S, extraM: extraM, extraPrem: ep, extraLtc: T10(ep * R.ltcRatio),
+             selfMonth: wSelf + T10(wSelf * R.ltcRatio) + ep + T10(ep * R.ltcRatio) };
   }
   function houseStd(price, kind) { 
     price = n(price);
@@ -2338,7 +2340,7 @@ var GBR = (function () {
   
   
   function wage(m, o) {
-    o = o || {}; var u = o.round || 1, RD = function (x) { return Math.floor(x / u) * u; };
+    o = o || {}; var u = o.round || 10, RD = function (x) { return Math.floor(x / u) * u; };
     var y = m * R.rate; if (o.floor !== false) y = Math.max(R.floor, y);
     var full = Math.min(RD(y), R.capWage), emp = RD(full / 2), com = full - emp;
     return { full: full, emp: emp, com: com, ltcE: RD(emp * R.ltcRatio), ltcC: RD(com * R.ltcRatio) };
