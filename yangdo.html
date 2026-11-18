@@ -6842,6 +6842,12 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     [/순손익/, '순손익가치', '최근 3년 순손익 기준 1주당 가치'],
     [/순자산/, '순자산가치', '(자산 − 부채) ÷ 발행주식총수'],
     [/사업용자산/, '사업용자산비율', '총자산 중 사업용자산 비율 — 가업승계 공제 범위 결정'],
+    [/사업무관/, '사업무관자산', '사업에 직접 쓰지 않는 자산 — 비사업용 토지, 임대 부동산, 대여금, 과다보유현금, 영업 무관 주식, 금융상품(상증령 §15⑤2호 가~마목)'],
+    [/과다보유현금|라목/, '과다보유현금', '상속개시일 현재 현금 중 직전 5개 사업연도 말 평균 현금의 200% 초과분 — 사업무관자산'],
+    [/적용가액/, '적용가액', '상증법 제4장으로 평가한 금액(시가, 보충적 평가액) — 장부가액과 다를 수 있음'],
+    [/장부가액/, '장부가액', '회사 재무상태표에 적힌 금액(감가상각, 충당금 차감 후)'],
+    [/상속개시일/, '상속개시일', '피상속인이 사망한 날 — 상속재산 평가기준일'],
+    [/피상속인/, '피상속인', '사망으로 재산을 물려주는 사람'],
     [/이익소각/, '이익소각', '회사가 이익잉여금으로 자기주식을 취득해 소각'],
     [/가업/, '가업승계', '10년 이상 경영한 중소, 중견기업 승계 시 상속세, 증여세 특례(요건, 사후관리 있음)'],
     [/배당가산|Gross-up|그로스업/i, '배당가산액', '이자 + 배당 2천만원 초과 시 국내 법인 배당에 법정 비율만큼 가산하는 금액 — 자동 계산'],
@@ -6873,7 +6879,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
   }
   
   var EOKRE = /(^|[^\d,.(])(\d{1,3}(?:,\d{3})+|\d+)원(?!\))/g;
-  function eokTxt(t) { return t.replace(EOKRE, function (m, pre, num) { var v = +num.replace(/,/g, ''); if (!(v >= 1e8)) return m; var e = Math.round(v / 1e6) / 100; return pre + e.toLocaleString('ko-KR', { maximumFractionDigits: 2 }) + '억 (' + v.toLocaleString('ko-KR') + '원)'; }); }
+  function eokTxt(t) { return t.replace(EOKRE, function (m, pre, num) { var v = +num.replace(/,/g, ''); if (!(v >= 1e8)) return m; var e = Math.round(v / 1e6) / 100; return pre + e.toLocaleString('ko-KR', { maximumFractionDigits: 2 }) + '억'; }); }   
   function eokFmt() {
     [].forEach.call(document.querySelectorAll('#pkWz,#wzQs'), function (root) {
       var tw = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, { acceptNode: function (n) { var p = n.parentElement; if (!p || p.closest('.pk-wa,.pk-wq,.pk-wh,.pk-easy,.pk-wi,.pk-wdf,script,style,input,select,textarea,button')) return NodeFilter.FILTER_REJECT; return /\d원/.test(n.nodeValue) ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_SKIP; } });
@@ -6889,6 +6895,6 @@ https://github.com/nodeca/pako/blob/main/LICENSE
 })();
 
 </script>
-<div id="pubFoot" style="margin:28px auto 0;padding:14px 16px 22px;max-width:1100px;font:14px/1.6 Freesentation,-apple-system,BlinkMacSystemFont,'Apple SD Gothic Neo','Malgun Gothic','Noto Sans KR',sans-serif;color:#6B7684;text-align:center;border-top:1px solid #E5E8EB">본 자료 = 일반적 정보 제공 목적, 실제 적용 시 개별 사안별 법률적 검토 및 전문가 자문 필수<br>계산은 이 기기 안에서만 하며 입력값은 어디에도 보내지 않습니다. · 판 2026-11-19</div>
+<div id="pubFoot" style="margin:28px auto 0;padding:14px 16px 22px;max-width:1100px;font:14px/1.6 Freesentation,-apple-system,BlinkMacSystemFont,'Apple SD Gothic Neo','Malgun Gothic','Noto Sans KR',sans-serif;color:#6B7684;text-align:center;border-top:1px solid #E5E8EB">본 자료 = 일반적 정보 제공 목적, 실제 적용 시 개별 사안별 법률적 검토 및 전문가 자문 필수<br>계산은 이 기기 안에서만 하며 입력값은 어디에도 보내지 않습니다. · 판 2026-11-19</div><script>try{if(window.self!==window.top)document.getElementById("pubFoot").style.display="none";}catch(e){}</script>
 </body>
 </html>
