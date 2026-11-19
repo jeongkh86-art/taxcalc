@@ -2566,7 +2566,10 @@ https://github.com/nodeca/pako/blob/main/LICENSE
       }
       if (Hh.rows.length) { var hs = {}; Hh.rows.forEach(function (r) { var k = (r.bildRegstrEsntlNo || '') + '|' + (r.dongCode || ''); if (!hs[k] || String(r.lastUpdtDt) > String(hs[k].lastUpdtDt)) hs[k] = r; });
         Object.keys(hs).forEach(function (k, i, arr) { var r = hs[k]; V.push({ kind: 'house', key: 'H|' + k, v: +r.housePc, t: y + '년 개별주택가격(땅 + 건물)' + (arr.length > 1 ? ' · ' + (i + 1) + '번째 집 · 건물 연면적 ' + r.buldAllTotAr + '㎡' : '') }); }); }
-      if (Ld && Ld.rows.length && A.n === 0) {
+      /* 2026-11-20 오피스텔 = 건물 이름이 있거나 동·호를 넣었는데 주택가격이 없으면(오피스텔, 상가 등) 필지 전체 공시지가를 그 집 값으로 내지 않음 */
+      var bld = (it.address && it.address.bldnm) || '', unit = want !== 'land' && !Hh.rows.length && !(A.n > 0) && (bld || d || h);
+      if (unit) N.push((bld ? '「' + bld + '」' : '이 건물') + ' = 공동주택가격, 개별주택가격이 없어요(오피스텔, 상가 등) — 공시지가 × 필지 전체 면적은 건물 전체의 땅값이라 한 호실 값이 아니에요. 호실 값은 직접 넣어 주세요 : 상속·증여, 양도 = 국세청 오피스텔·상업용건물 기준시가(홈택스, 상증법 §61①3호) · 취득세, 재산세 = 시가표준액(위택스)');
+      if (Ld && Ld.rows.length && A.n === 0 && !unit) {
         var lr = latest(Ld.rows), up = +lr.pblntfPclnd, ar = Ch && Ch.rows.length ? +latest(Ch.rows).lndpclAr : 0;
         if (ar > 0) V.push({ kind: 'land', key: 'L', v: Math.floor(up * ar), t: y + '년 개별공시지가 ' + wonT(up) + '/㎡ × 면적 ' + ar.toLocaleString('ko-KR') + '㎡' + (lr.pblntfDe ? ' · 공시일 ' + lr.pblntfDe : '') + (Hh.rows.length ? ' · 땅만일 때' : '') });
         else N.push(y + '년 개별공시지가 ' + wonT(up) + '/㎡ — 면적을 못 읽어 합계는 직접(공시지가 × 면적)');
