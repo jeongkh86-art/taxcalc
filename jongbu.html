@@ -3327,12 +3327,10 @@ https://github.com/nodeca/pako/blob/main/LICENSE
         return 'landbld';
       }
       var ch = R[3].rows.length ? latest(R[3].rows) : null, use = ch ? (ch.ladUseSittnNm || '') : '', jm = ch ? (ch.lndcgrCodeNm || '') : '';
-      if (!ch) return bld ? 'ot' : 'land';
-      if (/나지|전|답|임야|과수|목장|잡종/.test(use) || (jm && jm !== '대')) return 'land';
-      if (/아파트|연립|다세대/.test(use)) return 'apt';
-      if (/단독|다가구/.test(use)) return 'house';
-      if (bld && /업무|상업|주상/.test(use)) return 'ot';
-      return 'landbld';
+      /* 확실할 때만 고름(공시가격, 건축물대장 = 공적 자료) — 건물 이름은 있는데 건축물대장이 비어 있는 등 애매하면 '' = 고르게 함(짐작 안 함) */
+      if (!ch || bld) return '';
+      if (/나지/.test(use) || (jm && jm !== '대' && !/주거|상업|업무|주상|공업용/.test(use))) return 'land';
+      return '';
     });
   }
   function open(g) { g.querySelector('.gsg-p').hidden = false; g.querySelector('.gsg-o').hidden = true; }
@@ -3366,7 +3364,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
       var A = R[0], Hh = R[1], Ld = R[2], Ch = R[3];
       if (A.n > 0) {
         if (!h) N.push('공동주택(아파트, 연립, 다세대)이에요 — 동, 호를 넣고 다시 [찾기]');
-        else if (!A.rows.length) N.push(y + '년 ' + (d ? d + '동 ' : '') + h + '호 공동주택가격을 못 찾았어요 — 동, 호 번호만(예 28, 1207)');
+        else if (!A.rows.length) N.push(y + '년 ' + (d ? d + '동 ' : '') + h + '호 공동주택가격을 못 찾았어요 — 동, 호 번호만(예 28, 1207) · 주상복합의 오피스텔, 상가 호실이면 「무슨 부동산?」에서 「오피스텔, 구분상가」를 골라 주세요');
         else { var ds = {}; A.rows.forEach(function (r) { ds[r.dongNm + '|' + r.hoNm] = ds[r.dongNm + '|' + r.hoNm] || r; }); var K = Object.keys(ds);
           K.forEach(function (k) { var r = ds[k]; V.push({ kind: 'house', key: 'A|' + k, v: +r.pblntfPc, t: y + '년 공동주택가격 · ' + (r.aphusNm || '') + ' ' + (r.dongNm ? r.dongNm + '동 ' : '') + r.hoNm + '호 · 전용 ' + r.prvuseAr + '㎡' }); }); }
       }
@@ -3404,7 +3402,8 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     var ks = g.querySelector('.gsg-k'), pick = ks ? ks.value : '';
     return (want === 'land' ? Promise.resolve('land') : pick ? Promise.resolve(pick) : detect(it, y)).then(function (k) {
     if (ks && !pick) ks.value = k;
-    var KN = want === 'land' ? '' : '<div class="gsg-n">' + (pick ? '고른 것' : '주소로 짐작') + ' : <b style="display:inline">' + esc(kindName(k)) + '</b>' + (pick ? '' : ' — 틀리면 위 칸에서 바꿔 주세요') + '</div>';
+    if (!k) { out(g, '<div class="gsg-n">' + esc(ad) + '</div><div class="gsg-e">이 주소는 공시가격, 건축물대장 자료로 무슨 부동산인지 확실히 정할 수 없어요 — 위 「무슨 부동산?」 칸에서 골라 주세요(고르면 바로 찾아요)</div>'); return; }
+    var KN = want === 'land' ? '' : '<div class="gsg-n">' + (pick ? '고른 것' : '공적 자료로 확인') + ' : <b style="display:inline">' + esc(kindName(k)) + '</b>' + (pick ? '' : (k === 'apt' ? ' (공동주택가격 있음)' : k === 'house' ? ' (개별주택가격 있음)' : k === 'land' ? ' (토지특성 : 건물 없는 땅)' : ' (건축물대장 용도)')) + '</div>';
     var OT = k === 'ot' && want !== 'land' ? '<div class="gsg-e">오피스텔, 구분상가 호실 값 = 국세청이 호실마다 땅과 건물을 한꺼번에 고시하는 기준시가라 여기서 못 찾아요(상증법 §61①3호) — 홈택스 「기준시가 조회」에서 찾아 위 칸에 직접 넣어 주세요 · 취득세, 재산세 = 위택스 시가표준액</div><div class="gsg-r"><a class="gsg-o" style="text-decoration:none" href="https://hometax.go.kr" target="_blank" rel="noopener">홈택스 열기</a></div>' : '';
     return Promise.all([yearVals(it, y, d, h, want, k)].concat(Y.map(function (yy) { return yearVals(it, yy, d, h, 'any', k).catch(function () { return { V: [], N: [] }; }); }))).then(function (RR) {
       var V = RR[0].V, N = RR[0].N, OY = {}; Y.forEach(function (yy, i) { OY[yy] = RR[i + 1].V; });
