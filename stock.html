@@ -14965,7 +14965,7 @@ function kcmapBytes(b64){
   for(var i=0;i<n;i++) u[i]=bin.charCodeAt(i);
   return u;
 }
-var CMAP_CDN='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/cmaps/';
+var CMAP_CDN='https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/cmaps/';   
 function KCMapReaderFactory(params){ this.baseUrl=(params&&params.baseUrl)||CMAP_CDN; }
 KCMapReaderFactory.prototype.fetch=function(p){
   var nm=(p&&p.name)||'';
@@ -14980,7 +14980,7 @@ KCMapReaderFactory.prototype.fetch=function(p){
 function pdfOpenOpts(u8){
   return {data:u8, cMapUrl:CMAP_CDN, cMapPacked:true,
           CMapReaderFactory:KCMapReaderFactory,
-          standardFontDataUrl:'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/standard_fonts/'};
+          standardFontDataUrl:'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/standard_fonts/'};
 }
 
 var TXMARK_RE=/법인세과세표준및세액조정계산서|소득금액조정합계표|자본금과적립금계산서|과세표준및세액신고서|세무조정계산서|기업업무추진비조정명세서|접대비조정명세서|업무무관부동산등에관련한차입금이자조정명세서|주식등변동상황명세서|법인세과세표준및세액신고서/;
@@ -18179,6 +18179,19 @@ function sevOverlay(inp){
   if(U.pcAmt||U.pcShares||U.pcDate||U.pcSrc){ var pc=postCapInfo(); A.postCap={amount:pc.amt, shares:pc.sh, date:pc.date, source:pc.src}; set.push('결산일 뒤 자본거래 '+fmt(pc.amt)+'원'); }
   if(U.purchasedGW){ A.purchasedGoodwill=wonOf('purchasedGW'); set.push('매입 영업권'); }
   if(U.gwConvOk||U.gwConvW){ C.convGoodwill=ck('gwConvOk'); C.convW=$('gwConvW')?wonOf('gwConvW'):0; set.push('법인전환 영업권 예외 '+(C.convGoodwill?'예':'아니오')); }
+  
+  [['reMarket','market','부동산 시가'],['reAppraised','baseValue','부동산 기준시가']].forEach(function(q){
+    var tot=wonOf(q[0]); if(!(tot>0)) return;
+    var RE=A.realEstate=A.realEstate||[], src=inp.src=inp.src||{};
+    var P=RE.map(function(p,j){ return {p:p,j:j}; }).filter(function(x){ return /토지|건물|구축물/.test(x.p.kind||'토지')&&TE.num(x.p.book)>0; });
+    if(RE.some(function(p){ return p&&TE.num(p[q[1]])>0; })){ set.push(q[2]+' '+fmt(tot)+'원 칸 안 씀(엔진 입력에 이미 값 있음 = 꼭 확인 답 파일·자료 판독 먼저)'); return; }
+    if(!P.length){ set.push(q[2]+' '+fmt(tot)+'원 — 엔진에 장부가 있는 부동산 줄이 없어 못 넣음 [확인 필요]'); return; }
+    var bases=P.map(function(x){ try{ return SEV.parcel(x.p).base; }catch(e){ return null; } });
+    var byBase=bases.every(function(b){ return b!==null&&b>0; });
+    var w=P.map(function(x,i){ return byBase?bases[i]:TE.num(x.p.book); }), ws=w.reduce(function(s,v){ return s+v; },0)||1, used=0, part=[];
+    P.forEach(function(x,i){ var v=i===P.length-1?tot-used:Math.floor(tot*w[i]/ws); used+=v; x.p[q[1]]=v; src['asset.realEstate.'+x.j+'.'+q[1]]='입력('+q[0]+' '+fmt(tot)+'원 · '+(byBase?'기준시가':'장부가')+' 비율로 나눔)'; part.push((x.p.kind||'부동산')+' '+fmt(v)); });
+    set.push(q[2]+' '+fmt(tot)+'원'+(P.length>1?' ('+part.join(' + ')+' · '+(byBase?'기준시가 비율로 나눔':'장부가 비율로 나눔 [확인 필요]')+')':''));
+  });
   
   var man=Object.keys(S.txadj||{}).filter(function(y){ return S.txadj[y]&&S.txadj[y].manual; });
   if(man.length){
