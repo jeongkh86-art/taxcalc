@@ -649,6 +649,17 @@ var JBS = (function () {
   var PT_STD = [[0.6,.001],[1.5,.0015],[3,.0025],[INF,.004]];
   var PT_ONE = [[0.6,.0005],[1.5,.001],[3,.002],[INF,.0035]];
 
+  
+  
+  
+  
+  var FIX = { e1: true, e3: true, e4: true };
+  function setFix(o) { var old = { e1: FIX.e1, e3: FIX.e3, e4: FIX.e4 }; if (o) Object.keys(o).forEach(function (k) { if (k in FIX) FIX[k] = !!o[k]; }); return old; }
+  function cl(v) { return isFinite(v) && v !== 0 ? +(+v).toPrecision(15) : v; }   
+  function fl(v) { return FIX.e4 ? Math.floor(cl(v)) : v; }                   
+  function rd(v) { return FIX.e4 ? Math.round(cl(v)) : v; }                  
+  function fl10(v) { return Math.floor(cl(v) / 10) * 10; }                    
+  function tr10(x) { return Math.trunc(cl(cl(x) * 1e10)) / 1e10; }          
   function prog(base, table) {
     var tax = 0, lo = 0, steps = [];
     for (var i = 0; i < table.length; i++) {
@@ -665,11 +676,26 @@ var JBS = (function () {
   function ptFmv(price, one, rule) { if (rule && rule.fmvH != null) return one ? clampR(rule.fmvH, .3, .7) : clampR(rule.fmvH, .4, .8);
     if (!one || (rule && rule.fmvOne === false)) return .6; return price <= 3 * EOK ? .43 : price <= 6 * EOK ? .44 : .45; }
   
-  function propTax(price, one, rule, cap) {
+  
+  
+  function propTax(price, one, rule, cap, lim, sp) {
     var f = ptFmv(price, one, rule), base0 = price * f, base = (cap != null && cap < base0) ? cap : base0;
-    var special = one && price <= 9 * EOK && !(rule && rule.special === false);
-    var t = prog(base, special ? PT_ONE : PT_STD).tax;
-    return { fmv: f, base: base, base0: base0, tax: t, special: special, city: base * .0014, edu: t * .2 };
+    if (FIX.e4) { base0 = Math.floor(cl(base0)); base = Math.floor(cl(base)); }
+    var special = sp != null ? !!sp : (one && price <= 9 * EOK && !(rule && rule.special === false));
+    var t = fl(prog(base, special ? PT_ONE : PT_STD).tax), city = fl(base * .0014), limited = false;
+    if (lim && lim.tax != null && t > lim.tax) { t = fl(lim.tax); limited = true; }
+    if (lim && lim.city != null && city > lim.city) { city = fl(lim.city); limited = true; }
+    return { fmv: f, base: base, base0: base0, tax: t, special: special, city: city, edu: fl(t * .2), limited: limited };
+  }
+  
+  function limRate(price, corp) { return corp ? 1.5 : price <= 3 * EOK ? 1.05 : price <= 6 * EOK ? 1.1 : 1.3; }
+  
+  function priorPT(prevPrice, price, one, rule) {
+    var ruleOn = !(rule && rule.special === false), spNow = one && price <= 9 * EOK && ruleOn;
+    var spPrev = (!spNow && ruleOn && one && prevPrice <= 9 * EOK && price > 9 * EOK) ? true : spNow;
+    var r0 = rule && rule.fmvH != null ? Object.assign({}, rule) : rule; if (r0 && r0.fmvH != null) delete r0.fmvH;   
+    var p = propTax(prevPrice, one, r0, null, null, spPrev);
+    return { tax: p.tax, city: p.city };
   }
   function rateBy(yrs, t) { return yrs >= t[2][0] ? t[2][1] : yrs >= t[1][0] ? t[1][1] : yrs >= t[0][0] ? t[0][1] : 0; }
   var HOLD = [[5,.2],[10,.4],[15,.5]];
@@ -727,7 +753,7 @@ var JBS = (function () {
     if (inp.fmvSet != null) fmv = clampR(inp.fmvSet, .6, 1);       
     else if (inp.fmvAdd) fmv = Math.min(1, fmv + inp.fmvAdd);    
 
-    var base = Math.max(0, sum - ded) * fmv;
+    var base = fl(Math.max(0, sum - ded) * fmv);                
 
     
     var tbl, flat = null, tblName;
@@ -737,17 +763,33 @@ var JBS = (function () {
     } else if (year === 2026) { tbl = n >= 3 ? RATE.cur3 : RATE.cur2; tblName = n >= 3 ? '3주택 이상' : '2주택 이하'; }
     else if (year === 2027) { tbl = n >= 3 ? RATE.y27_3 : RATE.y27_2; tblName = n >= 3 ? '2027 3주택 이상' : '2027 1·2주택'; }
     else { tbl = RATE.y28; tblName = '2028 가액 기준 일원화'; }
-    var calcTax = flat !== null ? base * flat : prog(base, tbl).tax;
+    var calcTax = fl(flat !== null ? base * flat : prog(base, tbl).tax);
 
     
     
-    var pts = hs.map(function (h) { var p = propTax(h.price, ptOne, inp.ptRule, h.ptCap), s = sh(h); return { fmv: p.fmv, base: p.base * s, tax: p.tax * s, special: p.special, city: p.city * s, edu: p.edu * s, capped: p.base < p.base0 }; });
+    
+    
+    var ptHouse = (inp.houses || []).map(function () { return null; });
+    var pts = hs.map(function (h) {
+      var f0 = ptFmv(h.price, ptOne, inp.ptRule), cap = h.ptCap, lim = null;
+      if (cap == null && h.prevPrice > 0) cap = h.prevPrice * f0 + h.price * f0 * .05;
+      if (FIX.e3) {
+        var pr = h.ptPrev || (h.prevPrice > 0 ? priorPT(h.prevPrice, h.price, ptOne, inp.ptRule) : null), k = limRate(h.price, corp);
+        if (pr) lim = { tax: pr.tax * k, city: pr.city * k };
+      }
+      var p = propTax(h.price, ptOne, inp.ptRule, cap, lim), s = sh(h);
+      ptHouse[(inp.houses || []).indexOf(h)] = { tax: p.tax, city: p.city, special: p.special };
+      return { fmv: p.fmv, base: p.base * s, tax: p.tax * s, special: p.special, city: p.city * s, edu: p.edu * s, capped: p.base < p.base0, limited: p.limited };
+    });
     var ptSum = pts.reduce(function (a, p) { return a + p.tax; }, 0);
     var pf = ptOne ? ptFmv(hs.length ? hs[0].price : 0, true, inp.ptRule) : ptFmv(0, false, inp.ptRule);   
     var ptStdAll = prog(sum * pf, PT_STD).tax;               
-    var ptNum = base * pf * .004;                             
-    var ptCredit = ptStdAll > 0 ? Math.min(calcTax, ptSum * ptNum / ptStdAll) : 0;
-    ptCredit = Math.floor(ptCredit / 10) * 10;                
+    
+    var ptNum = (corp && FIX.e1) ? prog(base * pf, PT_STD).tax : base * pf * .004;
+    var ptCredit;
+    if (FIX.e4) ptCredit = ptStdAll > 0 ? Math.min(calcTax, Math.floor(cl(ptSum * tr10(ptNum / ptStdAll)))) : 0;   
+    else { ptCredit = ptStdAll > 0 ? Math.min(calcTax, ptSum * ptNum / ptStdAll) : 0; ptCredit = Math.floor(ptCredit / 10) * 10; }   
+    if (FIX.e1) ptCredit = Math.min(ptCredit, Math.floor(cl(ptSum)));   
     var afterPt = calcTax - ptCredit;
 
     
@@ -759,8 +801,9 @@ var JBS = (function () {
       var tenure = year === 2026 ? holdR : year === 2027 ? Math.max(holdR / 2, resR) : resR;
       crRate = Math.min(.8, ageR + tenure);
       
-      crBase = exSum > 0 && sum > 0 ? afterPt * (sum - exSum) / sum : afterPt;
-      crRaw = crBase * crRate;
+      crBase = fl(exSum > 0 && sum > 0 ? afterPt * (sum - exSum) / sum : afterPt);
+      
+      crRaw = !FIX.e4 ? crBase * crRate : (ageR + tenure > .8 ? fl(crBase * .8) : fl(crBase * ageR) + fl(crBase * tenure));
       crCap = year === 2027 ? 800 * MAN : year === 2028 ? 600 * MAN : null;
       credit = crCap === null ? crRaw : Math.min(crRaw, crCap);
     }
@@ -770,25 +813,29 @@ var JBS = (function () {
     var capCut = 0, capInfo = null;
     if (!corp && inp.prev > 0) {
       var thisTot = ptSum + jbs, lim = inp.prev * 1.5;
-      if (thisTot > lim) capCut = Math.min(jbs, thisTot - lim);
+      if (thisTot > lim) capCut = FIX.e4 ? jbs - Math.min(jbs, Math.max(0, fl(lim - ptSum))) : Math.min(jbs, thisTot - lim);   
       capInfo = { thisTot: thisTot, lim: lim };
     }
     jbs -= capCut;
 
     
-    var agri = jbs * .2;
+    var agri = rd(jbs * .2);                                   
     
     var instAmt = installment(jbs).later;
     var pay = jbs + agri;
     var hold = { prop: ptSum, city: pts.reduce(function (a, p) { return a + p.city; }, 0), edu: pts.reduce(function (a, p) { return a + p.edu; }, 0) };
     hold.total = hold.prop + hold.city + hold.edu + pay;
+    
+    var notice = { jbs: fl10(jbs), agri: fl10(agri), prop: fl10(hold.prop), city: fl10(hold.city), edu: fl10(hold.edu) };
+    notice.pay = notice.jbs + notice.agri; notice.total = notice.pay + notice.prop + notice.city + notice.edu;
 
     return {
       year: year, corp: corp, one: one, n: n, sum: sum, ded: ded, dedWhy: dedWhy, fmv: fmv, fmvBase: fmvBase, base: base,
       tblName: tblName, calcTax: calcTax, ptSum: ptSum, ptCredit: ptCredit, afterPt: afterPt,
       exSum: exSum, crBase: crBase, ageR: ageR, holdR: holdR, resR: resR, crRate: crRate, crRaw: crRaw, crCap: crCap, credit: credit,
       capCut: capCut, capInfo: capInfo, jbs: jbs, agri: agri, pay: pay, installment: jbs > 250 * MAN, instAmt: instAmt,
-      hold: hold, ptFmvs: pts.map(function (p) { return p.fmv; }), ptFmvLegal: hs.map(function (h) { var r0 = inp.ptRule ? Object.assign({}, inp.ptRule) : null; if (r0) delete r0.fmvH; return ptFmv(h.price, ptOne, r0); }), fmvSet: inp.fmvSet != null, anySpecial: pts.some(function (p) { return p.special; }), ptCapped: pts.some(function (p) { return p.capped; }), ptOne: ptOne
+      hold: hold, ptFmvs: pts.map(function (p) { return p.fmv; }), ptFmvLegal: hs.map(function (h) { var r0 = inp.ptRule ? Object.assign({}, inp.ptRule) : null; if (r0) delete r0.fmvH; return ptFmv(h.price, ptOne, r0); }), fmvSet: inp.fmvSet != null, anySpecial: pts.some(function (p) { return p.special; }), ptCapped: pts.some(function (p) { return p.capped; }), ptOne: ptOne,
+      ptLimited: pts.some(function (p) { return p.limited; }), ptHouse: ptHouse, notice: notice
     };
   }
 
@@ -805,22 +852,23 @@ var JBS = (function () {
     caps = caps || {}; prevTot = prevTot || {};
     var lf = inp.ptFmvL != null ? clampR(inp.ptFmvL, .5, .9) : .7;   
     function part(sum, ded, tbl, ptTbl, top, ptMax, prevT) {
-      var ptBase = sum * lf, ptRaw = prog(ptBase, ptTbl).tax;  
-      var pt = (ptMax != null && ptRaw > ptMax) ? ptMax : ptRaw;
-      var base = Math.max(0, sum - ded);                       
-      var t = prog(base, tbl).tax;
+      var ptBase = fl(sum * lf), ptRaw = fl(prog(ptBase, ptTbl).tax);  
+      var pt = (ptMax != null && ptRaw > ptMax) ? fl(ptMax) : ptRaw;
+      var base = fl(Math.max(0, sum - ded));                   
+      var t = fl(prog(base, tbl).tax);
       
-      var cr = ptRaw > 0 ? Math.min(t, pt, pt * (base * lf * top) / ptRaw) : 0;
+      
+      var cr = ptRaw > 0 ? Math.min(t, pt, FIX.e4 ? fl10(pt * tr10((base * lf * top) / ptRaw)) : pt * (base * lf * top) / ptRaw) : 0;
       var j = t - cr, capCut = 0;
-      if (prevT > 0 && pt + j > prevT * 1.5) { capCut = Math.min(j, pt + j - prevT * 1.5); j -= capCut; }
-      return { sum: sum, ded: ded, base: base, calcTax: t, pt: pt, ptRaw: ptRaw, ptCredit: cr, jbs: j, capCut: capCut, city: ptBase * .0014, edu: pt * .2 };
+      if (prevT > 0 && pt + j > prevT * 1.5) { capCut = FIX.e4 ? j - Math.min(j, Math.max(0, fl(prevT * 1.5 - pt))) : Math.min(j, pt + j - prevT * 1.5); j -= capCut; }
+      return { sum: sum, ded: ded, base: base, calcTax: t, pt: pt, ptRaw: ptRaw, ptCredit: cr, jbs: j, capCut: capCut, city: fl(ptBase * .0014), edu: fl(pt * .2) };
     }
     var c = part(inp.comb || 0, 5 * EOK, year >= 2028 ? L_COMB27 : L_COMB, PTL_COMB, .005, caps.comb, prevTot.comb);
     var s = part(inp.sep || 0, 80 * EOK, L_SEP, PTL_SEP, .004, caps.sep, prevTot.sep);
-    var bBase = (inp.bldg || 0) * lf, bRaw = bBase * .0025;   
-    var bPt = (caps.bldg != null && bRaw > caps.bldg) ? caps.bldg : bRaw;
-    var b = { pt: bPt, ptRaw: bRaw, city: bBase * .0014, edu: bPt * .2 };
-    var jbs = c.jbs + s.jbs, agri = jbs * .2;
+    var bBase = fl((inp.bldg || 0) * lf), bRaw = fl(bBase * .0025);   
+    var bPt = (caps.bldg != null && bRaw > caps.bldg) ? fl(caps.bldg) : bRaw;
+    var b = { pt: bPt, ptRaw: bRaw, city: fl(bBase * .0014), edu: fl(bPt * .2) };
+    var jbs = c.jbs + s.jbs, agri = rd(jbs * .2);
     var hold = c.pt + s.pt + b.pt + c.city + s.city + b.city + c.edu + s.edu + b.edu + jbs + agri;
     return { comb: c, sep: s, bldg: b, jbs: jbs, agri: agri, pay: jbs + agri, hold: hold, ptFmv: lf };
   }
@@ -878,33 +926,46 @@ var JBS = (function () {
       var f = Math.pow(1 + g, k), fb = Math.pow(1 + gb, k);
       return Object.assign({}, inp, {
         
-        houses: (inp.houses || []).map(function (h) { var x = Object.assign({}, h, { price: h.price * (gOk(h.g) ? Math.pow(1 + +h.g, k) : f) }); delete x.ptCap; return x; }),
+        houses: (inp.houses || []).map(function (h) { var x = Object.assign({}, h, { price: h.price * (gOk(h.g) ? Math.pow(1 + +h.g, k) : f) }); delete x.ptCap; delete x.prevPrice; delete x.ptPrev; return x; }),   
         comb: (inp.comb || 0) * f, sep: (inp.sep || 0) * f, bldg: (inp.bldg || 0) * fb,
         age: (inp.age || 0) + k, hold: (inp.hold || 0) + k, resid: (inp.resid || 0) + k,
         ptRule: ptRule(Y), prev: null, fmvAdd: (o.fmvAdd && o.fmvAdd[Y]) || 0, fmvSet: ov(o.fmvSet, Y), ptFmvL: ov(o.ptFmvL, Y)
       });
     }
     function live(h) { return h.price > 0 && (h.share == null || h.share > 0); }
-    var rows = [], cum = 0, prevX = null, prevHRaw = null, prevL = null, prevLRaw = null;
+    var rows = [], cum = 0, prevX = null, prevHRaw = null, prevHRes = null, prevL = null, prevLRaw = null;
     for (var k = 0; k < N; k++) {
       var Y = S + k, R = ruleYear(Y), x = inpAt(k, Y), flags = [];
       var hs = x.houses.filter(live), hRes = null, hRaw = null;
       if (hs.length) {
         hRaw = calc(x, R);                                     
         var y = Object.assign({}, x);
-        if (k === 0) y.prev = inp.prev;
-        else {
+        if (k === 0) {
+          y.prev = inp.prev;
+          
+          if ((inp.houses || []).some(function (h) { return h.prevPrice > 0; })) y.houses = x.houses.map(function (h, i) { var o = inp.houses[i]; return o && o.prevPrice > 0 ? Object.assign({}, h, { prevPrice: +o.prevPrice }) : h; });
+        } else {
           y.prev = prevHRaw ? prevHRaw.ptSum + prevHRaw.jbs : null;
           
           var ptOneK = x.ptOne != null ? !!x.ptOne : (x.owner !== '법인' && !!x.one && hs.length >= 1);
+          
+          
+          var ruleOnK = !(x.ptRule && x.ptRule.special === false);
           y.houses = x.houses.map(function (h, i) {
             var ph = prevX.houses[i], f = ptFmv(h.price, ptOneK, x.ptRule);
-            return ph && ph.price > 0 ? Object.assign({}, h, { ptCap: ph.price * f + h.price * f * .05 }) : h;
+            if (!(ph && ph.price > 0)) return h;
+            var o = Object.assign({}, h, { ptCap: ph.price * f + h.price * f * .05 }), pv = prevHRes && prevHRes.ptHouse ? prevHRes.ptHouse[i] : null;
+            if (FIX.e3 && Y <= 2028 && pv) {
+              var spNow = ptOneK && h.price <= 9 * EOK && ruleOnK, keepPrev = pv.special && !spNow && ruleOnK && h.price > 9 * EOK;
+              o.ptPrev = (pv.special === spNow || keepPrev) ? { tax: pv.tax, city: pv.city } : (function () { var p = propTax(ph.price, ptOneK, prevX.ptRule, null, null, spNow); return { tax: p.tax, city: p.city }; })();
+            }
+            return o;
           });
         }
         hRes = calc(y, R);
         if (hRes.capCut > 0) flags.push('§10 상한 −' + Math.round(hRes.capCut / MAN).toLocaleString('ko-KR') + '만');
         if (hRes.ptCapped) flags.push('재산세 과표상한');
+        if (hRes.ptLimited) flags.push('재산세 세부담상한(종전 §122)');
         if (Y >= 2027 && !keep && hRes.ptOne) flags.push('1주택 재산세 특례 종료');
       }
       var lRaw = land(x, R), lRes = lRaw;
@@ -929,7 +990,7 @@ var JBS = (function () {
       };
       cum += r.total; r.cum = cum;
       rows.push(r);
-      prevX = x; prevHRaw = hRaw; prevL = lRes; prevLRaw = lRaw;
+      prevX = x; prevHRaw = hRaw; prevHRes = hRes; prevL = lRes; prevLRaw = lRaw;
     }
     return { rows: rows, total: cum, N: N, start: S, g: g, gb: gb, mode: reform ? 'reform' : 'cur', reformStart: rs, keepSpecial: keep };
   }
@@ -990,6 +1051,7 @@ var JBS = (function () {
         if (o.type === 'house' || o.type === 'otRes') {
           var hx = { price: o.price, share: w, adj: !!o.adj, resid: !!o.resid };
           if (gOk(o.g)) hx.g = +o.g;   
+          if (+o.prevPrice > 0) hx.prevPrice = +o.prevPrice;   
           if (o.ex === 'small') hx.xr = true;
           else if (o.ex && o.ex !== 'rent') { hx.ex = o.ex; hx.crx = CRX.indexOf(o.ex) >= 0; hx.xr = XR_ALWAYS.indexOf(o.ex) >= 0 || (deem && (o.ex === 'temp' || o.ex === 'local')); }
           q.houses.push(hx);
@@ -1058,14 +1120,16 @@ var JBS = (function () {
     { id: 'B-35억', d: '같은 조건 · 공시 35억', inp: { one: 1, p: 35, age: 50, hold: 2, resid: 2 }, exp: { 2026: [1134.7, 2035.6], 2028: [1698.5, 2599.4] } },
     { id: 'B-50억', d: '같은 조건 · 공시 50억', inp: { one: 1, p: 50, age: 50, hold: 2, resid: 2 }, exp: { 2026: [2344.3, 3663.7], 2028: [4015.7, 5335.1] } },
     { id: '사례①', d: '1주택 거주 70세 10년 · 공시 30억(p.44)', inp: { one: 1, p: 30, age: 70, hold: 10, resid: 10 }, exp: { 2026: [154.9, 916.3], 2027: [200.3, 961.7], 2028: [281.3, 1042.7] } },
-    { id: '사례③', d: '1주택 거주 70세 10년 · 공시 50억(p.44)', inp: { one: 1, p: 50, age: 70, hold: 10, resid: 10 }, exp: { 2026: [468.9, 1788.3], 2027: [1942.1, 3261.5], 2028: [3295.7, 4615.1] } }
+    
+    
+    { id: '사례③', d: '1주택 거주 70세 10년 · 공시 50억(p.44)', inp: { one: 1, p: 50, age: 70, hold: 10, resid: 10 }, exp: { 2026: [468.9, 1788.3], 2027: [1205.5, 2524.9], 2028: [3295.7, 4615.1] }, prevY: { 2027: 2026 } }
   ];
   function runCases() {
     var rows = [];
     CASES.forEach(function (c) {
       var inp = { owner: '개인', one: !!c.inp.one, houses: [{ price: c.inp.p * EOK, adj: false, resid: true }], age: c.inp.age, hold: c.inp.hold, resid: c.inp.resid, prev: null, multi: '산식' };
       Object.keys(c.exp).forEach(function (y) {
-        var r = calc(inp, +y), e = c.exp[y];
+        var py = c.prevY && c.prevY[y], r0 = py ? calc(inp, py) : null, r = calc(py ? Object.assign({}, inp, { prev: r0.ptSum + r0.jbs }) : inp, +y), e = c.exp[y];
         var g1 = Math.round(r.pay / 1000) / 10, g2 = Math.round(r.hold.total / 1000) / 10;
         rows.push({ id: c.id, d: c.d, year: +y, expJ: e[0], gotJ: g1, expH: e[1], gotH: g2, ok: Math.abs(g1 - e[0]) <= 0.15 && Math.abs(g2 - e[1]) <= 0.15 });
       });
@@ -1088,12 +1152,12 @@ var JBS = (function () {
     add('hbase', '과세표준', r.base, '§8①');
     add('rate', '세율', r.tblName, r.corp ? '§9②' : '§9①', r.corp ? '법인' : r.one ? '1세대 1주택' : '세율 주택 수 ' + r.n + '채');
     add('calc', '산출세액', r.calcTax, '§9①②');
-    add('ptc', '(−) 재산세 중복분 공제', r.ptCredit, '§9③, 영 §4의3', '주택분 재산세 ' + wonT(r.ptSum));
+    add('ptc', '(−) 재산세 중복분 공제', r.ptCredit, '§9③, 영 §4의3', '주택분 재산세 ' + wonT(r.ptSum) + (r.ptCapped ? ' · 과세표준상한(지방세법 §110③)' : '') + (r.ptLimited ? ' · 세부담상한(종전 §122)' : '') + (r.corp ? ' · 법인 분자 = 누진 표준세율' : ''));
     if (r.one) add('cr', '(−) 1세대 1주택 세액공제', r.credit, '§9⑤~⑨', '연령 ' + pc(r.ageR) + ' + 보유 ' + pc(r.holdR) + (r.year > 2026 ? ' · 거주 ' + pc(r.resR) : '') + ' → ' + pc(r.crRate) + (r.crCap ? ', 한도 ' + wonT(r.crCap) : '') + (r.exSum > 0 ? ', 주택 수 제외분 빼고 ' + wonT(r.crBase) : ''));
     if (r.capInfo) add('cap', '(−) 세부담 상한 초과분', r.capCut, '§10', '직전 연도 × 150% = ' + wonT(r.capInfo.lim));
     add('jbsH', '종합부동산세(주택분)', r.jbs);
     add('agriH', '농어촌특별세(주택분 20%)', r.agri, '농특세법 §5①8호');
-    add('payH', '주택분 납부할 세액', r.pay, '§20, 영 §16①', r.installment ? '분납 가능 ' + wonT(r.instAmt) + '(6개월 안)' : '분납 없음(종부세 250만원 이하)');
+    add('payH', '주택분 납부할 세액', r.pay, '§20, 영 §16①', (r.installment ? '분납 가능 ' + wonT(r.instAmt) + '(6개월 안)' : '분납 없음(종부세 250만원 이하)') + (r.notice ? ' · 고지 예상(10원 미만 버림) ' + wonT(r.notice.pay) : ''));
     return S;
   }
   
@@ -1170,15 +1234,17 @@ var JBS = (function () {
       '개편안은 정부안(9.1 확정, 9.3 국회 제출) — 2026-10-22 기준 국회 통과 확인 못 함, 의안 부칙(시행일) 원문 못 찾음',
       '개편 2027년 3주택 이상 6~12억 구간 1.3% — 원문 표의 열 대응이 불명확해 1·2주택과 같게 둠',
       '개편안 일반 다주택 기본공제 — 9.1 정부안 = 4억 + 5억 × 거주주택 공시가 비중(국회 미통과 · 9.1 수정사항은 1세대 1주택 비거주 12억, 부부 공동 비거주 6억만 바꿈 · 재정경제부 개편안 「그 외 4억 + (5억 × 거주주택 비중) ’27.1.1.」) · 기본 = 이 산식, ③ 칸 「9억」으로 종전 유지 가정도 볼 수 있음',
-      '재산세 중복분 공제 분자의 표준세율 적용방법(영 §4의3⑤ 시행규칙 위임) 원문 미확인 — 1천분의 4로 계산, 정부 사례 1주택 9건으로 역검증',
-      '세부담 상한 총세액상당액(영 §5) 원문 미조회 — 「올해 재산세 본세 + 종부세」와 직전연도 입력값의 150%만 비교',
-      '정부 사례③(공시 50억, 70세 10년 거주) 2027년 종부세 1,942.1만원은 같은 표의 「공제한도 적용 전 2,141.1만원」과 맞지 않음 — 표 안 숫자로 다시 맞추면 2,251.7만원(이 시뮬레이터 값). 나머지 17건은 0.1만원까지 일치',
+      '재산세 중복분 공제 분자의 표준세율 적용방법(영 §4의3⑤ 시행규칙 위임, 서식 작성요령) 원문 미확인 — 개인 = 1천분의 4(책 p.114, 홈택스 개인 25건 일치), 법인(공제 0원) = 누진 표준세율(홈택스 법인 2건 역산 · 2026-11-19) · 공제액은 부과 재산세를 넘지 않게',
+      '세부담 상한(종부세법 §10 · 영 §5①) 올해 총세액 = 과세표준상한을 적용한 뒤의 재산세 + 종부세(영 §5① 원문 2026-11-19 확인) · 단년 계산의 직전 연도 총세액상당액 = ③ 입력값(영 §5② 「올해 주택을 직전 연도 법·가격으로 다시 계산」한 값을 넣어야 함)',
+      '정부 사례③(공시 50억, 70세 10년 거주) 2027년 = 9.1 정부안(세부담상한 150% 유지) 기준 종부세 1,205.5만원, 보유세 2,524.9만원으로 검산 · 정부 표 1,942.1만원 = 8.3 원안 세부담상한 200% 적용값(엔진 오류 아님 · 2026-11-19 세법파트 고지액 정밀대조 4장)',
       '토지분 재산세 공제(영 §5의3) 분자 표준세율 적용방법(시행규칙 위임) 원문 미확인 — 최고세율(종합 1천분의 5, 별도 1천분의 4)로 계산',
       '공동명의 특례 미신청 부부의 2028년 공정시장가액비율 — 세대 1주택이라 70%로 둠(개편안 「1세대 1주택자 제외」 문언 해석 확인 필요)',
       '공동명의 특례 미신청 재산세 중복분 공제 분모 = 지분 공시가로 계산(전체 재산세 × 지분과 누진 차이 있음)',
       '2027년 이후 재산세 1세대 1주택 공정시장가액비율 43~45%, §111의2 특례세율(2026.12.28까지 유효) 연장 여부 — 현행 그대로 둠'
     ];
     if (anySpecial) todo.push('공시 9억 이하 1세대 1주택 재산세는 §111의2 특례세율로 계산함');
+    var anyPrev = (HH.people || []).some(function (p) { return (p.inp.houses || []).some(function (h) { return h.prevPrice > 0; }); });   
+    todo.push(anyPrev ? '작년 공시가격을 넣은 집 = 2026년분 재산세 과세표준상한(지방세법 §110③), 종전 §122 세부담상한 반영 · 직전 연도 재산세액 상당액은 작년 공시가격으로 다시 계산한 값(실제 고지 세액이 다르면 차이)' : '작년 공시가격 칸 비움 = 올해와 같다고 봄 → 2026년분 재산세 과세표준상한(지방세법 §110③), 종전 §122 세부담상한 안 걸림 · 작년보다 공시가격이 5% 넘게 오른 집은 작년 공시가격을 넣어야 고지액과 맞음');
     todo.push('연도별 표 공시가격, 공시지가 연 상승률 ' + (YO.g * 100).toFixed(1) + '% · 건축물 시가표준액 연 변동률 ' + (YO.gb * 100).toFixed(1) + '% — 가정값(공시가격 정책, 현실화율, 건물 경과연수 감가에 따라 달라짐)');
     todo.push('연도별 표 2027년 이후 재산세 1주택 특례 — ' + (YO.keepSpecial ? '연장된다고 가정함(체크)' : '법정 유효기한대로 끝난다고 봄(영 §109①2호 단서 2026년도 한정, §111의2 2026.12.28 성립분까지) · 해마다 연장 개정돼 온 규정이라 실제와 다를 수 있음'));
     if (YO.mode === 'reform') todo.push('연도별 개편안 — 국회 통과·부칙 원문 미확인 · 2027 = 1단계, 2028 = 2단계, 2029 = 개편안에 따로 정한 것 없어 2028안 유지로 둠');
@@ -1208,8 +1274,8 @@ var JBS = (function () {
     var dflt = [
       '토지 재산세는 한 시군구에 다 있다고 보고 합산 · 도시지역분 0.14%, 지방교육세 20% 일괄 · 토지 세부담 상한(§15) 미반영',
       '명의 비교 = 목록 주택(공동은 집 전체 가액)으로 명의만 바꾼 연간 보유세 · 명의 이전 비용(증여세, 취득세, 양도세)은 넣지 않음 · 다주택 「나눔」은 공시가 큰 집부터 합이 작은 쪽에 배정',
-      '재산세 세부담 상한(지방세법 §122) : 현행 원문 단서 「주택의 경우에는 적용하지 아니한다」 → 주택은 과세표준상한(§110③)만 · [확인 필요] 책(2026 주택과 세금 p.88~89)은 주택 세부담상한 105~130% 가 부칙으로 2028년까지 남는다고 적음 — 부칙 원문 못 찾음 · 조례 세율 가감은 반영 안 함',
-      '공제할 재산세 = 10원 미만 버림(책 p.114 사례 · 국고금 관리법 §47① 준용으로 봄 [확인 필요]) · 분납 = 종부세법 §20 · 영 §16①(250만 초과~500만 = 250만 초과분, 500만 초과 = 50% 이하)',
+      '주택 재산세 세부담 상한 = 종전 §122(주택공시가격 3억 이하 105%, 6억 이하 110%, 6억 초과 130%, 법인 150%) — 지방세법 부칙(법률 제19230호, 2023.3.14.) §15 「2028년 12월 31일까지는 종전의 규정」(2026-11-19 원문 확인) · 과세표준상한(§110③)과 함께 적용해 작은 세액 · 본세, 도시지역분 각각 · 1년차 = 물건의 「작년 공시가격」으로 직전 연도 상당액을 다시 계산(영 §118 2호가 본문 · 실제 고지 세액이 있으면 그 세액이 기준이라 다를 수 있음), 2년차부터 = 직전 연도 부과 재산세 · 작년 공시가격 비움 = 올해와 같다고 봄(두 상한 안 걸림) · 조례 세율 가감은 반영 안 함',
+      '끝수(국고금 관리법 §47 · 2026-11-19 홈택스 모의계산 실측) : 과세표준, 산출세액, 재산세, 세액공제(고령자, 장기보유 따로), 상한 뒤 종부세 = 원 미만 버림, 농특세 = 원 미만 반올림(홈택스 실측) · 공제할 재산세 = 비율 소수 10자리 버림 뒤 주택 원 미만, 토지 10원 미만 버림 · 결과 값 = 홈택스 모의계산과 같은 원 단위, 「고지 예상」 = 세목마다 10원 미만 버림(§47①, ③) · 분납 = 종부세법 §20 · 영 §16①(250만 초과~500만 = 250만 초과분, 500만 초과 = 50% 이하)',
       '단계표, 명의 비교의 2027·2028 열 = 기본 현행법(2026 법 · 같은 공시가격) · 「개편안 가정」을 켜면 정부 개편안(국회 미통과) · 재산세 1주택 특례 종료(2027~)는 연도별 표에만 반영',
       '공동명의 특례 미신청 = 부부 각자 지분 공시가로 계산(영 §4의3③1호 각자 1주택), 재산세는 세대 1주택 특례비율·세율 적용 후 지분 안분',
       '2027년 세액공제 = 연령 + max(보유 × 1/2, 거주), 2028년 = 연령 + 거주, 합계 80% · 한도 800만원/600만원',
@@ -1217,7 +1283,7 @@ var JBS = (function () {
       '법인 = §9②3호 일반 법인 세율(공익법인 등 예외 미반영)',
       '연도별 표 기본값 : 2026~2029 4년 고정, 공시가격·공시지가 연 3%, 건축물 시가표준액 0%, 현행 법 그대로, 종부세 주택분 비율 + 0%p, 재산세 1주택 특례 2027년부터 본칙',
       '연도별 표 나이, 보유기간, 거주기간 = ② 사람 칸 값 + 경과 연수(같은 주택 계속 보유, 실거주 계속으로 봄)',
-      '연도별 세부담 상한 : 1년차는 ③ 직전연도 입력값만 씀(본인만) · 2년차부터 주택 = 종부세법 §10(영 §5② 올해 주택을 직전 연도 법·가격으로 다시 계산한 재산세 + 종부세 × 150%) + 재산세 과세표준상한(지방세법 §110③ · 영 §109의2 직전 연도 시가표준액 × 올해 비율 + 올해 과표 × 5%) / 토지, 건축물 = 재산세 §122(직전 연도 부과 재산세 × 150%) + 종부세 §15 · 주택 재산세는 §122 단서로 상한 없음 · 도시지역분은 상한 미반영',
+      '연도별 세부담 상한 : 1년차는 ③ 직전연도 입력값만 씀(본인만) · 2년차부터 주택 = 종부세법 §10(영 §5② 올해 주택을 직전 연도 법·가격으로 다시 계산한 재산세 + 종부세 × 150%) + 재산세 과세표준상한(지방세법 §110③ · 영 §109의2 직전 연도 시가표준액 × 올해 비율 + 올해 과표 × 5%) + 주택 재산세 종전 §122(105/110/130%, 2028년분까지 · 특례세율 끝나는 해는 직전 연도도 표준세율로 다시 계산 = 영 §118 3호) / 토지, 건축물 = 재산세 §122(직전 연도 부과 재산세 × 150%) + 종부세 §15 · 토지, 건축물 도시지역분은 상한 미반영',
       '오피스텔 비교 = 목록의 오피스텔 줄만 반대 용도로 바꾸고 나머지 물건은 그대로, 사람별 합산 · 주거용이면 세대 주택 수에 들어가 1세대 1주택 자동 해제 · 업무용 → 주거용으로 바꿀 때 실거주 아님, 주택 시가표준액 칸이 비면 건물분 + 토지분 · 주거용 주택 가액은 공시가격 상승률, 업무용 건물분은 건축물 변동률을 씀',
       '오피스텔 양도세, 취득세 주택 수(지방세법 §13의3 4호), 임대소득 차이는 넣지 않음 — 보유세만'
     ];
@@ -1263,7 +1329,7 @@ var JBS = (function () {
     return { HH: HH, judge: judge(HH, base), base: base, sp: sp, yo: YO, people: people, cur: C, reform: F, now: now, alt: alt, altT: altT, jOn: jOn, steps: steps, dual: dual, flags: N.flags, defaults: N.defaults, notes: notes, assume: assumeLines(YO, objs), anySpecial: anySpecial };
   }
 
-  return { calc: calc, calc0: calc0, report: report, judge: judge, notesOf: notesOf, hSteps: hSteps, lSteps: lSteps, rowSteps: rowSteps, mergeSteps: mergeSteps, EXN: EXN, CASES: CASES, installment: installment, land: land, person: person, scenarios: scenarios, runCases: runCases, yearly: yearly, assumeLines: assumeLines, officetel: officetel, applied: applied, household: household, propTax: propTax, EOK: EOK, MAN: MAN };
+  return { setFix: setFix, limRate: limRate, priorPT: priorPT, calc: calc, calc0: calc0, report: report, judge: judge, notesOf: notesOf, hSteps: hSteps, lSteps: lSteps, rowSteps: rowSteps, mergeSteps: mergeSteps, EXN: EXN, CASES: CASES, installment: installment, land: land, person: person, scenarios: scenarios, runCases: runCases, yearly: yearly, assumeLines: assumeLines, officetel: officetel, applied: applied, household: household, propTax: propTax, EOK: EOK, MAN: MAN };
 })();
 if (typeof module !== 'undefined') module.exports = JBS;
 
@@ -1424,6 +1490,7 @@ function drawObjs() {
       (biz ? num('l', '부속토지 공시지가 × 대지권(만원)') : '') +
       '<div class="fld"><label>소유자</label><select id="o' + i + '-owner" onchange="setO(' + i + ',\'owner\',this.value)"><option value="me"' + (o.owner === 'me' ? ' selected' : '') + '>본인</option><option value="sp"' + (o.owner === 'sp' ? ' selected' : '') + '>배우자</option><option value="joint"' + (o.owner === 'joint' ? ' selected' : '') + '>부부 공동</option></select></div>' +
       '<div class="fld"><label>지분율 %' + (o.owner === 'joint' ? '(본인 몫)' : '') + '</label><input id="o' + i + '-sh" type="number" step="1" value="' + esc(o.sh) + '" oninput="setO(' + i + ',\'sh\',this.value)"></div>' +
+      (isH ? num('pp', '작년(2025) 공시가격(만원 · 비우면 올해와 같음 · 재산세 과세표준상한, 세부담상한)') : '') +   
       (isH ? '<div class="fld"><label>이 집 공시가격 연 상승률 %(비우면 공통)</label><input id="o' + i + '-g" type="number" step="0.1" inputmode="decimal" placeholder="공통" value="' + esc(o.g == null ? '' : o.g) + '" oninput="setO(' + i + ',\'g\',this.value)"></div>' : '') +
       (isH && o.owner === 'joint' ? '<div class="fld"><label>공동명의 1주택 특례(§10의2)</label><select id="o' + i + '-el" onchange="setO(' + i + ',\'el\',this.value === \'y\')"><option value="y"' + (o.el !== false ? ' selected' : '') + '>신청(1명이 1세대 1주택 · 12억)</option><option value="n"' + (o.el === false ? ' selected' : '') + '>안 함(각자 9억)</option></select></div>' : '') + '</div>' +
       (isH ? '<div class="row"><div class="fld"><label>주택 수에서 빼기(§8④, 조특법 §71의2·§98의9 1세대 1주택 판정 · 영 §4의3③ 세율 주택 수)</label><select id="o' + i + '-ex" onchange="setO(' + i + ',\'ex\',this.value)">' + EXR.map(function (r) { return '<option value="' + r[0] + '"' + ((o.ex || '') === r[0] ? ' selected' : '') + '>' + r[1] + '</option>'; }).join('') + '</select>' + (o.ex ? '<p class="law" style="margin-top:4px">' + EXD[o.ex] + (EXAPPLY.indexOf(o.ex) >= 0 ? '<br>' + EXAPPLYT : '') + '</p>' : '<details class="law" style="margin-top:4px"><summary>항목별 요건 보기</summary>' + EXR.slice(1).map(function (r) { return '<b>' + r[1] + '</b> : ' + EXD[r[0]]; }).join('<br>') + '<br>' + EXAPPLYT + '</details>') + '</div></div>' : '') +
@@ -1469,7 +1536,7 @@ function loadObj(i) {
 }
 function objsLive() {
   function E(v) { return (+v || 0) * JBS.MAN; }   
-  return objs.map(function (o) { return { type: o.type, price: E(o.p), land: E(o.l), xb: E(o.xb), xl: E(o.xl), xh: E(o.xh), share: (o.sh === '' || isNaN(+o.sh) ? 100 : +o.sh) / 100, owner: o.owner, elect: o.el !== false, ex: (o.type === 'house' || o.type === 'otRes') && o.ex ? o.ex : '', adj: o.adj, resid: o.resid, conf: o.conf, g: (o.type === 'house' || o.type === 'otRes') && o.g !== '' && o.g != null && isFinite(+o.g) ? +o.g / 100 : undefined }; })
+  return objs.map(function (o) { return { type: o.type, price: E(o.p), land: E(o.l), xb: E(o.xb), xl: E(o.xl), xh: E(o.xh), share: (o.sh === '' || isNaN(+o.sh) ? 100 : +o.sh) / 100, owner: o.owner, elect: o.el !== false, ex: (o.type === 'house' || o.type === 'otRes') && o.ex ? o.ex : '', adj: o.adj, resid: o.resid, conf: o.conf, g: (o.type === 'house' || o.type === 'otRes') && o.g !== '' && o.g != null && isFinite(+o.g) ? +o.g / 100 : undefined, prevPrice: (o.type === 'house' || o.type === 'otRes') && +o.pp > 0 ? E(o.pp) : undefined }; })
     .filter(function (o) { return o.price > 0 || o.land > 0; });
 }
 
@@ -2458,6 +2525,10 @@ adrMsg('가액(만원)을 손으로 넣으면 바로 계산 · 주소 불러오�
       if (f === 'MIN') return Math.min.apply(null, X.map(N));
       if (f === 'MAX') return Math.max.apply(null, X.map(N));
       if (f === 'INT') { var v0 = N(X[0]); return Math.floor(isFinite(v0) && v0 !== 0 ? +v0.toPrecision(15) : v0); }   
+      if (f === 'ROUNDDOWN' || f === 'ROUND') {   
+        var x0 = N(X[0]), d0 = Math.round(N(X[1])), xv = isFinite(x0) && x0 !== 0 ? +x0.toPrecision(15) : x0, m0 = Math.pow(10, d0), xs = +(xv * m0).toPrecision(15);
+        return (f === 'ROUND' ? Math.sign(xs) * Math.round(Math.abs(xs)) : Math.trunc(xs)) / m0;
+      }
       if (f === 'QUOTIENT') return Math.trunc(N(X[0]) / N(X[1]));   
       if (f === 'AND') return X.every(function (x) { return !!x && x !== 0; });
       if (f === 'OR') return X.some(function (x) { return !!x && x !== 0; });
@@ -2527,6 +2598,7 @@ adrMsg('가액(만원)을 손으로 넣으면 바로 계산 · 주소 불러오�
         if (hg) ST('H' + i + 'G', '  주택 ' + i + ' 이 집 공시가격 연 상승률(가정)', +x.g, '입력', { fmt: 'r', d: '집마다 상승률 · 비우면 공통 상승률' });
         YV('H' + i + 'P', '주택 ' + i + ' 공시가격(집 전체)', x.price, '{H' + i + 'P@0}*(1+' + (hg ? '{H' + i + 'G}' : '{$G}') + ')^' + k, { law: '종부세법 §8①, 부동산공시법', d: yr && k > 0 ? '1년차 × (1 + ' + (hg ? '이 집 ' : '') + '상승률)^' + k : '' });
         ST('H' + i + 'S', '  지분(이 사람 몫)', s, '입력', { fmt: 's', law: '영 §4의3③1호(공동 소유 = 각자 1채)' });
+        ST('H' + i + 'PP', '  작년 공시가격(집 전체 · 0 = 올해와 같음)', x.prevPrice > 0 ? x.prevPrice : 0, '입력', { law: '지방세법 §110③, 영 §109의2, 종전 §122', d: '2026-11-19 · 넣으면 1년차 재산세 과세표준상한, 세부담상한(105/110/130%)' });
         ST('H' + i + 'EX', '  주택 수 제외 사유', x.ex ? (EXN[x.ex] || x.ex) : '없음', '입력', { fmt: 't', law: '종부세법 §8④, 영 §4의2' });
         ST('H' + i + 'XR', '  세율 주택 수에서 뺌', YN(!!x.xr), '엔진 판정', { fmt: 't', law: '영 §4의3③3호' });
         ST('H' + i + 'CX', '  세액공제 제외분(§9⑦⑨)', YN(!!x.ex && x.crx !== false), '엔진 판정', { fmt: 't', law: '종부세법 §9⑦⑨' });
@@ -2551,47 +2623,67 @@ adrMsg('가액(만원)을 손으로 넣으면 바로 계산 · 주소 불러오�
         h.ded, { law: '종부세법 §8①(2027~ 개편안)', d: '법인 0 · 1세대 1주택 12억(개편안 거주 14억) · 그 외 9억(공동 미신청 개편안 비거주 6억) · 엔진 : ' + h.dedWhy });
       F('FMV0', '공정시장가액비율(기본)', 'IF({R}=2026,0.6,IF({R}=2027,0.7,IF(AND({ONE}<>"예",{JNE}<>"예",OR({N}>=3,{ADJ}="예")),0.8,0.7)))', h.fmvBase, { fmt: 'r', law: '종부세법 시행령 §2의4(2027~ 개편안)', d: '현행 60% · 2027 70% · 2028~ 3주택 이상, 조정 80%' });
       F('FMV', '공정시장가액비율(적용)', 'IF({FSY}>0,MIN(1,MAX(0.6,{FSY})),MIN(1,{FMV0}+{FA}))', h.fmv, { fmt: 'r', law: '종부세법 §8①(60~100%)', d: '그해 지정 있으면 그 비율(60~100% 안으로), 없으면 기본 + 가산' });
-      F('HB', '과세표준', 'MAX(0,{HSUM}-{DED})*{FMV}', h.base, { law: '종부세법 §8①', d: '(공시가격 합 − 기본공제) × 공정시장가액비율' });
+      F('HB', '과세표준', 'ROUNDDOWN(MAX(0,{HSUM}-{DED})*{FMV},0)', h.base, { law: '종부세법 §8①', d: '(공시가격 합 − 기본공제) × 공정시장가액비율' });
       F('RC', '  개인 세율표(세율표 시트 열 1~5)', 'IF({R}=2026,IF({N}>=3,2,1),IF({R}=2027,IF({N}>=3,4,3),5))', null, { fmt: 'y', law: '종부세법 §9①', d: '1 = 2주택 이하 · 2 = 3주택 이상 · 3, 4 = 2027 개편안 · 5 = 2028~ · 엔진 : ' + h.tblName });
       F('FLAT', '  법인 단일세율', 'IF({CORP}="예",IF({R}=2026,IF({N}>=3,0.05,0.027),IF({R}=2027,IF({N}>=3,0.05,0.035),0.05)),0)', null, { fmt: 'r', law: '종부세법 §9②3호(2027~ 개편안)' });
-      F('CALCT', '산출세액', 'IF({CORP}="예",{HB}*{FLAT},' + progT('{HB}', 'H', function (n) { return 'CHOOSE({RC},' + [1, 2, 3, 4, 5].map(function (j) { return '{$H_R' + n + '_' + j + '}'; }).join(',') + ')'; }) + ')', h.calcTax, { law: '종부세법 §9①②', d: '과세표준 × 세율 누진(세율표 시트) · 법인 = 단일세율' });
+      F('CALCT', '산출세액', 'ROUNDDOWN(IF({CORP}="예",{HB}*{FLAT},' + progT('{HB}', 'H', function (n) { return 'CHOOSE({RC},' + [1, 2, 3, 4, 5].map(function (j) { return '{$H_R' + n + '_' + j + '}'; }).join(',') + ')'; }) + '),0)', h.calcTax, { law: '종부세법 §9①②', d: '과세표준 × 세율 누진(세율표 시트) · 법인 = 단일세율' });
       hs.forEach(function (x, j) {
-        var i = j + 1, P = '{H' + i + 'P}';
-        F('H' + i + 'PF', '  주택 ' + i + ' 재산세 공정시장가액비율', 'IF({PHY}>0,IF({PTONE}="예",MIN(0.7,MAX(0.3,{PHY})),MIN(0.8,MAX(0.4,{PHY}))),IF(OR({PTONE}<>"예",{END}="예"),0.6,IF(' + P + '<=300000000,0.43,IF(' + P + '<=600000000,0.44,0.45))))', null, { fmt: 'r', law: '지방세법 시행령 §109①2호 · 지정 = §110①2호 범위', d: '그해 지정 있으면 그 비율(1세대 1주택 30~70%, 그 밖 40~80%)' });
-        if (yr) {
-          F('H' + i + 'PB0', '    재산세 과세표준(상한 전)', P + '*{H' + i + 'PF}', null, {});
-          if (k > 0) F('H' + i + 'CAP', '    과세표준상한', '{H' + i + 'P@P}*{H' + i + 'PF}+' + P + '*{H' + i + 'PF}*0.05', null, { law: '지방세법 §110③, 영 §109의2', d: '직전 연도 공시가격 × 비율 + 올해 과표 × 5%' });
-          else BL('H' + i + 'CAP', '    과세표준상한', { law: '지방세법 §110③, 영 §109의2' });
-          F('H' + i + 'PB', '    재산세 과세표준', k > 0 ? 'IF({H' + i + 'CAP}<{H' + i + 'PB0},{H' + i + 'CAP},{H' + i + 'PB0})' : '{H' + i + 'PB0}', null, {});
-        } else F('H' + i + 'PB', '    재산세 과세표준', P + '*{H' + i + 'PF}', null, { law: '지방세법 §110①', d: '공시가격 × 공정시장가액비율' });
-        F('H' + i + 'SP', '    1세대 1주택 특례세율(9억 이하)', 'IF(AND({PTONE}="예",' + P + '<=900000000,{END}<>"예"),"예","아니요")', null, { fmt: 't', law: '지방세법 §111의2' });
-        F('H' + i + 'PT', '    재산세(집 전체)', 'IF({H' + i + 'SP}="예",' + progT('{H' + i + 'PB}', 'P', rcol('P', 2)) + ',' + progT('{H' + i + 'PB}', 'P', rcol('P', 1)) + ')', null, { law: '지방세법 §111①3호나목, §111의2' });
-        if (yr) F('H' + i + 'PTR', '    재산세(과표상한 전 · 다음 해 §10 비교)', k > 0 ? 'IF({H' + i + 'SP}="예",' + progT('{H' + i + 'PB0}', 'P', rcol('P', 2)) + ',' + progT('{H' + i + 'PB0}', 'P', rcol('P', 1)) + ')' : '{H' + i + 'PT}', null, {});
+        var i = j + 1, P = '{H' + i + 'P}', H = 'H' + i;
+        var pfOf = function (Q) { return 'IF({PHY}>0,IF({PTONE}="예",MIN(0.7,MAX(0.3,{PHY})),MIN(0.8,MAX(0.4,{PHY}))),IF(OR({PTONE}<>"예",{END}="예"),0.6,IF(' + Q + '<=300000000,0.43,IF(' + Q + '<=600000000,0.44,0.45))))'; };
+        var pfPrev = function (Q) { return 'IF(OR({PTONE}<>"예",{END}="예"),0.6,IF(' + Q + '<=300000000,0.43,IF(' + Q + '<=600000000,0.44,0.45)))'; };   
+        var pt2 = function (B, spCell) { return 'ROUNDDOWN(IF(' + spCell + '="예",' + progT(B, 'P', rcol('P', 2)) + ',' + progT(B, 'P', rcol('P', 1)) + '),0)'; };
+        F(H + 'PF', '  주택 ' + i + ' 재산세 공정시장가액비율', pfOf(P), null, { fmt: 'r', law: '지방세법 시행령 §109①2호 · 지정 = §110①2호 범위', d: '그해 지정 있으면 그 비율(1세대 1주택 30~70%, 그 밖 40~80%)' });
+        F(H + 'PB0', '    재산세 과세표준(상한 전)', 'ROUNDDOWN(' + P + '*{' + H + 'PF},0)', null, { d: '원 미만 버림(2026-11-19 E4)' });
+        
+        F(H + 'CAP', '    과세표준상한', yr && k > 0 ? '{' + H + 'P@P}*{' + H + 'PF}+' + P + '*{' + H + 'PF}*0.05' : 'IF({' + H + 'PP}>0,{' + H + 'PP}*{' + H + 'PF}+' + P + '*{' + H + 'PF}*0.05,{' + H + 'PB0})', null, { law: '지방세법 §110③, 영 §109의2', d: '직전 연도 공시가격 × 비율 + 올해 과표 × 5%' });
+        F(H + 'PB', '    재산세 과세표준', 'ROUNDDOWN(IF({' + H + 'CAP}<{' + H + 'PB0},{' + H + 'CAP},{' + H + 'PB0}),0)', null, { law: '지방세법 §110①③' });
+        F(H + 'SP', '    1세대 1주택 특례세율(9억 이하)', 'IF(AND({PTONE}="예",' + P + '<=900000000,{END}<>"예"),"예","아니요")', null, { fmt: 't', law: '지방세법 §111의2' });
+        F(H + 'PTX', '    재산세(세부담상한 전)', pt2('{' + H + 'PB}', '{' + H + 'SP}'), null, { law: '지방세법 §111①3호나목, §111의2' });
+        F(H + 'CTX', '    도시지역분(세부담상한 전 · 집 전체)', 'ROUNDDOWN({' + H + 'PB}*0.0014,0)', null, { law: '지방세법 §112' });
+        
+        if (yr && k > 0) {
+          F(H + 'SAME', '    직전 연도 부과액 그대로 씀(영 §118 2호가 단서 · 3호, 4호)', 'IF(OR({' + H + 'SP@P}={' + H + 'SP},AND({' + H + 'SP@P}="예",{END}<>"예",' + P + '>900000000)),"예","아니요")', null, { fmt: 't' });
+          F(H + 'PTP', '    직전 연도 재산세액 상당액', 'IF({' + H + 'SAME}="예",{' + H + 'PT@P},' + pt2('{' + H + 'PB0@P}', '{' + H + 'SP}') + ')', null, { law: '지방세법 시행령 §118' });
+          F(H + 'CTP', '    직전 연도 도시지역분 상당액', 'IF({' + H + 'SAME}="예",{' + H + 'CT@P},ROUNDDOWN({' + H + 'PB0@P}*0.0014,0))', null, {});
+          F(H + 'LON', '    세부담상한 적용 연도(2028년분까지)', 'IF({Y}<=2028,"예","아니요")', null, { fmt: 't', law: '부칙 법률 제19230호 §15' });
+        } else {
+          F(H + 'SAME', '    직전 연도 특례세율(영 §118 3호, 4호)', 'IF(OR({' + H + 'SP}="예",AND({PTONE}="예",{END}<>"예",{' + H + 'PP}<=900000000,' + P + '>900000000)),"예","아니요")', null, { fmt: 't' });
+          F(H + 'PTP', '    직전 연도 재산세액 상당액(작년 공시가격으로)', pt2('ROUNDDOWN({' + H + 'PP}*' + pfPrev('{' + H + 'PP}') + ',0)', '{' + H + 'SAME}'), null, { law: '지방세법 시행령 §118 2호가' });
+          F(H + 'CTP', '    직전 연도 도시지역분 상당액', 'ROUNDDOWN(ROUNDDOWN({' + H + 'PP}*' + pfPrev('{' + H + 'PP}') + ',0)*0.0014,0)', null, {});
+          F(H + 'LON', '    세부담상한 적용(작년 공시가격 있음)', 'IF({' + H + 'PP}>0,"예","아니요")', null, { fmt: 't', law: '부칙 법률 제19230호 §15' });
+        }
+        F(H + 'LR', '    세부담상한 비율', 'IF({CORP}="예",1.5,IF(' + P + '<=300000000,1.05,IF(' + P + '<=600000000,1.1,1.3)))', null, { fmt: 'r', law: '종전 지방세법 §122' });
+        F(H + 'PT', '    재산세(집 전체)', 'IF(AND({' + H + 'LON}="예",{' + H + 'PTX}>{' + H + 'PTP}*{' + H + 'LR}),ROUNDDOWN({' + H + 'PTP}*{' + H + 'LR},0),{' + H + 'PTX})', null, { law: '지방세법 §111, 종전 §122' });
+        F(H + 'CT', '    도시지역분(집 전체)', 'IF(AND({' + H + 'LON}="예",{' + H + 'CTX}>{' + H + 'CTP}*{' + H + 'LR}),ROUNDDOWN({' + H + 'CTP}*{' + H + 'LR},0),{' + H + 'CTX})', null, { law: '지방세법 §112, 종전 §122' });
+        if (yr) F(H + 'PTR', '    재산세(상한 전 · 다음 해 §10 비교)', pt2('{' + H + 'PB0}', '{' + H + 'SP}'), null, {});
       });
       F('PTSUM', '주택분 재산세(지분)', sumT(nh, function (i) { return '{H' + i + 'PT}*{H' + i + 'S}'; }), h.ptSum, { law: '지방세법 §111', d: '집마다 재산세 × 지분' });
-      F('PCITY', '  도시지역분(지분)', sumT(nh, function (i) { return '{H' + i + 'PB}*0.0014*{H' + i + 'S}'; }), h.hold.city, { law: '지방세법 §112', d: '재산세 과세표준 × 0.14%' });
-      F('PEDU', '  지방교육세(지분)', sumT(nh, function (i) { return '{H' + i + 'PT}*0.2*{H' + i + 'S}'; }), h.hold.edu, { law: '지방세법 §151', d: '재산세 × 20%' });
+      F('PCITY', '  도시지역분(지분)', sumT(nh, function (i) { return '{H' + i + 'CT}*{H' + i + 'S}'; }), h.hold.city, { law: '지방세법 §112', d: '재산세 과세표준 × 0.14%' });
+      F('PEDU', '  지방교육세(지분)', sumT(nh, function (i) { return 'ROUNDDOWN({H' + i + 'PT}*0.2,0)*{H' + i + 'S}'; }), h.hold.edu, { law: '지방세법 §151', d: '재산세 × 20%' });
       F('PFC', '  공제용 재산세 공정시장가액비율', 'IF({PHY}>0,IF({PTONE}="예",MIN(0.7,MAX(0.3,{PHY})),MIN(0.8,MAX(0.4,{PHY}))),IF({PTONE}="예",IF({END}="예",0.6,IF({H1P}<=300000000,0.43,IF({H1P}<=600000000,0.44,0.45))),0.6))', null, { fmt: 'r', law: '종부세법 시행령 §4의3' });
       F('PSTD', '  표준세율 재산세 상당액(분모)', progT('{HSUM}*{PFC}', 'P', rcol('P', 1)), null, { law: '영 §4의3①', d: '주택 합계 × 비율 × 표준세율 누진' });
-      F('PNUM', '  종부세 과표분 재산세(분자)', '{HB}*{PFC}*0.004', null, { law: '영 §4의3①', d: '과세표준 × 비율 × 1천분의 4 [확인 필요]' });
-      F('PTC', '(−) 재산세 중복분 공제', 'IF({PSTD}>0,QUOTIENT(MIN({CALCT},{PTSUM}*{PNUM}/{PSTD}),10)*10,0)', h.ptCredit, { law: '종부세법 §9③, 영 §4의3', d: '재산세 × 분자 ÷ 분모(산출세액 한도) · 10원 미만 버림(QUOTIENT = 엔진 Math.floor 와 같은 끝수)' });
+      F('PNUM', '  종부세 과표분 재산세(분자)', 'IF({CORP}="예",' + progT('{HB}*{PFC}', 'P', rcol('P', 1)) + ',{HB}*{PFC}*0.004)', null, { law: '영 §4의3①', d: '개인 = 과세표준 × 비율 × 1천분의 4 · 법인 = 누진 표준세율(홈택스 실측 · 2026-11-19 E1)' });
+      F('PTC', '(−) 재산세 중복분 공제', 'IF({PSTD}>0,MIN({CALCT},ROUNDDOWN({PTSUM}*ROUNDDOWN({PNUM}/{PSTD},10),0),ROUNDDOWN({PTSUM},0)),0)', h.ptCredit, { law: '종부세법 §9③, 영 §4의3', d: '재산세 × (분자 ÷ 분모 소수 10자리 버림) 원 미만 버림 · 산출세액, 부과 재산세 한도(홈택스 실측 · 2026-11-19 E1, E4)' });
       F('AFT', '재산세 공제 후 세액', '{CALCT}-{PTC}', h.afterPt, {});
       F('AGER', '  연령 공제율', 'IF({ONE}="예",IF({AGE}>=70,0.4,IF({AGE}>=65,0.3,IF({AGE}>=60,0.2,0))),0)', h.ageR, { fmt: 'r', law: '종부세법 §9⑥', d: '60세 20%, 65세 30%, 70세 40%' });
       F('HOLDR', '  보유 공제율', 'IF({ONE}="예",IF({HOLD}>=15,0.5,IF({HOLD}>=10,0.4,IF({HOLD}>=5,0.2,0))),0)', h.holdR, { fmt: 'r', law: '종부세법 §9⑧', d: '5년 20%, 10년 40%, 15년 50%' });
       F('RESR', '  거주 공제율(개편안)', 'IF(AND({ONE}="예",{RSUM}>0),IF({RESID}>=15,0.5,IF({RESID}>=10,0.4,IF({RESID}>=5,0.2,0))),0)', h.resR, { fmt: 'r', law: '2026 세제개편안' });
-      F('CRR', '  세액공제율(합계 80% 한도)', 'IF({ONE}="예",MIN(0.8,{AGER}+IF({R}=2026,{HOLDR},IF({R}=2027,MAX({HOLDR}/2,{RESR}),{RESR}))),0)', h.crRate, { fmt: 'r', law: '종부세법 §9⑤(2027~ 개편안)', d: '현행 연령 + 보유 · 2027 연령 + max(보유 ÷ 2, 거주) · 2028~ 연령 + 거주' });
-      F('CRB', '  공제 대상 세액(제외 주택분 뺌)', 'IF({ONE}="예",IF(AND({XSUM}>0,{HSUM}>0),{AFT}*({HSUM}-{XSUM})/{HSUM},{AFT}),0)', h.crBase, { law: '종부세법 §9⑦⑨' });
-      F('CREDIT', '(−) 1세대 1주택 세액공제', 'IF({ONE}="예",IF({R}=2027,MIN({CRB}*{CRR},8000000),IF({R}=2028,MIN({CRB}*{CRR},6000000),{CRB}*{CRR})),0)', h.credit, { law: '종부세법 §9⑤~⑨', d: '공제 대상 세액 × 공제율(개편안 한도 800만, 600만)' });
+      F('TEN', '  보유(거주) 공제율', 'IF({ONE}="예",IF({R}=2026,{HOLDR},IF({R}=2027,MAX({HOLDR}/2,{RESR}),{RESR})),0)', null, { fmt: 'r' });
+      F('CRR', '  세액공제율(합계 80% 한도)', 'IF({ONE}="예",MIN(0.8,{AGER}+{TEN}),0)', h.crRate, { fmt: 'r', law: '종부세법 §9⑤(2027~ 개편안)', d: '현행 연령 + 보유 · 2027 연령 + max(보유 ÷ 2, 거주) · 2028~ 연령 + 거주' });
+      F('CRB', '  공제 대상 세액(제외 주택분 뺌)', 'IF({ONE}="예",ROUNDDOWN(IF(AND({XSUM}>0,{HSUM}>0),{AFT}*({HSUM}-{XSUM})/{HSUM},{AFT}),0),0)', h.crBase, { law: '종부세법 §9⑦⑨' });
+      F('CRAW', '  세액공제(한도 전 · 고령자, 장기보유 따로 원 미만 버림)', 'IF({ONE}="예",IF({AGER}+{TEN}>0.8,ROUNDDOWN({CRB}*0.8,0),ROUNDDOWN({CRB}*{AGER},0)+ROUNDDOWN({CRB}*{TEN},0)),0)', null, {});
+      F('CREDIT', '(−) 1세대 1주택 세액공제', 'IF({R}=2027,MIN({CRAW},8000000),IF({R}=2028,MIN({CRAW},6000000),{CRAW}))', h.credit, { law: '종부세법 §9⑤~⑨', d: '공제 대상 세액 × 공제율(개편안 한도 800만, 600만)' });
       F('J0', '세부담 상한 전 종부세', '{AFT}-{CREDIT}', null, {});
       if (yr) {
-        F('PTSUMR', '  재산세(과표상한 전 · 다음 해 §10 비교)', k > 0 ? sumT(nh, function (i) { return '{H' + i + 'PTR}*{H' + i + 'S}'; }) : '{PTSUM}', null, { d: '영 §5② 직전 연도 상당액 = 상한, 과표상한 전으로 다시 계산' });
-        F('PTCR', '  재산세 공제(과표상한 전)', k > 0 ? 'IF({PSTD}>0,QUOTIENT(MIN({CALCT},{PTSUMR}*{PNUM}/{PSTD}),10)*10,0)' : '{PTC}', null, {});
-        F('CREDR', '  세액공제(과표상한 전)', k > 0 ? 'IF({ONE}="예",IF({R}=2027,MIN(IF(AND({XSUM}>0,{HSUM}>0),({CALCT}-{PTCR})*({HSUM}-{XSUM})/{HSUM},{CALCT}-{PTCR})*{CRR},8000000),IF({R}=2028,MIN(IF(AND({XSUM}>0,{HSUM}>0),({CALCT}-{PTCR})*({HSUM}-{XSUM})/{HSUM},{CALCT}-{PTCR})*{CRR},6000000),IF(AND({XSUM}>0,{HSUM}>0),({CALCT}-{PTCR})*({HSUM}-{XSUM})/{HSUM},{CALCT}-{PTCR})*{CRR})),0)' : '{CREDIT}', null, {});
-        F('JR', '  종부세(상한 전 · 다음 해 §10 비교)', k > 0 ? '{CALCT}-{PTCR}-{CREDR}' : '{J0}', null, {});
+        F('PTSUMR', '  재산세(과표상한 전 · 다음 해 §10 비교)', sumT(nh, function (i) { return '{H' + i + 'PTR}*{H' + i + 'S}'; }), null, { d: '영 §5② 직전 연도 상당액 = 상한, 과표상한 전으로 다시 계산' });
+        F('PTCR', '  재산세 공제(과표상한 전)', 'IF({PSTD}>0,MIN({CALCT},ROUNDDOWN({PTSUMR}*ROUNDDOWN({PNUM}/{PSTD},10),0),ROUNDDOWN({PTSUMR},0)),0)', null, {});
+        F('CRBR', '  공제 대상 세액(과표상한 전)', 'IF({ONE}="예",ROUNDDOWN(IF(AND({XSUM}>0,{HSUM}>0),({CALCT}-{PTCR})*({HSUM}-{XSUM})/{HSUM},{CALCT}-{PTCR}),0),0)', null, {});
+        F('CREDR', '  세액공제(과표상한 전)', 'IF({R}=2027,MIN(IF({ONE}="예",IF({AGER}+{TEN}>0.8,ROUNDDOWN({CRBR}*0.8,0),ROUNDDOWN({CRBR}*{AGER},0)+ROUNDDOWN({CRBR}*{TEN},0)),0),8000000),IF({R}=2028,MIN(IF({ONE}="예",IF({AGER}+{TEN}>0.8,ROUNDDOWN({CRBR}*0.8,0),ROUNDDOWN({CRBR}*{AGER},0)+ROUNDDOWN({CRBR}*{TEN},0)),0),6000000),IF({ONE}="예",IF({AGER}+{TEN}>0.8,ROUNDDOWN({CRBR}*0.8,0),ROUNDDOWN({CRBR}*{AGER},0)+ROUNDDOWN({CRBR}*{TEN},0)),0)))', null, {});
+        F('JR', '  종부세(상한 전 · 다음 해 §10 비교)', '{CALCT}-{PTCR}-{CREDR}', null, {});
       }
-      F('CAPCUT', '(−) 세부담 상한 초과분', 'IF(AND({CORP}<>"예",{PREV}>0,{PTSUM}+{J0}>{PREV}*1.5),MIN({J0},{PTSUM}+{J0}-{PREV}*1.5),0)', h.capCut, { law: '종부세법 §10, 영 §5', d: '(올해 재산세 + 종부세) − 직전 연도 × 150% · 법인 제외' });
+      F('CAPCUT', '(−) 세부담 상한 초과분', 'IF(AND({CORP}<>"예",{PREV}>0,{PTSUM}+{J0}>{PREV}*1.5),{J0}-MIN({J0},MAX(0,ROUNDDOWN({PREV}*1.5-{PTSUM},0))),0)', h.capCut, { law: '종부세법 §10, 영 §5', d: '(올해 재산세 + 종부세) − 직전 연도 × 150% · 법인 제외' });
       F('J', '종합부동산세(주택분)', '{J0}-{CAPCUT}', h.jbs, { law: '종부세법 §9, §10', big: 1 });
-      F('AGRI', '농어촌특별세(주택분 20%)', '{J}*0.2', h.agri, { law: '농어촌특별세법 §5①8호' });
+      F('AGRI', '농어촌특별세(주택분 20%)', 'ROUND({J}*0.2,0)', h.agri, { law: '농어촌특별세법 §5①8호' });
       F('PAYH', '주택분 종부세 + 농특세', '{J}+{AGRI}', h.pay, {});
       F('INST', '  분납 가능액(납부기한 지난 날부터 6개월 안)', 'IF({J}<=2500000,0,IF({J}<=5000000,{J}-2500000,{J}*0.5))', h.instAmt, { law: '종부세법 §20, 영 §16①', d: '250만 초과~500만 = 250만 초과분 · 500만 초과 = 50%' });
       F('HTOT', '주택분 보유세(재산세 + 도시지역분 + 지방교육세 + 종부세 + 농특세)', '{PTSUM}+{PCITY}+{PEDU}+{PAYH}', h.hold.total, {});
@@ -2603,31 +2695,31 @@ adrMsg('가액(만원)을 손으로 넣으면 바로 계산 · 주소 불러오�
       F('PLF', '재산세 토지, 건축물 공정시장가액비율', 'IF({PLY}>0,MIN(0.9,MAX(0.5,{PLY})),0.7)', l.ptFmv, { fmt: 'r', law: '지방세법 시행령 §109①1호 70% · 지정 = §110①1호 50~90%' });
       [['LC', 'COMB', '종합합산', 'PC', 500000000, '0.005', l.comb, '종부세법 §13①, §14①', 'LC'], ['LS', 'SEP', '별도합산', 'PS', 8000000000, '0.004', l.sep, '종부세법 §13②, §14④', 'LS']].forEach(function (q) {
         var X = q[0], IN = '{' + q[1] + '}', nm = q[2], e = q[6];
-        F(X + 'PB', nm + ' 재산세 과세표준(× 비율)', IN + '*{PLF}', null, { law: '지방세법 시행령 §109①1호' });
-        F(X + 'PR', '  ' + nm + ' 재산세(상한 전)', progT('{' + X + 'PB}', q[3], rcol(q[3], 1)), e.ptRaw, { law: q[3] === 'PC' ? '지방세법 §111①1호가목' : '지방세법 §111①1호나목' });
-        F(X + 'PT', '  ' + nm + ' 재산세', yr && k > 0 ? 'IF({' + X + 'PT@P}>0,IF({' + X + 'PR}>{' + X + 'PT@P}*1.5,{' + X + 'PT@P}*1.5,{' + X + 'PR}),{' + X + 'PR})' : '{' + X + 'PR}', e.pt, { law: '지방세법 §122(직전 연도 × 150%)' });
-        F(X + 'B', nm + ' 종부세 과세표준', 'MAX(0,' + IN + '-' + q[4] + ')', e.base, { law: q[7], d: '공시지가 − ' + (q[4] / EOK) + '억(공정시장가액비율 100%)' });
-        F(X + 'T', '  산출세액', X === 'LC' ? progT('{LCB}', 'LC', function (n) { return n === 3 ? 'IF({R}>=2028,{$LC_R3_2},{$LC_R3_1})' : '{$LC_R' + n + '_1}'; }) : progT('{LSB}', 'LS', rcol('LS', 1)), e.calcTax, { law: X === 'LC' ? '종부세법 §14①(2028~ 개편안 45억 초과 4%)' : '종부세법 §14④' });
-        F(X + 'CR', '  (−) 재산세 공제', 'IF({' + X + 'PR}>0,MIN({' + X + 'T},{' + X + 'PT},{' + X + 'PT}*({' + X + 'B}*{PLF}*' + q[5] + ')/{' + X + 'PR}),0)', e.ptCredit, { law: '종부세법 §14③⑥, 영 §5의3', d: '분자 세율 = 최고세율 [확인 필요]' });
+        F(X + 'PB', nm + ' 재산세 과세표준(× 비율)', 'ROUNDDOWN(' + IN + '*{PLF},0)', null, { law: '지방세법 시행령 §109①1호' });
+        F(X + 'PR', '  ' + nm + ' 재산세(상한 전)', 'ROUNDDOWN(' + progT('{' + X + 'PB}', q[3], rcol(q[3], 1)) + ',0)', e.ptRaw, { law: q[3] === 'PC' ? '지방세법 §111①1호가목' : '지방세법 §111①1호나목' });
+        F(X + 'PT', '  ' + nm + ' 재산세', yr && k > 0 ? 'IF({' + X + 'PT@P}>0,IF({' + X + 'PR}>{' + X + 'PT@P}*1.5,ROUNDDOWN({' + X + 'PT@P}*1.5,0),{' + X + 'PR}),{' + X + 'PR})' : '{' + X + 'PR}', e.pt, { law: '지방세법 §122(직전 연도 × 150%)' });
+        F(X + 'B', nm + ' 종부세 과세표준', 'ROUNDDOWN(MAX(0,' + IN + '-' + q[4] + '),0)', e.base, { law: q[7], d: '공시지가 − ' + (q[4] / EOK) + '억(공정시장가액비율 100%)' });
+        F(X + 'T', '  산출세액', 'ROUNDDOWN(' + (X === 'LC' ? progT('{LCB}', 'LC', function (n) { return n === 3 ? 'IF({R}>=2028,{$LC_R3_2},{$LC_R3_1})' : '{$LC_R' + n + '_1}'; }) : progT('{LSB}', 'LS', rcol('LS', 1))) + ',0)', e.calcTax, { law: X === 'LC' ? '종부세법 §14①(2028~ 개편안 45억 초과 4%)' : '종부세법 §14④' });
+        F(X + 'CR', '  (−) 재산세 공제', 'IF({' + X + 'PR}>0,MIN({' + X + 'T},{' + X + 'PT},ROUNDDOWN({' + X + 'PT}*ROUNDDOWN(({' + X + 'B}*{PLF}*' + q[5] + ')/{' + X + 'PR},10)/10,0)*10),0)', e.ptCredit, { law: '종부세법 §14③⑥, 영 §5의3', d: '분자 세율 = 최고세율 [확인 필요] · 비율 소수 10자리 버림 뒤 10원 미만 버림(홈택스 실측 · 2026-11-19 E4)' });
         F(X + 'J0', '  상한 전 종부세', '{' + X + 'T}-{' + X + 'CR}', null, {});
         if (yr) {
-          F(X + 'JR', '  종부세(재산세 상한 전 · 다음 해 §15 비교)', 'IF({' + X + 'PR}>0,{' + X + 'T}-MIN({' + X + 'T},{' + X + 'PR},{' + X + 'PR}*({' + X + 'B}*{PLF}*' + q[5] + ')/{' + X + 'PR}),{' + X + 'T})', null, {});
+          F(X + 'JR', '  종부세(재산세 상한 전 · 다음 해 §15 비교)', 'IF({' + X + 'PR}>0,{' + X + 'T}-MIN({' + X + 'T},{' + X + 'PR},ROUNDDOWN({' + X + 'PR}*ROUNDDOWN(({' + X + 'B}*{PLF}*' + q[5] + ')/{' + X + 'PR},10)/10,0)*10),{' + X + 'T})', null, {});
           if (k > 0) {
             F(X + 'PREV', '  직전 연도 상당액(§15)', '{' + X + 'PR@P}+{' + X + 'JR@P}', null, { law: '종부세법 §15' });
-            F(X + 'CAP', '  (−) 세부담 상한(§15)', 'IF(AND({' + X + 'PREV}>0,{' + X + 'PT}+{' + X + 'J0}>{' + X + 'PREV}*1.5),MIN({' + X + 'J0},{' + X + 'PT}+{' + X + 'J0}-{' + X + 'PREV}*1.5),0)', e.capCut, { law: '종부세법 §15' });
+            F(X + 'CAP', '  (−) 세부담 상한(§15)', 'IF(AND({' + X + 'PREV}>0,{' + X + 'PT}+{' + X + 'J0}>{' + X + 'PREV}*1.5),{' + X + 'J0}-MIN({' + X + 'J0},MAX(0,ROUNDDOWN({' + X + 'PREV}*1.5-{' + X + 'PT},0))),0)', e.capCut, { law: '종부세법 §15' });
           } else { BL(X + 'PREV', '  직전 연도 상당액(§15)', { law: '종부세법 §15' }); BL(X + 'CAP', '  (−) 세부담 상한(§15)', { law: '종부세법 §15' }); }
         }
         F(X + 'J', nm + ' 토지 종부세', yr && k > 0 ? '{' + X + 'J0}-{' + X + 'CAP}' : '{' + X + 'J0}', e.jbs, { law: q[7] });
-        F(X + 'CITY', '  도시지역분', '{' + X + 'PB}*0.0014', e.city, { law: '지방세법 §112' });
-        F(X + 'EDU', '  지방교육세', '{' + X + 'PT}*0.2', e.edu, { law: '지방세법 §151' });
+        F(X + 'CITY', '  도시지역분', 'ROUNDDOWN({' + X + 'PB}*0.0014,0)', e.city, { law: '지방세법 §112' });
+        F(X + 'EDU', '  지방교육세', 'ROUNDDOWN({' + X + 'PT}*0.2,0)', e.edu, { law: '지방세법 §151' });
       });
-      F('BPB', '건축물 재산세 과세표준(× 비율)', '{BLDG}*{PLF}', null, { law: '지방세법 시행령 §109①3호' });
-      F('BPR', '  건축물 재산세(상한 전 · 0.25%)', '{BPB}*0.0025', l.bldg.ptRaw, { law: '지방세법 §111①2호다목' });
-      F('BPT', '  건축물 재산세', yr && k > 0 ? 'IF({BPT@P}>0,IF({BPR}>{BPT@P}*1.5,{BPT@P}*1.5,{BPR}),{BPR})' : '{BPR}', l.bldg.pt, { law: '지방세법 §122' });
-      F('BCITY', '  도시지역분', '{BPB}*0.0014', l.bldg.city, { law: '지방세법 §112' });
-      F('BEDU', '  지방교육세', '{BPT}*0.2', l.bldg.edu, { law: '지방세법 §151' });
+      F('BPB', '건축물 재산세 과세표준(× 비율)', 'ROUNDDOWN({BLDG}*{PLF},0)', null, { law: '지방세법 시행령 §109①3호' });
+      F('BPR', '  건축물 재산세(상한 전 · 0.25%)', 'ROUNDDOWN({BPB}*0.0025,0)', l.bldg.ptRaw, { law: '지방세법 §111①2호다목' });
+      F('BPT', '  건축물 재산세', yr && k > 0 ? 'IF({BPT@P}>0,IF({BPR}>{BPT@P}*1.5,ROUNDDOWN({BPT@P}*1.5,0),{BPR}),{BPR})' : '{BPR}', l.bldg.pt, { law: '지방세법 §122' });
+      F('BCITY', '  도시지역분', 'ROUNDDOWN({BPB}*0.0014,0)', l.bldg.city, { law: '지방세법 §112' });
+      F('BEDU', '  지방교육세', 'ROUNDDOWN({BPT}*0.2,0)', l.bldg.edu, { law: '지방세법 §151' });
       F('LJ', '토지분 종부세', '{LCJ}+{LSJ}', l.jbs, { law: '종부세법 §11~§15' });
-      F('LAGRI', '농어촌특별세(토지분 20%)', '{LJ}*0.2', l.agri, { law: '농어촌특별세법 §5①8호' });
+      F('LAGRI', '농어촌특별세(토지분 20%)', 'ROUND({LJ}*0.2,0)', l.agri, { law: '농어촌특별세법 §5①8호' });
       F('LPAY', '토지분 종부세 + 농특세', '{LJ}+{LAGRI}', l.pay, {});
       F('LHOLD', '토지, 건축물 보유세', '{LCPT}+{LSPT}+{BPT}+{LCCITY}+{LSCITY}+{BCITY}+{LCEDU}+{LSEDU}+{BEDU}+{LJ}+{LAGRI}', l.hold, {});
       F('LPROP', '  토지, 건축물 재산세', '{LCPT}+{LSPT}+{BPT}', null, {});
