@@ -2979,6 +2979,12 @@ var ACQ = (function () {
     penDay: 22, penDayD: 100000, penCap: 75, 
     penSell: 80,                     
     
+    holFixed: ['01-01', '03-01', '05-05', '06-06', '08-15', '10-03', '10-09', '12-25'], 
+    holNew: ['05-01', '07-17'], holNewFrom: '2026-05-11', 
+    holSub: ['03-01', '05-05', '08-15', '10-03', '10-09', '12-25'], 
+    holSubNew: ['05-01', '07-17'],   
+    cut10: 10,                       
+    
     hLo: 1 * P, hHi: 3 * P,          
     hrDiv: 300000000, hrSub: 3,      
     sBuy: 4 * P, sBuyFarm: 3 * P,    
@@ -2996,6 +3002,24 @@ var ACQ = (function () {
   function ymd(y, m, d) { return y + '-' + pad(m) + '-' + pad(d); }
   function lastDay(y, m) { return new Date(Date.UTC(y, m, 0)).getUTCDate(); }
   function addDays(s, n) { var t = new Date(Date.UTC(+s.slice(0, 4), +s.slice(5, 7) - 1, +s.slice(8, 10) + n)); return ymd(t.getUTCFullYear(), t.getUTCMonth() + 1, t.getUTCDate()); }
+  
+  function dow(s) { return new Date(Date.UTC(+s.slice(0, 4), +s.slice(5, 7) - 1, +s.slice(8, 10))).getUTCDay(); }
+  function isHol(s, extra) {
+    var md = s.slice(5), w = dow(s);
+    if (w === 0 || w === 6) return true;
+    if ((extra || []).indexOf(s) >= 0) return true;
+    if (R.holFixed.indexOf(md) >= 0) return true;
+    if (s >= R.holNewFrom && R.holNew.indexOf(md) >= 0) return true;
+    {   
+      for (var k = 1; k <= 3; k++) { var h = addDays(s, -k), hw = dow(h), hm = h.slice(5);
+        if ((R.holSub.indexOf(hm) >= 0 || (h >= R.holNewFrom && R.holSubNew.indexOf(hm) >= 0)) && (hw === 0 || hw === 6)) {
+          var d = addDays(h, 1); while (dow(d) === 0 || dow(d) === 6 || R.holFixed.indexOf(d.slice(5)) >= 0 || (d >= R.holNewFrom && R.holNew.indexOf(d.slice(5)) >= 0)) d = addDays(d, 1);
+          if (d === s) return true; } }
+    }
+    return false;
+  }
+  function nextBiz(s, extra) { var d = s, n = 0; while (isHol(d, extra) && n < 15) { d = addDays(d, 1); n++; } return d; }
+  function floor10(v) { return Math.floor(Math.round(v) / R.cut10) * R.cut10; }
   function addY(s, n) { var y = +s.slice(0, 4) + n, m = +s.slice(5, 7), d = +s.slice(8, 10); return ymd(y, m, Math.min(d, lastDay(y, m))); }
   function monthEndPlus(s, k) { 
     var y = +s.slice(0, 4), m = +s.slice(5, 7) + k; y += Math.floor((m - 1) / 12); m = ((m - 1) % 12) + 1; return ymd(y, m, lastDay(y, m));
@@ -3194,13 +3218,21 @@ var ACQ = (function () {
     else if (c === 'gift') { due = monthEndPlus(I.date, 3); dueWhy = '취득일(증여계약일)이 속하는 달의 말일부터 3개월'; }
     else if (I.burden) { due = monthEndPlus(I.date, 3); dueWhy = '부담부 증여 — 취득일이 속하는 달의 말일부터 3개월'; }
     else { due = addDays(I.date, 60); dueWhy = '취득일부터 60일'; }
+    var dueRaw = due; due = nextBiz(dueRaw, I.holidays);
+    if (due !== dueRaw) dueWhy += ' · 그 날(' + dueRaw + ')이 토·일·공휴일 → 다음 날(지방세기본법 §24①)';
 
     var out = { I: I, base: base, S: S, rate: rate, eRate: eRate, nRate: nRate, nongEx: nongEx, mode: mode, sp15: sp15, lux: lux, metro: metro,
       acq0: acq0, acq: acq, edu: edu, nong: nong, nongT: nongT, total: total, red: red, why: why, cnt: cnt, t2: t2, exr: exr,
-      sumRate: rate + eRate + nRate, due: due, dueWhy: dueWhy };
+      sumRate: rate + eRate + nRate, due: due, dueWhy: dueWhy, dueRaw: dueRaw };
+    
+    out.acq10 = floor10(acq); out.edu10 = floor10(edu); out.nong10 = floor10(nongT); out.total10 = out.acq10 + out.edu10 + out.nong10;
     
     out.baseSrc = baseSrc; out.lowStd = lowStd; out.cntX = cntX; out.famGift = !!I.famGift;
     out.dual = bx.dual; out.defaults = bx.defaults;
+    if (red && red.ok && red.amt > 0 && edu > 0) {   
+      var eduR = edu - mulDiv(edu, red.amt, acq0);
+      out.dual.push('지방교육세 : 조문 문언(지방세법 §151①1호다목1)은 감면율을 정한 경우만 → 공제액 방식 감면은 본문) = ' + won0(edu) + ' / 감면 비율만큼 줄인 값(일부 계산기) = ' + won0(eduR) + '(차이 ' + won0(edu - eduR) + ') · 예규, 심판례 못 찾음 — 문언 기준 값으로 둠');
+    }
     var sub = function (o2) { o2 = Object.assign({}, Iin, o2, { _sub: 1 }); delete o2.pen; return calc(o2); };
     if (!Iin._sub) {
       
@@ -3263,8 +3295,14 @@ var ACQ = (function () {
     var eUnpaid = payD && payD > due && noRep && !(p.sellNoReport) ? edu : 0, ed = payD ? Math.max(0, daysBetween(due, payD)) : 0;   
     if (eUnpaid > 0 && ed > 0) { var ex = mulDiv(eUnpaid * ed, R.penDay, R.penDayD), ec = mulDiv(eUnpaid, R.penCap, 100); t.eduDay = Math.min(ex, ec);
       L.push('납부지연 가산세(지방교육세) : ' + won0(eUnpaid) + ' × ' + ed + '일 × 22/100,000 = ' + won0(t.eduDay) + ' — 지방교육세는 신고불성실 가산세 없음 (§153①②)'); }
-    var tot = t.acqRep + t.acqDay + t.eduDay + t.sell;
-    return { lines: L, parts: t, total: tot, days: ed, payD: payD, reportD: repD, noReport: noRep, payNow: o.total + tot };
+    
+    t.nongDay = 0;
+    var nUnpaid = payD && payD > due && noRep && !(p.sellNoReport) ? (o.nongT || 0) : 0;
+    if (nUnpaid > 0 && ed > 0) { var nd = Math.min(ed, 1826); t.nongDay = mulDiv(nUnpaid * nd, R.penDay, R.penDayD);
+      L.push('납부지연 가산세(농어촌특별세) : ' + won0(nUnpaid) + ' × ' + nd + '일 × 22/100,000 = ' + won0(t.nongDay) + ' — 국세기본법 §47의4①1호 · 농특세 무신고 가산세 없음(§47의2① 괄호)'); }
+    var tot = t.acqRep + t.acqDay + t.eduDay + t.sell + t.nongDay;
+    var tot10 = floor10(t.acqRep + t.acqDay + t.sell) + floor10(t.eduDay) + floor10(t.nongDay);
+    return { lines: L, parts: t, total: tot, total10: tot10, days: ed, payD: payD, reportD: repD, noReport: noRep, payNow: o.total + tot, payNow10: (o.total10 != null ? o.total10 : o.total) + tot10 };
   }
 
   
@@ -3288,7 +3326,8 @@ var ACQ = (function () {
     add('edu', '지방교육세', o.edu, '§151①1호');
     add('nong', '농어촌특별세', o.nongT, '농특세법 §5①', o.nongEx ? '비과세' : '');
     add('total', '납부할 세액', o.total, '', '취득세 + 지방교육세 + 농특세');
-    add('due', '신고·납부 기한', o.due, '§20①', o.dueWhy);
+    if (o.total10 !== o.total) add('total10', '납부할 세액(세목별 10원 미만 버림)', o.total10, '국고금 관리법 §47①, 지방세기본법 §59', '취득세 ' + won0(o.acq10) + ' + 지방교육세 ' + won0(o.edu10) + ' + 농특세 ' + won0(o.nong10));
+    add('due', '신고·납부 기한', o.due, '§20①' + (o.dueRaw && o.dueRaw !== o.due ? ', 지방세기본법 §24①' : ''), o.dueWhy);
     if (o.pen && !o.pen.err) add('pen', '가산세', o.pen.total, '지방세기본법 §53~55', '가산세 포함 ' + won0(o.pen.payNow));
     return S;
   }
@@ -3321,7 +3360,7 @@ var ACQ = (function () {
     add('nong', '농어촌특별세', (g ? g.nongT : 0) + (b ? b.nongT : 0), '농특세법 §5①', '', pr('nongT', id));
     add('total', '납부할 세액', tot, '', '무상분 + 유상분');
     add('due', '신고·납부 기한', (g || b).due, '§20①', '취득일이 속하는 달의 말일부터 3개월');
-    return { steps: S, V: V, D: D, share: share, debtAsGift: debtAsGift, gift: g, buy: b, giftPart: giftPart, buyPart: b ? Ds : 0, total: tot,
+    return { steps: S, V: V, D: D, share: share, debtAsGift: debtAsGift, gift: g, buy: b, giftPart: giftPart, buyPart: b ? Ds : 0, total: tot, total10: (g ? g.total10 : 0) + (b ? b.total10 : 0),
       acq: (g ? g.acq : 0) + (b ? b.acq : 0), edu: (g ? g.edu : 0) + (b ? b.edu : 0), nongT: (g ? g.nongT : 0) + (b ? b.nongT : 0),
       due: (g || b).due, dueWhy: '부담부 증여 — 취득일이 속하는 달의 말일부터 3개월(§20①)', flags: f, dual: dual, defaults: dflt };
   }
@@ -3335,7 +3374,9 @@ var ACQ = (function () {
     if (o.famGift) f.push('배우자·직계존비속에게서 산 주택 → 대가 지급 증명(취득자 소득, 소유재산 처분·담보, 상속·증여재산, 그 밖 재산) 없으면 증여로 봄 — 증명 서류가 있으면 「대가 증명」을 켜면 유상으로 다시 계산(§7⑪4호)');
     if (o.lowStd) f.push('시가표준액 1억원 이하 무상취득 = 시가인정액과 시가표준액 중 납세자가 정한 가액(§10의2②2호, 영 §14의2 · 지분이면 전체 지분 시가표준액, 부속토지만이면 전체 주택 시가표준액)');
     if (I.cause === 'gift' && I.kind !== 'house' && !o.lowStd && !(+I.part > 0)) f.push('무상취득 과세표준 = 시가인정액(취득일 전 6개월~후 3개월 매매·감정·경매·공매가액, 영 §14①) · 산정이 어려우면 시가표준액(§10의2②3호) · 감정가액 신고는 감정기관 둘(시가표준액 10억원 이하는 하나, 영 §14의3①)');
-    if (o.pen && !o.pen.err) f.push('가산세 : 농어촌특별세(국세) 가산세, 과소신고·신고 없이 매각 때 지방교육세 납부지연 가산세는 계산 안 함 · 정당한 사유 감면(지방세기본법 §57①), 납부기한이 공휴일이면 다음 날 등 기한 특례, 고지 뒤 3%·월 0.66%(§55①3·4호)는 반영 안 함 [확인 필요]');
+    if (o.pen && !o.pen.err) f.push('가산세 : 과소신고·신고 없이 매각 때 지방교육세·농어촌특별세 납부지연 가산세는 계산 안 함 · 정당한 사유 감면(지방세기본법 §57①), 고지 뒤 3%·월 0.66%(§55①3·4호)는 반영 안 함 [확인 필요] · 농특세 납부지연 = 국세기본법 §47의4(무신고 가산세 없음 §47의2① 괄호)');
+    if (o.pen || o.dueRaw !== o.due) f.push('신고·납부 기한 특례(지방세기본법 §24①) : 토·일, 양력 공휴일(1.1., 3.1., 5.5., 6.6., 8.15., 10.3., 10.9., 12.25. · 2026.5.11.부터 5.1. 노동절, 7.17. 제헌절)과 그 대체공휴일만 자동 — 설·추석·부처님 오신 날·선거일·임시공휴일은 holidays 칸(YYYY-MM-DD 목록)으로 넣어야 반영 [확인 필요]');
+    if (o.total10 !== o.total) f.push('낼 돈 = 세목마다 10원 미만 버림 ' + won0(o.total10) + '(국고금 관리법 §47①, 지방세기본법 §59) · 원 단위 합계 ' + won0(o.total));
     if (o.t2 && o.t2.extra > 0) f.push('일시적 2주택 기한 안 못 팔면 추가 납부 ' + won0(o.t2.extra) + '(중과 ' + pct(o.t2.heavyRate) + ' − 이번 신고) — 사유발생일부터 60일 안 신고·납부하면 가산세 없음(2026 개정, 책 p.24)');
     if (I.kind === 'house' && I.adj) f.push('조정대상지역 지정 현황(2025.10.16. 현재 37곳 · 「2026 주택과 세금」 p.308) : 서울 전 지역, 경기 과천·광명·성남 분당·수정·중원·수원 영통·장안·팔달·안양 동안·용인 수지·의왕·하남 — 그 뒤 지정·해제는 국토교통부 공고로 확인');
     if (o.exr && !o.exr.ok) f.push('중과 제외 주택으로 골랐지만 요건 미달 — ' + o.exr.why + ' → 중과 판정에서 빼지 않음');
@@ -3349,7 +3390,7 @@ var ACQ = (function () {
       if (!o.red.ok) f.push(o.red.n + ' 요건 미달 — ' + o.red.why.join(', ') + ' → 감면 안 함');
       else {
         f.push(o.red.n + ' 요건(무주택, 거주, 1가구 1주택 등)과 3년 안 매각·증여·임대 시 추징(§36의3④, §36의5②) 확인');
-        f.push('감면 때 지방교육세는 줄이지 않고 계산(감면율이 아닌 정액 공제 — §151①1호다목 해당 여부 [확인 필요])' + (o.nongEx ? '' : ', 농어촌특별세 = 10% 분(표준세율 2% 기준) + 감면세액 20%로 둠 [확인 필요]'));
+        f.push('감면 때 지방교육세는 줄이지 않고 계산(감면율이 아닌 정액 공제 — §151①1호다목1) 문언 「감면율을 정하는 경우」 · 예규, 심판례 못 찾음 · 줄인 값은 [⚠ 두 값])' + (o.nongEx ? '' : ', 농어촌특별세 = 10% 분(표준세율 2% 기준) + 감면세액 20%로 둠 [확인 필요]'));
       }
       if (I.relief === 'first') f.push('생애최초 기한 : 책 p.52~53 본문은 「~2025.12.31.」, 요약표 p.22와 현행 지특법 §36의3①은 「2028.12.31.까지」 → 법령 원문 기준');
     }
@@ -3360,7 +3401,7 @@ var ACQ = (function () {
     if (!house) f.push('주택 외 세율은 책에 계산 사례가 없음 — 법령 원문(§11①, §151, 농특세법 §5)만으로 계산');
     if (o.I.share < 100) f.push('지분 취득 : 세율 판정은 전체 주택 가액, 과세표준은 지분만큼으로 둠(§11①8호 후단은 시가표준액 비율로 환산 — 직접 확인)');
     if (house && o.nongEx && I.area > 0) f.push('국민주택규모 = 전용 85㎡(수도권 밖 도시지역 아닌 읍·면 100㎡, 주택법 §2 6호), 부속토지는 용도지역별 배율 안만 비과세(농특세법 시행령 §4⑤)');
-    f.push('끝수 : 원 미만 버림, 고지·납부 단계 끝수(10원 미만) 처리, 지방교육세 조례 가감(§151②)은 반영 안 함');
+    f.push('끝수 : 원 미만 버림, 납부할 세액은 세목마다 10원 미만 버림 반영, 지방교육세 조례 가감(§151②)은 반영 안 함');
     return f;
   }
 
@@ -13990,6 +14031,8 @@ var BIZA = (function () {
         if (ok(o.h)) h = +o.h;
         if (ok(o.j)) j = +o.j;
         h = +h || 0; j = +j || 0;
+        
+        if (ok(o.h) && !ok(o.j) && t.r !== 12) { var h0 = +x.h || 0, j0 = +x.j || 0; if (j0 > 0 && Math.abs(j0 - h0) < 0.5) j = h; else if (j > h) j = Math.max(0, h); }
         if (t.jAll && !ok(o.j) && !x.jOver) j = h;
         out[t.r] = { g: x.g, h: h, j: j, i: h - j, man: { h: ok(o.h), j: ok(o.j) } };
       } else if (t.t === 'c' || t.t === 'x') out[t.r] = { g: x.g, h: 0, j: 0, i: 0 };
@@ -44865,6 +44908,6 @@ window.__diag.blk.b3=1;
 
 
 </script>
-<div id="pubFoot" style="margin:28px auto 0;padding:14px 16px 22px;max-width:1100px;font:14px/1.6 Freesentation,-apple-system,BlinkMacSystemFont,'Apple SD Gothic Neo','Malgun Gothic','Noto Sans KR',sans-serif;color:#6B7684;text-align:center;border-top:1px solid #E5E8EB">본 자료 = 일반적 정보 제공 목적, 실제 적용 시 개별 사안별 법률적 검토 및 전문가 자문 필수<br>계산은 이 기기 안에서만 하며 입력값은 어디에도 보내지 않습니다. · 판 2026-11-19</div><script>try{if(window.self!==window.top)document.getElementById("pubFoot").style.display="none";}catch(e){}</script>
+<div id="pubFoot" style="margin:28px auto 0;padding:14px 16px 22px;max-width:1100px;font:14px/1.6 Freesentation,-apple-system,BlinkMacSystemFont,'Apple SD Gothic Neo','Malgun Gothic','Noto Sans KR',sans-serif;color:#6B7684;text-align:center;border-top:1px solid #E5E8EB">본 자료 = 일반적 정보 제공 목적, 실제 적용 시 개별 사안별 법률적 검토 및 전문가 자문 필수<br>계산은 이 기기 안에서만 하며 입력값은 어디에도 보내지 않습니다. · 판 2026-11-20</div><script>try{if(window.self!==window.top)document.getElementById("pubFoot").style.display="none";}catch(e){}</script>
 </body>
 </html>
