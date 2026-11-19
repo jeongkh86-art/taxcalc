@@ -1373,7 +1373,168 @@ summary::before{border-left-color:var(--ink)}
 @media print{body{display:block}header{display:none!important}}
 
 @media screen{[style*="font-size:12px"],[style*="font-size:10.5px"],[style*="font-size:14px"],[style*="font-size:15px"],[style*="font-size:11px"],[style*="font-size:11.5px"],[style*="font-size:10px"],[style*="font-size:13px"],[style*="font-size:12.5px"],[style*="font-size:13.5px"]{font-size:12pt!important}}
-</style>
+</style><style id="pubDesign">@media screen{
+:root{--pd-bg:#FFFFFF;--pd-surface:#FFFFFF;--pd-surface2:#F5F7FA;--pd-ink:#111827;--pd-ink2:#374151;--pd-ink3:#6B7280;--pd-line:#E5E7EB;--pd-line2:#D1D5DB;
+  --pd-acc:#1E3A8A;--pd-acc-soft:#EEF2FB;--pd-acc-hover:#172E6E;--pd-th-bg:#F5F7FA;--pd-th-fg:#374151;--pd-minus:#1E3A8A;
+  --pd-r-card:8px;--pd-r-ctl:6px;--pd-tl:.5px;--pd-cap:15px;--pd-body:16px;--pd-lead:17px;--pd-h3:18px;--pd-q:22px;--pd-h1:24px;--pd-num:36px;--pd-hmin:44px;
+  --paper:#FFFFFF;--card:#FFFFFF;--ink:#111827;--ink2:#374151;--ink3:#6B7280;--rule:#E5E7EB;--band:#F5F7FA;
+  --ver:#1E3A8A;--verbg:#EEF2FB;--ok:#1E3A8A;--okbg:#EEF2FB;--blue:#1E3A8A;--bluebg:#EEF2FB}
+#pkRoot{--blue:#1E3A8A;--bluebg:#EEF2FB}
+html,body{background:var(--pd-bg)}
+body{color:var(--pd-ink);font-size:var(--pd-body);font-variant-numeric:tabular-nums}
+h1{font-size:var(--pd-h1)!important;font-weight:800;letter-spacing:-.01em}
+.eyebrow,.lead,.dfl,.law,details.why>summary,.fld .mh,.cfm{font-size:var(--pd-cap)}
+.lead{font-size:var(--pd-body)}
+.eyebrow .ex{color:var(--pd-acc)}
+.sec>h2{font-size:var(--pd-h3);border-bottom:1px solid var(--pd-ink2)}
+.card h3{font-size:var(--pd-h3)}
+.law,.howto{background:var(--pd-surface2);border-radius:var(--pd-r-ctl)}
+.card,.box,#pkRoot .pk-step,#pkRoot .pk-card,#pkRoot .pk-res,#pkRoot .pk-op,#pkRoot .pk-spx,.pk-coc{border:1px solid var(--pd-line);border-radius:var(--pd-r-card);box-shadow:none}
+#pkRoot .pk-step,#pkRoot .pk-spx{background:var(--pd-surface)}
+button,select,summary,[role=button],textarea,input:not([type=checkbox]):not([type=radio]):not([type=hidden]):not([type=file]):not([type=range]){min-height:var(--pd-hmin)}
+button{border-radius:var(--pd-r-ctl)}
+.calc button,button[data-run],.xlb,#pkRoot .pk-go,#pkRoot .pk-xl,#pkRoot [data-pkwn],#pkRoot .sbz-btns button,#pkRoot .sbz-btns button.xl,.uxq-go{background:var(--pd-acc)!important;color:#fff!important;border:0!important;border-radius:var(--pd-r-ctl)!important;min-height:52px;font-weight:700}
+.calc button:hover,.xlb:hover,#pkRoot .pk-go:hover,#pkRoot .pk-xl:hover{background:var(--pd-acc-hover)!important}
+#pkRoot .pk-go2,#pkRoot .pk-wd summary,#pkRoot .pk-wz0,#pkRoot .pk-wb{border:1px solid var(--pd-line2);border-radius:var(--pd-r-ctl);background:var(--pd-surface);color:var(--pd-ink2)}
+#pkRoot .pk-wb{min-height:var(--pd-hmin);font-size:var(--pd-cap);display:inline-flex;align-items:center;justify-content:center}
+#pkRoot .pk-wd summary{color:var(--pd-ink);display:flex;align-items:center;justify-content:center}
+#pkRoot .pk-wd[open] summary{background:var(--pd-acc-soft);color:var(--pd-acc);border-color:var(--pd-acc)}
+.tabs button.on,.seg button.on,#pkRoot .pk-mtab button.on,#pkRoot .pk-cnt button.on,#pkRoot .pk-sd.on,.stepnav button.hi,.mode button.on{background:var(--pd-acc)!important;border-color:var(--pd-acc)!important;color:#fff!important}
+.tabs button,.seg button,#pkRoot .pk-mtab button,#pkRoot .pk-cnt button,#pkRoot .pk-chip,#pkRoot .pk-tog button,#pkRoot .pk-wo button,#pkRoot .pk-kd,#pkRoot .pk-spi,#pkRoot .pk-swap{border-width:1px;border-radius:var(--pd-r-ctl)}
+#pkRoot .pk-wo button{border:1.5px solid var(--pd-line2);font-size:var(--pd-lead)}
+#pkRoot .pk-wo button.on,#pkRoot .pk-kd.on,#pkRoot .pk-spi.on{border-color:var(--pd-acc);background:var(--pd-acc-soft)}
+#pkRoot .pk-chip,#pkRoot .pk-tog button,#pkRoot .pk-cosel button,.pk-cosel button{min-height:var(--pd-hmin);display:inline-flex;align-items:center;font-size:var(--pd-cap)}
+#pkRoot .pk-terms button{min-height:var(--pd-hmin);border:0;border-radius:0;background:none;color:var(--pd-acc);text-decoration:underline;text-underline-offset:3px;font-size:var(--pd-cap);padding:0 4px;display:inline-flex;align-items:center}
+#pkRoot .pk-terms button.on{background:var(--pd-acc-soft);font-weight:700}
+#pkRoot .pk-tl{font-size:var(--pd-cap)}
+#pkRoot .pk-need-l button{min-height:var(--pd-hmin);font-size:var(--pd-cap);border-radius:var(--pd-r-ctl)}
+#pkRoot .pk-xpl button,#pkXpBtn{min-height:var(--pd-hmin);font-size:var(--pd-cap);color:var(--pd-acc)}
+details.why>summary{display:inline-flex;align-items:center;min-height:var(--pd-hmin);border-bottom:0;text-decoration:underline dotted;text-underline-offset:4px}
+summary{display:flex;align-items:center}
+details.why>summary{display:inline-flex}
+.fld input,.fld select,#pkRoot .pk-qf input,#pkRoot .sbz-in input,#pkRoot .sbz-in select,#pkRoot .sbz-in2 input,#pkRoot .sbz-in2 select,#pkRoot .sbz-txt input,#pkRoot .sbz-txt select{min-height:var(--pd-hmin);border:1px solid var(--pd-line2);border-radius:var(--pd-r-ctl)}
+#pkRoot .pk-wi input{border:1.5px solid var(--pd-line2);border-radius:var(--pd-r-ctl)}
+.fld input:focus,.fld select:focus,#pkRoot .pk-wi input:focus,#pkRoot .pk-qf input:focus,input:focus,select:focus{outline:none;border-color:var(--pd-acc)!important;box-shadow:0 0 0 2px var(--pd-acc-soft)}
+.chk input,input[type=checkbox],input[type=radio]{accent-color:var(--pd-acc)}
+#pkRoot .pk-wq{font-size:var(--pd-q)}
+#pkRoot .pk-wh{font-size:var(--pd-cap);color:var(--pd-ink2)}
+#pkRoot .pk-dots i.d{background:var(--pd-ink3)}
+#pkRoot .pk-dots i.c{background:var(--pd-acc)}
+#pkRoot .pk-sh i{background:var(--pd-acc)}
+#pkRoot .pk-tdef{background:var(--pd-surface2);border-left:3px solid var(--pd-acc);border-radius:var(--pd-r-ctl);font-size:var(--pd-cap)}
+#pkRoot .pk-tdef b{color:var(--pd-ink)}
+#pkRoot .pk-tdef .pk-lw{font-size:var(--pd-cap)}
+#pkRoot .pk-sp,#pkRoot .pk-kd,#pkRoot .pk-ql,#pkRoot .pk-qf label,#pkRoot .pk-swq,#pkRoot .pk-oe,#pkRoot .pk-rn,#pkRoot .pk-eng,#pkRoot .pk-need-l span,#pkRoot .pk-det summary,#pkRoot .pk-card h3,#pkRoot .pk-qnote,#pkRoot .pk-mtab button,#pkRoot .pk-sd,#pkRoot .pk-oh,#pkRoot .pk-bd{font-size:var(--pd-cap)}
+#pkRoot .pk-sd small,#pkRoot .pk-oe s,.pk-tag{font-size:var(--pd-cap)}
+#pkRoot .pk-res ul,#pkRoot .pk-card ul{font-size:var(--pd-cap)}
+#pkRoot .pk-card h3{font-size:var(--pd-h3)}
+#pkRoot .pk-eng{background:var(--pd-surface2)}
+#pkRoot .pk-op.on .pk-sw{background:var(--pd-acc)}
+#pkRoot .pk-spx>summary::before{border-width:1.5px}
+#pkRoot .pk-spx>summary span{color:var(--pd-acc)}
+#pkRoot .pk-spg{border-top:1px solid var(--pd-ink2)}
+#pkRoot .b-ok,#pkRoot .b-tax,#pkRoot .b-blue{background:var(--pd-acc-soft);color:var(--pd-acc)}
+#pkRoot .pk-wr,#pkRoot .pk-wr.ok,#pkRoot .pk-wr.ng{background:var(--pd-surface);color:var(--pd-ink);border:0;border-left:5px solid var(--pd-acc);border-radius:0;padding:6px 0 6px 16px}
+#pkRoot .pk-wr0{font-size:var(--pd-cap);color:var(--pd-ink2);font-weight:700}
+#pkRoot .pk-wr1,#pkRoot .pk-wr.ng .pk-wr1,#pkRoot .pk-wr.ok .pk-wr1{font-size:var(--pd-num);font-weight:700;color:var(--pd-acc);letter-spacing:-.01em}
+#pkRoot .pk-wr3{font-size:var(--pd-cap);color:var(--pd-ink2)}
+#pkRoot .pk-wr2{font-size:var(--pd-body)}
+.pk-cot{color:var(--pd-acc)}
+.pk-coc.on{border:2px solid var(--pd-acc)}
+table{font-size:var(--pd-body)}
+th{background:var(--pd-th-bg);color:var(--pd-th-fg);font-weight:700;font-size:var(--pd-cap)}
+th,td{border-bottom:var(--pd-tl) solid var(--pd-line2)}
+thead th{border-bottom:1px solid var(--pd-line2);color:var(--pd-th-fg);font-size:var(--pd-cap)}
+td small,th small{font-size:var(--pd-cap)}
+tr.tot td,tr.sum td{border-top:1.5px solid var(--pd-ink2)}
+tr.hl td{background:var(--pd-acc-soft)}
+td.band{background:var(--pd-surface2)}
+table.y4t,.yaBox table.yaT{font-size:var(--pd-body)}
+table.y4t th,.yaBox .yaT th{background:var(--pd-th-bg)!important;color:var(--pd-th-fg)!important;font-size:var(--pd-cap);font-weight:700}
+.yaBox .yaT th small,table.y4t small,.y4n,.y4dfl,.yaBox ul.yaA,.yaBox .yaT td small{font-size:var(--pd-cap)}
+table.y4t small.y4d{font-size:var(--pd-cap)}
+table.y4t .y4d.dn,table.y4t small.y4d.dn{color:var(--pd-minus)}
+table.y4t .y4d.up,table.y4t small.y4d.up{color:var(--pd-ink)}
+table.y4t tr.y4now td{background:var(--pd-surface2)}
+table.y4t tr.y4tot td{border-top:1.5px solid var(--pd-ink2)}
+.yaBox input{min-height:var(--pd-hmin);border-radius:var(--pd-r-ctl);border-color:var(--pd-line2)}
+.yaBox .yaG{font-size:var(--pd-cap)}
+@media(max-width:599.98px){
+  #txMap{background:var(--pd-surface);border-bottom:1px solid var(--pd-line)}
+  #txMap .tx-bar{min-height:var(--pd-hmin);font-size:var(--pd-cap)}
+  #txMap .tx-bar .a b{color:var(--pd-acc)}
+}
+#txMap .tx-h{border-bottom:1px solid var(--pd-ink2)}
+#txMap li.now{background:var(--pd-acc-soft)}
+#txMap li.now::before,#txMap li.now .n::after{background:var(--pd-acc);border-color:var(--pd-acc)}
+#txMap li.now .n{color:var(--pd-acc)}
+details.pk-easy>summary{display:inline-flex;align-items:center;min-height:var(--pd-hmin);color:var(--pd-acc);text-decoration-color:var(--pd-acc);font-size:var(--pd-cap)}
+details.pk-easy[open]>summary{color:var(--pd-ink2)}
+details.pk-easy>ul{border-left-color:var(--pd-acc);background:var(--pd-surface2);border-radius:0 var(--pd-r-ctl) var(--pd-r-ctl) 0}
+body .y4box .y4t th{background:var(--pd-th-bg)!important;color:var(--pd-th-fg)!important;font-size:var(--pd-cap)!important}
+body .y4box .y4t{font-size:var(--pd-body)}
+body .y4box .y4d.dn,body .y4box .y4t small.y4d.dn{color:var(--pd-minus)!important}
+body .y4box .y4d.up,body .y4box .y4t small.y4d.up{color:var(--pd-ink)!important}
+body .y4box .y4t tr.y4now td{background:var(--pd-surface2)!important}
+body .y4box .y4e,body .y4box .y4t small,body .y4box .y4lg,body .y4box .y4n,body .y4box .y4h small,body .y4box .y4dfl,body .y4box .y4gs,body .y4box .y4c,body .y4box .y4t small.y4d,body .y4box table.y4t{font-size:var(--pd-cap)!important}
+body .y4box .y4dfl,.y4dfl{background:var(--pd-acc-soft)!important;color:var(--pd-acc)!important}
+table.y4t small.y4same,body .y4box .y4t small.y4same{color:var(--pd-acc)!important}
+body .y4box .y4e{color:var(--pd-acc)!important}
+#pkRoot svg [fill="#e4572e" i]{fill:var(--pd-acc)}
+#pkRoot svg [stroke="#e4572e" i]{stroke:var(--pd-acc)}
+#pubFoot{font-size:var(--pd-cap)!important;color:var(--pd-ink3)!important;border-top-color:var(--pd-line)!important}
+body #multiBox{--mi:#111827;--mi2:#374151;--mi3:#6B7280;--mr:#E5E7EB;--mp:#FFFFFF;--mbd:#F5F7FA;--mok:#1E3A8A;--mokbg:#EEF2FB;--mokbd:#C7D2EE;--mv:#1E3A8A}
+body #qflowBox .qgo{background:var(--pd-acc)!important}
+body #qaSheet button.go{background:var(--pd-acc)!important;border-color:var(--pd-acc)!important}
+body #qaSheet .qa-pg i{background:var(--pd-acc)!important}
+body #multiBox .mcta{background:var(--pd-acc)!important;color:#fff!important;border-color:var(--pd-acc)!important;border-radius:var(--pd-r-ctl)!important}
+body #multiBox .mseg button,body #multiBox .mghost,body #qflowBox .qb{border-radius:var(--pd-r-ctl)!important}
+body #qfxBtn{border:1px solid var(--pd-line2)!important;border-radius:var(--pd-r-ctl)!important;color:var(--pd-acc)!important;background:#fff!important}
+body #qaFab{border-color:var(--pd-acc)!important;background:var(--pd-acc-soft)!important;color:var(--pd-acc)!important;border-radius:var(--pd-r-ctl)!important;min-height:44px}
+body #dgBtn{background:var(--pd-acc)!important;border-color:var(--pd-acc)!important;color:#fff!important}
+body #stBtn{border-color:var(--pd-acc)!important;color:var(--pd-acc)!important}
+:root{--gold:#1E3A8A;--gold-lt:#D1D5DB;--gold-dk:#1E3A8A;--tint:#F5F7FA;--tint-2:#EEF2FB;--line:#E5E7EB;--line-2:#E5E7EB;--muted:#6B7280;--ink-2:#374151;--ok:#1E3A8A;--err:#B91C1C}
+header,.hd{background:#fff}
+.hd .eyebrow,.hd .ver{font-size:15px}
+.hd .sub{font-size:16px}
+.stepnav{background:#fff}
+.stepnav button{min-height:44px;border-radius:var(--pd-r-ctl)}
+.v8-ck{overflow-x:auto}
+#coSwitch{background:#fff;top:61px}
+@media (max-width:599px){#coSwitch{top:79px}}
+.step{border-radius:var(--pd-r-card)}
+.step-hd{border-bottom:1px solid var(--pd-ink2)}
+.step-hd h2{font-size:18px}
+.step-hd .note{font-size:15px}
+.step-no{background:var(--pd-acc)}
+.bar i{background:var(--pd-acc)}
+button{background:var(--pd-acc);border-radius:var(--pd-r-ctl)}
+button:hover{background:var(--pd-acc-hover)}
+button.ghost,.mghost{background:#fff;color:var(--pd-ink2);border:1px solid var(--pd-line2)}
+button.ghost:hover{background:var(--pd-surface2);color:var(--pd-ink)}
+input[type=text],input[type=number],input[type=date],select{min-height:44px;border-color:var(--pd-line2);border-radius:var(--pd-r-ctl)}
+td input{min-height:44px}
+th{background:var(--pd-th-bg)!important;color:var(--pd-th-fg)!important;border-bottom:1px solid var(--pd-line2)}
+.drop{background:var(--pd-surface2)!important;border-color:var(--pd-line2)!important;border-radius:var(--pd-r-card)!important}
+.chkwhy,.pv-verdict .concl,.ck-flow .fl-e,.shg-r.ts input[type=text]{background:var(--pd-surface2)!important}
+details.co-all>summary{background:var(--pd-surface2)}
+.stepnav,#coSwitch,.bf-nav{background:rgba(255,255,255,.96)!important}
+tbody tr:hover td{background:var(--pd-surface2)}
+.card{border-radius:var(--pd-r-card)}
+.card.hero{background:#fff!important;border:0!important;border-left:5px solid var(--pd-acc)!important;border-radius:0!important;color:var(--pd-ink)}
+.card.hero .k,.card.hero .u{color:var(--pd-ink2)!important}
+.card.hero .v{color:var(--pd-acc)!important}
+details{border-radius:var(--pd-r-card)}
+summary{background:var(--pd-surface2);min-height:44px}
+summary:hover{background:var(--pd-acc-soft)}
+.uxq{border-radius:var(--pd-r-card);box-shadow:none}
+.uxq-hd{border-bottom:1px solid var(--pd-ink2)}
+.uxq-f.chg .uxq-in input,.uxq-f.chg .uxq-in select{border-color:var(--pd-acc);background:var(--pd-acc-soft)}
+#v8ActsBar{background:#fff}
+#sideBtn.on{background:var(--pd-acc);border-color:var(--pd-acc)}
+#sidePane .sp-hd{border-bottom:1px solid var(--pd-ink2)}
+#sidePane .sp-co button.on{border-left-color:var(--pd-acc)}
+}</style>
 </head>
 <body>
 
@@ -2550,8 +2711,10 @@ var IGT = (function () {
     startup: { deduct: 500000000, rate: 0.10, limit: 5000000000, limitHire: 10000000000 },
     
     
+    
     bizInh: [[10, 30000000000], [20, 40000000000], [30, 60000000000]],
-    bizInhReform: { from: 2027, perYear: 2000000000, cap: 100000000000, minYears: 20 },
+    bizInhReform: { from: 2027, fromDate: '2027-07-01', perYear: 2000000000, cap: 100000000000, minYears: 20, fullYears: 30, follow: 10 },
+    bizInhFollow: 5,   
     
     rentRate: 0.12,   
     excludedDed: 30000000, feeMax: { appraisal: 5000000, stockEval: 10000000 }
@@ -2571,6 +2734,21 @@ var IGT = (function () {
     var c = 0;
     for (var i = 0; i < R.bizInh.length; i++) if (years >= R.bizInh[i][0]) c = R.bizInh[i][1];
     return c;
+  }
+  
+  function bizInhCapReform(years) {
+    var F = R.bizInhReform, y = Math.floor((+years || 0) + 1e-9);
+    return y >= F.minYears ? Math.min(y * F.perYear, F.cap) : 0;
+  }
+  
+  function bizInhReformOn(ymd) { return !!ymd && String(ymd).slice(0, 10) >= R.bizInhReform.fromDate; }
+  
+  function bizInhCapAt(years, ymd) { return bizInhReformOn(ymd) ? bizInhCapReform(years) : bizInhCap(years); }
+  
+  function bizInhRule(years, ymd) {
+    var F = R.bizInhReform, on = bizInhReformOn(ymd), y = Math.floor((+years || 0) + 1e-9);
+    return on ? { reform: true, min: F.minYears, follow: F.follow + Math.max(0, F.fullYears - y), cap: bizInhCapReform(y) }
+              : { reform: false, min: R.bizInh[0][0], follow: R.bizInhFollow, cap: bizInhCap(y) };
   }
   
   function xlRate(ref, T) {
@@ -2761,7 +2939,7 @@ var IGT = (function () {
     var reinv = Math.max(0, (o.deposited || 0) - (o.notReinvested || 0));
     return Math.max(0, (o.withdrawn || 0) - reinv);
   }
-  return { R: R, rateTax: rateTax, bizInhCap: bizInhCap, xlRate: xlRate, belowMin: belowMin, skipRate: skipRate, specialTax: specialTax, finDeduct: finDeduct,
+  return { R: R, rateTax: rateTax, bizInhCap: bizInhCap, bizInhCapReform: bizInhCapReform, bizInhReformOn: bizInhReformOn, bizInhCapAt: bizInhCapAt, bizInhRule: bizInhRule, xlRate: xlRate, belowMin: belowMin, skipRate: skipRate, specialTax: specialTax, finDeduct: finDeduct,
     spouseDed: spouseDed, lumpSum: lumpSum, houseDed: houseDed, reinheritRate: reinheritRate,
     legalShares: legalShares, deemedInsurance: deemedInsurance, insuranceGift: insuranceGift, netWithdrawal: netWithdrawal,
     securedValue: securedValue, divDiff: divDiff, convBond: convBond, warrantValue: warrantValue, irr: irr, cryptoDayAvg: cryptoDayAvg,
@@ -21210,6 +21388,10 @@ function pvFbAggregateAfter(years){
     var G=pvGrowthRates(), g=Math.pow(1+G.a/100,years);
     var curNm=normCo(($('corpName')&&$('corpName').value)||'');
     var tot=0, maxYrs=0, okList=[], noList=[];
+    
+    var inhYmd=(function(){ try{ var d=evalBaseDate(); d=new Date(d.getFullYear()+years,d.getMonth(),d.getDate()); return localYmd(d); }catch(e){ return ''; } })();
+    var reformOn=(typeof IGT==='object'&&IGT.bizInhReformOn)?IGT.bizInhReformOn(inhYmd):true;
+    var minY=reformOn?IGT.R.bizInhReform.minYears:IGT.R.bizInh[0][0];
     P.holds.forEach(function(h){
       var c=Mx.co[h.id]; if(!c) return;
       var gR=(typeof Mx.groupReal==='function')?Mx.groupReal(h.id)
@@ -21218,7 +21400,7 @@ function pvFbAggregateAfter(years){
       var yrs0=c.yrs;
       if(normCo(c.name)===curNm){ var Bl=(S.brief&&S.brief.경영기간!=null)?S.brief.경영기간:null; if(Bl===null){ try{ Bl=mgmtYears(); }catch(e){} } if(Bl!==null&&Bl!==undefined) yrs0=Bl; }
       var yrsAtY=(yrs0||0)+years;
-      var okAll=(gR>=0.4)&&(yrsAtY>=20)&&(c.ksic!=='out')&&!ckNonRes();    
+      var okAll=(gR>=0.4)&&(yrsAtY>=minY)&&(c.ksic!=='out')&&!ckNonRes();    
       var baR=(c.ba===null||c.ba===undefined)?1:c.ba;
       maxYrs=Math.max(maxYrs,yrsAtY);                          
       if(!okAll){ noList.push(c.name); return; }
@@ -21233,11 +21415,11 @@ function pvFbAggregateAfter(years){
       }
       tot+=valAtY*baR; okList.push(c.name);
     });
-    var lim=okList.length?Math.min(maxYrs*2000000000,1e11):0;   
-    
-    var followUp=okList.length?(10+Math.max(0,30-maxYrs)):null;
+    var RU=IGT.bizInhRule(maxYrs,reformOn?IGT.R.bizInhReform.fromDate:'2000-01-01');   
+    var lim=okList.length?RU.cap:0;
+    var followUp=okList.length?RU.follow:null;
     return {tot:tot, lim:lim, ded:Math.min(tot,lim), maxYrs:maxYrs, followUp:followUp,
-            ok:okList.length>0, okList:okList, noList:noList};
+            ok:okList.length>0, okList:okList, noList:noList, reform:reformOn, inhYmd:inhYmd};
   }catch(e){ DIAG(e,'pvFbAggregateAfter'); return null; }
 }
 
@@ -21396,7 +21578,7 @@ function pvGrowthInheritCalc(r,B){
             eff:((estate+priorY)>0&&tx)?tx.payableTax/(estate+priorY):0,
             priorAdd:priorY, priorHeir:priorHY,   
             fbTot:fbY?fbY.tot:0, fbLim:fbY?fbY.lim:0, fbDed:fbY?fbY.ded:0, fbYrs:fbY?fbY.maxYrs:0,
-            fbFollowUp:fbY?fbY.followUp:null,
+            fbFollowUp:fbY?fbY.followUp:null, fbReform:fbY?!!fbY.reform:true,   
             fbBase:txFB?txFB.taxBase:null, fbTax:txFB?txFB.payableTax:null,
             fbEff:(estate>0&&txFB)?txFB.payableTax/estate:null};
   });
@@ -29887,7 +30069,7 @@ function rdExecPage(ctx,u){
           if(hasFb&&x[2]>0){ var lab=fbR[x[2]]; if(x[0]===c20&&svR&&x[2]>0) lab+=' ('+svR[x[2]]+' 절감)'; bars.push({v:rdV(fbR[x[2]]),t:lab,c:RDC.mid,g:true}); }
           return {l:x[1],bars:bars}; });
         return rdBars(K,w,{cap:hasFb?'상속세 추이 — 공제 미반영 vs 가업상속공제 반영':'상속세 추이',capSub:grow?rdTx(grow)+' 가정':'',groups:gs,lw:0.95,
-          legend:hasFb?[{t:'공제 미반영',c:RDC.bar2},{t:'가업상속공제 반영 (2027. 7. 1. 개정안 기준, 심사위원회 통과 전제)',c:RDC.mid}]:null}); }},
+          legend:hasFb?[{t:'공제 미반영',c:RDC.bar2},{t:'가업상속공제 반영 (현재 = 현행법, 2027. 7. 1. 뒤 상속 = 개정안 · 심사위원회 통과 전제)',c:RDC.mid}]:null}); }},
       {f:1,mk:function(w){ return rdStack(K,w,[
         function(w2){ return tval?rdKpi(K,w2,{t:'대표 지분 평가총액 ('+stake+', '+rdDate(ctx.meta.baseYear)+' 결산)',v:tval,sm:kr(/^1주 평가액/)?'1주 '+kr(/^1주 평가액/):'',
           s:(kr(/^순손익가치/)?'순손익가치 '+kr(/^순손익가치/)+', 순자산가치 '+kr(/^순자산가치/):'')+(ratio?' ('+ratio+')':'')}):null; },
@@ -38054,15 +38236,15 @@ function selGet(m){ if(MOD_ALWAYS[m.id]) return false;
           var cw=[2.6].concat(R.map(function(){ return 7.64/R.length; }));
           try{
             var hdrFB=[CH.h('구분')].concat(R.map(function(x){
-              return CH.h((x.y===0?'현재':(x.y+'년 후'))+'\n(경영 '+x.fbYrs+'년)'); }));
+              return CH.h((x.y===0?'현재':(x.y+'년 후'))+'\n(경영 '+x.fbYrs+'년 · '+(x.fbReform?'개정안':'현행')+')'); }));   
             var rwFB=function(lab,fn,em){
               return [em?CH.em(lab,{align:'left'}):CH.rh(lab,{align:'left'})]
                 .concat(R.map(function(x){ return em?CH.emn(fn(x)):CH.n(fn(x)); }));
             };
             var tbFB=[hdrFB,
-              rwFB('경영기간 (개정안 20년↑ 조건부)',function(x){ return x.fbYrs+'년'+(x.fbDed>0?'':(x.fbYrs<20?' · 요건 미달(20년 미만)':' · 요건 미달(업종 등 — 20년은 충족)')); }),
-              rwFB('사후관리기간 (기준 10년+30년 부족분)',function(x){ return x.fbDed>0?(x.fbFollowUp+'년'):'—'; }),
-              rwFB('한도 (경영연수×20억·상한 1000억)',function(x){ return x.fbDed>0?ek(x.fbLim):'—'; }),
+              rwFB('경영기간 (현행 10년↑ / 개정안 20년↑)',function(x){ var mn=x.fbReform?20:10; return x.fbYrs+'년'+(x.fbDed>0?'':(x.fbYrs<mn?' · 요건 미달('+mn+'년 미만)':' · 요건 미달(업종 등 — '+mn+'년은 충족)')); }),
+              rwFB('사후관리기간 (현행 5년 / 개정안 10년+30년 부족분)',function(x){ return x.fbDed>0?(x.fbFollowUp+'년'):'—'; }),
+              rwFB('한도 (현행 경영기간 구간 / 개정안 경영연수×20억)',function(x){ return x.fbDed>0?ek(x.fbLim):'—'; }),
               rwFB('사업용자산상당액',function(x){ return x.fbDed>0?ek(x.fbTot):'—'; }),
               rwFB('적용 공제액',function(x){ return x.fbDed>0?ek(x.fbDed):'0원(요건 미달)'; },true),
               rwFB('과세표준',function(x){ return x.fbDed>0?(x.fbBase===null?'—':ek(x.fbBase)):ek(x.base); }),
@@ -38072,13 +38254,15 @@ function selGet(m){ if(MOD_ALWAYS[m.id]) return false;
             var lastFB=R[R.length-1];
             var savFB=(lastFB.fbTax!==null&&lastFB.fbDed>0)?(lastFB.tax-lastFB.fbTax):null;
             var firstOk=R.filter(function(x){ return x.fbDed>0; })[0];
+            var curRows=R.filter(function(x){ return !x.fbReform; }).map(function(x){ return x.y===0?'현재':(x.y+'년 후'); });   
             content('Ⅳ. 가업승계 — 가업상속공제 반영 가정 20년 추이',
-              '2027.7.1. 개정안 기준(참고용) · 경영 20년↑ 조건부(사후관리 연장)·30년↑ 정상 · 5년 단위',[
+              (curRows.length?curRows.join(', ')+' = 현행법(2027.7.1. 전 상속), 그 뒤 = ':'')+'2027.7.1. 개정안 기준(참고용) · 경영 20년↑ 조건부(사후관리 연장)·30년↑ 정상 · 5년 단위',[
               {t:'table',fs:13,rows:tbFB,colW:cw},
               {t:'note',text:(savFB!==null?(lastFB.y+'년 후 가업상속공제 적용 시 '+ek(lastFB.fbTax)+' (미반영 대비 '+ek(savFB)+' 절감 · 사후관리 '+lastFB.fbFollowUp+'년) · '):
-                  ('경영기간이 개정안 최소 요건(20년)에 20년 내 도달하지 못해 이 기간 전부 일반상속세로 산출됨 · '))+
-                (firstOk&&firstOk.y>0?('경영기간이 20년에 도달하는 '+firstOk.y+'년 후부터 요건 충족을 가정 — 이때 경영 '+firstOk.fbYrs+'년으로 30년에 '+
-                  (30-firstOk.fbYrs)+'년 부족해 사후관리가 '+firstOk.fbFollowUp+'년으로 늘어남 · '):'')+
+                  ('경영기간이 최소 요건(현행 10년, 개정안 20년)에 도달하지 못해 이 기간 전부 일반상속세로 산출됨 · '))+
+                (firstOk&&firstOk.y>0&&firstOk.fbReform?('경영기간이 20년에 도달하는 '+firstOk.y+'년 후부터 요건 충족을 가정 — 이때 경영 '+firstOk.fbYrs+'년으로 30년에 '+
+                  Math.max(0,30-firstOk.fbYrs)+'년 부족해 사후관리가 '+firstOk.fbFollowUp+'년으로 늘어남 · '):'')+
+                (curRows.length?(curRows.join(', ')+' 줄은 상속개시일이 2027.7.1. 전이라 현행법(경영기간 10·20·30년 구간 한도, 사후관리 5년) · '):'')+
                 '개정안은 경영기간 원칙 30년(20년 이상이면 부족분만큼 사후관리 연장, 20년 미만은 배제)·'+
                 '사후관리 기준 10년·대상 업종 세세분류 축소와 함께 가업상속공제심사위원회 사전심사 통과를 요구 — '+
                 '위원회 통과를 전제로 한 가정이며 통과 여부는 예단할 수 없음'}
@@ -38332,7 +38516,7 @@ function selGet(m){ if(MOD_ALWAYS[m.id]) return false;
             {t:'table',fs:13,rows:tb3,colW:cw3},
                         {t:'note',keep:true,text:'Ⓒ = 가업상속공제 요건 미충족 시 · 특례 주식 = 증여 당시 가액으로 기간 무관 상속세 과세가액 가산 (조특법 §30의6⑤, §30의5⑨) · '+
               '기납부 특례 증여세 = 상속세 산출세액에서 한도 없이 공제, 공제 잔액 환급 불가 (§30의5⑩)'+(W3.excess>0?' · 가업자산상당액 초과분 = 일반 증여 → 10년 이내 상속 시 가산, 증여세액공제 (상증법 §13①, §28)':'')+
-              ' · Ⓑ = 앞 장 가업상속공제 20년 추이와 같은 가정 (요건, 사후관리 충족, 2027. 7. 1. 개정안 기준) · Ⓒ ① = 증여 시 납부, ⑤ = 상속 시 납부 (현재가치 할인 미적용)'}
+              ' · Ⓑ = 앞 장 가업상속공제 20년 추이와 같은 가정 (요건, 사후관리 충족 · 상속개시 2027. 7. 1. 전 = 현행법, 그 뒤 = 개정안) · Ⓒ ① = 증여 시 납부, ⑤ = 상속 시 납부 (현재가치 할인 미적용)'}
           ]);
         }
       }catch(e){DIAG(e,'threeway.slide')}

@@ -457,7 +457,142 @@ html.fwait body{visibility:hidden}
 #pkRoot #wzGoBox{margin-top:10px}
 #pkRoot .wlive{margin:10px 0 0}
 </style>
-
+<style id="pubDesign">@media screen{
+:root{--pd-bg:#FFFFFF;--pd-surface:#FFFFFF;--pd-surface2:#F5F7FA;--pd-ink:#111827;--pd-ink2:#374151;--pd-ink3:#6B7280;--pd-line:#E5E7EB;--pd-line2:#D1D5DB;
+  --pd-acc:#1E3A8A;--pd-acc-soft:#EEF2FB;--pd-acc-hover:#172E6E;--pd-th-bg:#F5F7FA;--pd-th-fg:#374151;--pd-minus:#1E3A8A;
+  --pd-r-card:8px;--pd-r-ctl:6px;--pd-tl:.5px;--pd-cap:15px;--pd-body:16px;--pd-lead:17px;--pd-h3:18px;--pd-q:22px;--pd-h1:24px;--pd-num:36px;--pd-hmin:44px;
+  --paper:#FFFFFF;--card:#FFFFFF;--ink:#111827;--ink2:#374151;--ink3:#6B7280;--rule:#E5E7EB;--band:#F5F7FA;
+  --ver:#1E3A8A;--verbg:#EEF2FB;--ok:#1E3A8A;--okbg:#EEF2FB;--blue:#1E3A8A;--bluebg:#EEF2FB}
+#pkRoot{--blue:#1E3A8A;--bluebg:#EEF2FB}
+html,body{background:var(--pd-bg)}
+body{color:var(--pd-ink);font-size:var(--pd-body);font-variant-numeric:tabular-nums}
+h1{font-size:var(--pd-h1)!important;font-weight:800;letter-spacing:-.01em}
+.eyebrow,.lead,.dfl,.law,details.why>summary,.fld .mh,.cfm{font-size:var(--pd-cap)}
+.lead{font-size:var(--pd-body)}
+.eyebrow .ex{color:var(--pd-acc)}
+.sec>h2{font-size:var(--pd-h3);border-bottom:1px solid var(--pd-ink2)}
+.card h3{font-size:var(--pd-h3)}
+.law,.howto{background:var(--pd-surface2);border-radius:var(--pd-r-ctl)}
+.card,.box,#pkRoot .pk-step,#pkRoot .pk-card,#pkRoot .pk-res,#pkRoot .pk-op,#pkRoot .pk-spx,.pk-coc{border:1px solid var(--pd-line);border-radius:var(--pd-r-card);box-shadow:none}
+#pkRoot .pk-step,#pkRoot .pk-spx{background:var(--pd-surface)}
+button,select,summary,[role=button],textarea,input:not([type=checkbox]):not([type=radio]):not([type=hidden]):not([type=file]):not([type=range]){min-height:var(--pd-hmin)}
+button{border-radius:var(--pd-r-ctl)}
+.calc button,button[data-run],.xlb,#pkRoot .pk-go,#pkRoot .pk-xl,#pkRoot [data-pkwn],#pkRoot .sbz-btns button,#pkRoot .sbz-btns button.xl,.uxq-go{background:var(--pd-acc)!important;color:#fff!important;border:0!important;border-radius:var(--pd-r-ctl)!important;min-height:52px;font-weight:700}
+.calc button:hover,.xlb:hover,#pkRoot .pk-go:hover,#pkRoot .pk-xl:hover{background:var(--pd-acc-hover)!important}
+#pkRoot .pk-go2,#pkRoot .pk-wd summary,#pkRoot .pk-wz0,#pkRoot .pk-wb{border:1px solid var(--pd-line2);border-radius:var(--pd-r-ctl);background:var(--pd-surface);color:var(--pd-ink2)}
+#pkRoot .pk-wb{min-height:var(--pd-hmin);font-size:var(--pd-cap);display:inline-flex;align-items:center;justify-content:center}
+#pkRoot .pk-wd summary{color:var(--pd-ink);display:flex;align-items:center;justify-content:center}
+#pkRoot .pk-wd[open] summary{background:var(--pd-acc-soft);color:var(--pd-acc);border-color:var(--pd-acc)}
+.tabs button.on,.seg button.on,#pkRoot .pk-mtab button.on,#pkRoot .pk-cnt button.on,#pkRoot .pk-sd.on,.stepnav button.hi,.mode button.on{background:var(--pd-acc)!important;border-color:var(--pd-acc)!important;color:#fff!important}
+.tabs button,.seg button,#pkRoot .pk-mtab button,#pkRoot .pk-cnt button,#pkRoot .pk-chip,#pkRoot .pk-tog button,#pkRoot .pk-wo button,#pkRoot .pk-kd,#pkRoot .pk-spi,#pkRoot .pk-swap{border-width:1px;border-radius:var(--pd-r-ctl)}
+#pkRoot .pk-wo button{border:1.5px solid var(--pd-line2);font-size:var(--pd-lead)}
+#pkRoot .pk-wo button.on,#pkRoot .pk-kd.on,#pkRoot .pk-spi.on{border-color:var(--pd-acc);background:var(--pd-acc-soft)}
+#pkRoot .pk-chip,#pkRoot .pk-tog button,#pkRoot .pk-cosel button,.pk-cosel button{min-height:var(--pd-hmin);display:inline-flex;align-items:center;font-size:var(--pd-cap)}
+#pkRoot .pk-terms button{min-height:var(--pd-hmin);border:0;border-radius:0;background:none;color:var(--pd-acc);text-decoration:underline;text-underline-offset:3px;font-size:var(--pd-cap);padding:0 4px;display:inline-flex;align-items:center}
+#pkRoot .pk-terms button.on{background:var(--pd-acc-soft);font-weight:700}
+#pkRoot .pk-tl{font-size:var(--pd-cap)}
+#pkRoot .pk-need-l button{min-height:var(--pd-hmin);font-size:var(--pd-cap);border-radius:var(--pd-r-ctl)}
+#pkRoot .pk-xpl button,#pkXpBtn{min-height:var(--pd-hmin);font-size:var(--pd-cap);color:var(--pd-acc)}
+details.why>summary{display:inline-flex;align-items:center;min-height:var(--pd-hmin);border-bottom:0;text-decoration:underline dotted;text-underline-offset:4px}
+summary{display:flex;align-items:center}
+details.why>summary{display:inline-flex}
+.fld input,.fld select,#pkRoot .pk-qf input,#pkRoot .sbz-in input,#pkRoot .sbz-in select,#pkRoot .sbz-in2 input,#pkRoot .sbz-in2 select,#pkRoot .sbz-txt input,#pkRoot .sbz-txt select{min-height:var(--pd-hmin);border:1px solid var(--pd-line2);border-radius:var(--pd-r-ctl)}
+#pkRoot .pk-wi input{border:1.5px solid var(--pd-line2);border-radius:var(--pd-r-ctl)}
+.fld input:focus,.fld select:focus,#pkRoot .pk-wi input:focus,#pkRoot .pk-qf input:focus,input:focus,select:focus{outline:none;border-color:var(--pd-acc)!important;box-shadow:0 0 0 2px var(--pd-acc-soft)}
+.chk input,input[type=checkbox],input[type=radio]{accent-color:var(--pd-acc)}
+#pkRoot .pk-wq{font-size:var(--pd-q)}
+#pkRoot .pk-wh{font-size:var(--pd-cap);color:var(--pd-ink2)}
+#pkRoot .pk-dots i.d{background:var(--pd-ink3)}
+#pkRoot .pk-dots i.c{background:var(--pd-acc)}
+#pkRoot .pk-sh i{background:var(--pd-acc)}
+#pkRoot .pk-tdef{background:var(--pd-surface2);border-left:3px solid var(--pd-acc);border-radius:var(--pd-r-ctl);font-size:var(--pd-cap)}
+#pkRoot .pk-tdef b{color:var(--pd-ink)}
+#pkRoot .pk-tdef .pk-lw{font-size:var(--pd-cap)}
+#pkRoot .pk-sp,#pkRoot .pk-kd,#pkRoot .pk-ql,#pkRoot .pk-qf label,#pkRoot .pk-swq,#pkRoot .pk-oe,#pkRoot .pk-rn,#pkRoot .pk-eng,#pkRoot .pk-need-l span,#pkRoot .pk-det summary,#pkRoot .pk-card h3,#pkRoot .pk-qnote,#pkRoot .pk-mtab button,#pkRoot .pk-sd,#pkRoot .pk-oh,#pkRoot .pk-bd{font-size:var(--pd-cap)}
+#pkRoot .pk-sd small,#pkRoot .pk-oe s,.pk-tag{font-size:var(--pd-cap)}
+#pkRoot .pk-res ul,#pkRoot .pk-card ul{font-size:var(--pd-cap)}
+#pkRoot .pk-card h3{font-size:var(--pd-h3)}
+#pkRoot .pk-eng{background:var(--pd-surface2)}
+#pkRoot .pk-op.on .pk-sw{background:var(--pd-acc)}
+#pkRoot .pk-spx>summary::before{border-width:1.5px}
+#pkRoot .pk-spx>summary span{color:var(--pd-acc)}
+#pkRoot .pk-spg{border-top:1px solid var(--pd-ink2)}
+#pkRoot .b-ok,#pkRoot .b-tax,#pkRoot .b-blue{background:var(--pd-acc-soft);color:var(--pd-acc)}
+#pkRoot .pk-wr,#pkRoot .pk-wr.ok,#pkRoot .pk-wr.ng{background:var(--pd-surface);color:var(--pd-ink);border:0;border-left:5px solid var(--pd-acc);border-radius:0;padding:6px 0 6px 16px}
+#pkRoot .pk-wr0{font-size:var(--pd-cap);color:var(--pd-ink2);font-weight:700}
+#pkRoot .pk-wr1,#pkRoot .pk-wr.ng .pk-wr1,#pkRoot .pk-wr.ok .pk-wr1{font-size:var(--pd-num);font-weight:700;color:var(--pd-acc);letter-spacing:-.01em}
+#pkRoot .pk-wr3{font-size:var(--pd-cap);color:var(--pd-ink2)}
+#pkRoot .pk-wr2{font-size:var(--pd-body)}
+.pk-cot{color:var(--pd-acc)}
+.pk-coc.on{border:2px solid var(--pd-acc)}
+table{font-size:var(--pd-body)}
+th{background:var(--pd-th-bg);color:var(--pd-th-fg);font-weight:700;font-size:var(--pd-cap)}
+th,td{border-bottom:var(--pd-tl) solid var(--pd-line2)}
+thead th{border-bottom:1px solid var(--pd-line2);color:var(--pd-th-fg);font-size:var(--pd-cap)}
+td small,th small{font-size:var(--pd-cap)}
+tr.tot td,tr.sum td{border-top:1.5px solid var(--pd-ink2)}
+tr.hl td{background:var(--pd-acc-soft)}
+td.band{background:var(--pd-surface2)}
+table.y4t,.yaBox table.yaT{font-size:var(--pd-body)}
+table.y4t th,.yaBox .yaT th{background:var(--pd-th-bg)!important;color:var(--pd-th-fg)!important;font-size:var(--pd-cap);font-weight:700}
+.yaBox .yaT th small,table.y4t small,.y4n,.y4dfl,.yaBox ul.yaA,.yaBox .yaT td small{font-size:var(--pd-cap)}
+table.y4t small.y4d{font-size:var(--pd-cap)}
+table.y4t .y4d.dn,table.y4t small.y4d.dn{color:var(--pd-minus)}
+table.y4t .y4d.up,table.y4t small.y4d.up{color:var(--pd-ink)}
+table.y4t tr.y4now td{background:var(--pd-surface2)}
+table.y4t tr.y4tot td{border-top:1.5px solid var(--pd-ink2)}
+.yaBox input{min-height:var(--pd-hmin);border-radius:var(--pd-r-ctl);border-color:var(--pd-line2)}
+.yaBox .yaG{font-size:var(--pd-cap)}
+@media(max-width:599.98px){
+  #txMap{background:var(--pd-surface);border-bottom:1px solid var(--pd-line)}
+  #txMap .tx-bar{min-height:var(--pd-hmin);font-size:var(--pd-cap)}
+  #txMap .tx-bar .a b{color:var(--pd-acc)}
+}
+#txMap .tx-h{border-bottom:1px solid var(--pd-ink2)}
+#txMap li.now{background:var(--pd-acc-soft)}
+#txMap li.now::before,#txMap li.now .n::after{background:var(--pd-acc);border-color:var(--pd-acc)}
+#txMap li.now .n{color:var(--pd-acc)}
+details.pk-easy>summary{display:inline-flex;align-items:center;min-height:var(--pd-hmin);color:var(--pd-acc);text-decoration-color:var(--pd-acc);font-size:var(--pd-cap)}
+details.pk-easy[open]>summary{color:var(--pd-ink2)}
+details.pk-easy>ul{border-left-color:var(--pd-acc);background:var(--pd-surface2);border-radius:0 var(--pd-r-ctl) var(--pd-r-ctl) 0}
+body .y4box .y4t th{background:var(--pd-th-bg)!important;color:var(--pd-th-fg)!important;font-size:var(--pd-cap)!important}
+body .y4box .y4t{font-size:var(--pd-body)}
+body .y4box .y4d.dn,body .y4box .y4t small.y4d.dn{color:var(--pd-minus)!important}
+body .y4box .y4d.up,body .y4box .y4t small.y4d.up{color:var(--pd-ink)!important}
+body .y4box .y4t tr.y4now td{background:var(--pd-surface2)!important}
+body .y4box .y4e,body .y4box .y4t small,body .y4box .y4lg,body .y4box .y4n,body .y4box .y4h small,body .y4box .y4dfl,body .y4box .y4gs,body .y4box .y4c,body .y4box .y4t small.y4d,body .y4box table.y4t{font-size:var(--pd-cap)!important}
+body .y4box .y4dfl,.y4dfl{background:var(--pd-acc-soft)!important;color:var(--pd-acc)!important}
+table.y4t small.y4same,body .y4box .y4t small.y4same{color:var(--pd-acc)!important}
+body .y4box .y4e{color:var(--pd-acc)!important}
+#pkRoot svg [fill="#e4572e" i]{fill:var(--pd-acc)}
+#pkRoot svg [stroke="#e4572e" i]{stroke:var(--pd-acc)}
+#pubFoot{font-size:var(--pd-cap)!important;color:var(--pd-ink3)!important;border-top-color:var(--pd-line)!important}
+.wlive{background:#fff!important;color:var(--pd-ink)!important;border:1px solid var(--pd-line);border-left:5px solid var(--pd-acc);border-radius:0 var(--pd-r-card) var(--pd-r-card) 0!important;box-shadow:0 2px 8px rgba(17,24,39,.08)!important}
+.wlive small{opacity:1!important;color:var(--pd-ink2);font-size:15px!important;font-weight:700}
+.wlive .wlc,.wlive .wlc.ng,.wlive .wlc.ok{color:var(--pd-acc)!important;font-size:18px!important;opacity:1!important}
+.wlive .wlc.muted{color:var(--pd-ink2)!important;font-weight:500}
+.wbar{font-size:15px!important}.wbar span{opacity:1!important;color:var(--pd-ink2)}
+.wbar i{background:var(--pd-acc)!important;opacity:.55}.wbar.tot i{background:var(--pd-acc)!important;opacity:1}
+.wpt{font-size:15px!important}.wpt b{font-size:18px!important}
+.wpb i{background:var(--pd-acc)!important}.wprog.full .wpb i{background:var(--pd-acc)!important}.wprog.full .wpt span{color:var(--pd-acc)!important}
+body{font-size:16px!important;line-height:1.55}
+.eyebrow,.dfl,.cfm,details.why>summary,.src,.tag,.vs .lab,.vs small,.big small,td small,.crit .case,.wiz>p,.wstep,.wgrp,.gtabs button small,.sec>h2 small,.crit h3 small,details.calcdet>summary,.howto,.law,.crit .two>div{font-size:15px!important}
+.lead,.fld label,.chk,label.chk,ul.rs,.chip,.wq .wl,.tabs button,.mode button,table,th,td,.card table td,.card table th,.gl,.gl b,.split td input,table.split td input,.fld input,.fld select,.ymd input{font-size:16px!important}
+th{font-size:15px!important}
+h1{font-size:24px!important}
+.sec>h2,.card h3,.crit h3,.wiz>h2{font-size:18px!important}
+.gtabs button b,.vs .amt{font-size:18px!important}
+.verdict{font-size:20px!important}
+.big{font-size:36px!important;font-weight:700!important;color:var(--pd-acc)}
+button{font-size:17px}
+button.sm{font-size:16px!important}
+.calc button,button[data-run]{font-size:17px!important}
+.conc{border:0!important;border-left:5px solid var(--pd-acc)!important;border-radius:0!important;background:#fff!important;font-size:18px!important;padding:6px 0 6px 16px!important}
+.gl{background:var(--pd-ink);border-radius:var(--pd-r-card)}
+.gl .x{font-size:15px;min-height:44px;display:flex;align-items:center;justify-content:flex-end}
+.fld input:not([type=checkbox]),.fld select,.ymd input{border-color:var(--pd-line2)!important;border-radius:var(--pd-r-ctl)!important}
+.calc button,button[data-run]{border-radius:var(--pd-r-ctl)!important}
+}</style>
 </head>
 <body class="easy">
 <div class="wrap">
@@ -678,6 +813,7 @@ html.fwait body{visibility:hidden}
     <label class="chk"><input type="checkbox" id="h_emig2y"> 해외이주(현지이주는 영주권 등 취득일) 또는 1년 이상 국외 취학·근무로 세대전원 출국 + 출국일 1주택 + 출국일부터 2년 안 양도(영 §154①2호 나·다)</label>
     <label class="chk"><input type="checkbox" id="h_buyerCorp"> 사는 사람이 법인 등 원천징수의무자(§156①5호)</label>
     <label class="chk"><input type="checkbox" id="h_prepaid"> 양도 전 미리 신고·납부했거나 비과세 증명(원천징수 안 함 · §156⑮)</label>
+    <div class="fld" style="max-width:100%"><label>세법 기준(2026-11-19 · 2026 세제개편안 정부안, 국회 미통과)</label><select id="h_law"><option value="cur">현행법(기본) — 2027년 이후 양도면 개편안 값도 한 줄 같이</option><option value="reform">2026 세제개편안 가정 — 중과 한시 완화(2026년 양도분 특례 · 2027 · 2028), 장기거주 소득공제(2028~)</option></select></div>
     </div>
     <div class="calc"><button data-run="house">계산하기</button></div>
     <div id="o-house"></div>
@@ -1131,8 +1267,10 @@ var HTX = (function () {
     return { n: c, selfLocal: selfLocal, self12: !!I._self12 };
   }
   
+  
   function reformHeavyAdd(I, holdY, n3) {
     if (!I.reform26 || holdY < 2) return null;
+    if (I.saleDate >= '2026-01-01' && I.saleDate <= '2026-12-31') return n3 ? 10 : 5;
     if (I.saleDate >= '2027-01-01' && I.saleDate <= '2027-12-31') return n3 ? 10 : 5;
     if (I.saleDate >= '2028-01-01' && I.saleDate <= '2028-12-31') return n3 ? 15 : 10;
     return null;
@@ -1161,7 +1299,7 @@ var HTX = (function () {
     var add = I.count >= 3 ? 30 : 20;
     var rA = reformHeavyAdd(I, holdY, I.count >= 3);
     if (rA !== null && !sp09 && !(holdY >= 2 && (I.saleDate <= R.graceEnd || I.transit)))
-      return { on: true, add: rA, reform: true, why: (I.count >= 3 ? '조정대상지역 3주택 이상' : '조정대상지역 2주택') + ' → 기본세율 + ' + rA + '%p(개정안 가정 · 보유 2년 이상 ' + I.saleDate.slice(0, 4) + '년 양도 한시 완화 · 국회 미통과)' };
+      return { on: true, add: rA, reform: true, y26: I.saleDate < '2027-01-01', why: (I.count >= 3 ? '조정대상지역 3주택 이상' : '조정대상지역 2주택') + ' → 기본세율 + ' + rA + '%p(개정안 가정 · 보유 2년 이상 ' + I.saleDate.slice(0, 4) + '년 양도 한시 완화' + (I.saleDate < '2027-01-01' ? ' — 2026년 양도분 특례 : 2027.1.1. 이후 예정·확정 신고 때 적용' : '') + ' · 국회 미통과)' };
     if (sp09 && !(holdY >= 2 && (I.saleDate <= R.graceEnd || I.transit)))
       return { on: true, add: add, sp09: true, why: (I.count >= 3 ? '조정대상지역 3주택 이상' : '조정대상지역 2주택') + sp09why };
     if (holdY >= 2 && (I.saleDate <= R.graceEnd || I.transit))
@@ -1209,15 +1347,23 @@ var HTX = (function () {
     if (I.unreg) { lt = { t: 0, pct: 0 }; ltWhy = '미등기 양도 — 배제'; }
     else if (I.kind === 'bunyang') { lt = { t: 0, pct: 0 }; ltWhy = '분양권 — 공제 대상 아님'; }
     else if (I.kind === 'ipju') { lt = { t: 0, pct: 0 }; ltWhy = '조합원입주권 — 관리처분계획 인가 전 양도차익분만 공제 대상(이 판 미반영)'; }
+    else if (I.reform26 && I.kind === 'nonbiz' && I.saleDate >= '2028-01-01') { lt = { t: 0, pct: 0, reformNb: true }; ltWhy = '개정안 가정 비사업용 토지 — 장기보유특별공제 배제(소득세법 §95④ 신설안 · 2028.1.1. 이후 양도 · 국회 미통과)'; }   
     else if (r.heavy.on) { lt = { t: 0, pct: 0 }; ltWhy = r.heavy.sp09 ? '조정대상지역 다주택(2009.3.16.~2012.12.31. 취득, 세율만 기본) — 배제(§95② 괄호, 재산세제과-477)' : '다주택 중과 주택 — 배제'; }
     else if (holdY < 3) { lt = { t: 0, pct: 0 }; ltWhy = '보유 3년 미만'; }
     else if (I.reform26 && isHouse && I.saleDate >= '2028-01-01') {
       
       var y28 = I.saleDate < '2029-01-01', one2 = oneH && (resOK || ss) && !I._noNT && !I.nonres;
-      if (one2) { var rr = Math.min(y28 ? 60 : 80, resYf * (y28 ? 6 : 8)), hh = y28 ? Math.min(20, holdY * 2) : 0;
-        lt = { t: 2, hold: hh, res: rr, pct: hh + rr, reform: true }; ltWhy = '개정안 가정 장기거주 소득공제 1세대 1주택(' + (y28 ? '2028년 거주 6%, 보유 2%' : '2029년~ 거주 8%') + ' · 국회 미통과)'; }
-      else { var rr2 = resYf >= 2 ? Math.min(30, resYf * 2) : 0, hh2 = y28 ? Math.min(15, holdY) : 0, pp = Math.max(rr2, hh2);
-        lt = { t: 1, hold: pp === rr2 ? 0 : hh2, res: pp === rr2 ? rr2 : 0, pct: pp, reform: true }; ltWhy = '개정안 가정 다주택자 주택(' + (y28 ? '2028년 MAX(거주 2%, 보유 1%)' : '2029년~ 거주 2%만') + ' · 국회 미통과)' + (oneH ? ' · 1주택 거주 2년 미만 [확인 필요]' : ''); }
+      
+      var RC = I.resCredit || {}, cMv = Math.min(3, Math.max(0, +RC.move || 0)), cSp = Math.max(0, +RC.spec || 0), cRd = Math.max(0, +RC.redev || 0) / 2, cRt = Math.max(0, +RC.rent || 0);
+      var resCf = Math.floor(resYr + cMv + cSp + cRd + 1e-9), rentP = Math.min(30, Math.floor(cRt + 1e-9) * 2), crW = [];
+      if (cMv) crW.push('주거이전 ' + cMv + '년'); if (cSp) crW.push('특례주택 함께 보유 ' + cSp + '년'); if (cRd) crW.push('공사기간 1/2 ' + cRd + '년'); if (rentP) crW.push('등록임대 ' + Math.floor(cRt + 1e-9) + '년 × 2% = ' + rentP + '%');
+      var crTxt = crW.length ? ' · 거주기간 인정(소득령 §159의4 신설안) ' + crW.join(', ') + ' → 공제율 거주 ' + resCf + '년' : '';
+      if (one2) { var rr = Math.min(y28 ? 60 : 80, resCf * (y28 ? 6 : 8)), hh = y28 ? Math.min(20, holdY * 2) : 0;
+        if (rentP) rr = Math.min(y28 ? 60 : 80, rr + rentP);
+        lt = { t: 2, hold: hh, res: rr, pct: hh + rr, reform: true }; ltWhy = '개정안 가정 장기거주 소득공제 1세대 1주택(' + (y28 ? '2028년 거주 6%, 보유 2%' : '2029년~ 거주 8%') + ' · 국회 미통과)' + crTxt; }
+      else { var rr2 = resYf >= 2 ? Math.min(30, resCf * 2 + rentP) : (rentP ? Math.min(30, rentP) : 0), hh2 = y28 ? Math.min(15, holdY) : 0, pp = Math.max(rr2, hh2);
+        lt = { t: 1, hold: pp === rr2 ? 0 : hh2, res: pp === rr2 ? rr2 : 0, pct: pp, reform: true }; ltWhy = '개정안 가정 다주택자 주택(' + (y28 ? '2028년 MAX(거주 2%, 보유 1%)' : '2029년~ 거주 2%만') + ' · 국회 미통과)' + (oneH ? ' · 1주택 거주 2년 미만 [확인 필요]' : '') + crTxt; }
+      if (crW.length) lt.credit = { move: cMv, spec: cSp, redev: cRd, rentPct: rentP, resYears: resCf };
     }
     else {
       var t2 = oneH && (resOK || ss || I.saleDate < '2020-01-01') && !I._noNT && !I.nonres;   
@@ -1256,6 +1402,7 @@ var HTX = (function () {
       else if (holdYR < 2) c.push({ n: '주택 외 토지·건물 보유 1년 이상 2년 미만', flat: CGT.shortPct(holdYR, 'land'), k: 'f' + CGT.shortPct(holdYR, 'land') });
       if (I.kind === 'nonbiz' && I._nbHist && I._nbHist.rate === 'b') c.push({ n: '비사업용 토지 — ' + I._nbHist.why, add: 0, k: 'b' });   
       else if (I.kind === 'nonbiz' && I._nbHist && I._nbHist.rate === 'f60') c.push({ n: '비사업용 토지 — ' + I._nbHist.why, flat: 60, k: 'f60' });
+      else if (I.kind === 'nonbiz' && I.reform26 && I.saleDate >= '2028-01-01') c.push({ n: '비사업용 토지(기본세율 + 20%p · 개정안 가정 §104①8호 상향안 · 2028.1.1. 이후 양도 · 국회 미통과)', add: 20, k: 'nbR' });   
       else if (I.kind === 'nonbiz') c.push({ n: '비사업용 토지(기본세율 + 10%p · §104①8호)', add: 10, k: 'nb' });
       if (I.kind === 'nonbiz' && I._desig) c.push({ n: '지정지역 비사업용 토지(기본세율 + 20%p · §104④3호)', add: 20, k: 'nb20' });   
     }
@@ -1307,7 +1454,7 @@ var HTX = (function () {
   }
   
   
-  var KIND = { b: { add: 0, n: '기본세율' }, nb: { add: 10, n: '비사업용 토지(+10%p)' }, nb20: { add: 20, n: '지정지역 비사업용 토지(+20%p)' }, h10: { add: 10, n: '중과 +10%p' }, h20: { add: 20, n: '중과 +20%p' }, h30: { add: 30, n: '중과 +30%p' },
+  var KIND = { b: { add: 0, n: '기본세율' }, nb: { add: 10, n: '비사업용 토지(+10%p)' }, nb20: { add: 20, n: '지정지역 비사업용 토지(+20%p)' }, nbR: { add: 20, n: '비사업용 토지(+20%p · 개정안)' }, h15: { add: 15, n: '중과 +15%p(개정안)' }, h5: { add: 5, n: '중과 +5%p(개정안)' }, h10: { add: 10, n: '중과 +10%p' }, h20: { add: 20, n: '중과 +20%p' }, h30: { add: 30, n: '중과 +30%p' },
     f40: { flat: 40, n: '단일 40%' }, f50: { flat: 50, n: '단일 50%' }, f60: { flat: 60, n: '단일 60%' }, f70: { flat: 70, n: '단일 70%' } };
   function multi(items, saleDate) {
     var TB = tableFor(saleDate);
@@ -1442,7 +1589,7 @@ var HTX = (function () {
     else if (I.temp2) f.push('일시적 2주택 등 특례 요건(종전주택 취득 1년 이상 지난 뒤 신규 취득, 신규 취득일부터 3년 내 종전주택 양도 등) 충족 여부 확인(시행령 §155① · 책 p.230)');
     if (r.heavy && r.heavy.on) f.push('주택 수에서 빼는 주택, 중과 제외 주택(장기임대주택, 지방 기준시가 3억원 이하 등)이 있으면 중과가 아닐 수 있음(책 p.295~317)' + (I.region ? '' : ' · 소재지·기준시가 칸을 넣으면 지방 3억원 이하, 기준시가 1억원 이하는 자동 판정'));
     if (r.heavy && r.heavy.auto) f.push('중과 제외 자동 판정 : ' + r.heavy.why + ' · 소재지(읍·면, 광역시 군 여부), 양도 당시 기준시가, 정비구역 여부를 서류로 확인');
-    if (I.reform26) f.push('⚠ 개정안 가정 켬 — 2026 세제개편안 정부안(재정경제부 2026.8.3. 상세본 · 9.1. 국무회의 의결 · 국회 미통과) : 중과 한시 완화(2027·2028 양도, 보유 2년 이상), 장기거주 소득공제(2028~), 기본공제 2,500만원(2027~, 10년 거주 30억원 이하 1주택) · 2026년 양도분 특례(신고 때 +5%p/+10%p), 고령 1주택 감면(조특법 §71의3 신설), 비사업용 토지 장특 배제, 인별 연간 공제한도는 미반영 · 국회 통과 내용과 다를 수 있음');
+    if (I.reform26) f.push('⚠ 개정안 가정 켬 — 2026 세제개편안 정부안(재정경제부 2026.8.3. 상세본 · 9.1. 국무회의 의결 · 국회 미통과) : 중과 한시 완화(2027·2028 양도, 보유 2년 이상), 장기거주 소득공제(2028~), 기본공제 2,500만원(2027~, 10년 거주 30억원 이하 1주택) · 2026년 양도분 특례(보유 2년 이상 중과 주택 +5%p/+10%p · 2027.1.1. 이후 신고 때), 비사업용 토지 +20%p·장특 배제(2028~), 거주기간 인정특례(2028~ · resCredit) 반영 · 고령 1주택 감면(§71의3), 매입임대 아파트(§97의11), 제3자 사업승계 감면(§30의8) = 감면 칸(relief.list)에서 고름 · 인별 연간 공제한도는 미반영 · 국회 통과 내용과 다를 수 있음');
     if (I.kind === 'ipju') f.push('원조합원 입주권 : 관리처분계획 인가 전 양도차익분 장기보유특별공제, 청산금 안분은 반영하지 않음(시행령 §166 · 책 p.208~211)');
     if (r.hi) f.push('공동소유면 12억원 기준을 지분별로 나누지 않고 전체 양도가액으로 안분 후 지분만큼 나눔(책 p.207) — 지분별 금액은 직접 나눔');
     if (out.gift && !out.gift.apply && out.gift.within && !(I.gift && I.gift.dead)) f.push('이월과세 미적용 시 증여 후 우회양도 부당행위계산(소득세법 §101②) 해당 여부 별도 확인');
@@ -2076,6 +2223,8 @@ var HTX = (function () {
   var YS = {};
   var won0 = function (v) { return Math.round(v || 0).toLocaleString('ko-KR') + '원'; };
   YS.HELP = {
+    reform26: '2026 세제개편안 정부안 가정(참 · 국회 미통과 · 기본 끔 = 현행법) — 중과 한시 완화(2026년 양도분 특례 신고 때 · 2027 · 2028, 보유 2년↑), 장기거주 소득공제(2028~), 기본공제 2,500만원(2027~), 비사업용 토지 +20%p·장특 배제(2028~) · 감면 칸 §71의3 고령 1주택 · §97의11 매입임대 아파트 · §30의8 제3자 사업승계는 이 칸을 켜야 적용',
+    resCredit: '거주기간 인정특례(소득령 §159의4 신설안 · reform26 + 2028.1.1. 이후 양도 주택 · 공제율 산정에만) — move 부득이한 사유 주거이전 년(최장 3) · spec 특례주택(인구감소지역 등)과 함께 보유한 년 · redev 재개발·재건축 공사기간 년(1/2 인정) · rent 등록임대주택 임대기간 년(연 2%, 최대 30%)',
     sp: '① 1세대1주택 특례 판정 — type : t2 일시적 2주택(§155①) · inh 상속주택(§155②) · coinh 공동상속 소수지분(§155③) · care 동거봉양(§155④) · marry 혼인(§155⑤) · heritage 국가유산(§155⑥) · rural 농어촌주택(§155⑦) · unavoid 수도권 밖 부득이(§155⑧) · rent 장기임대 거주주택(§155⑳) / (재개발 r3·r4·r5·b2·b3 = 종전 RD.special)',
     'sp.t2': 'oldAcq 종전주택 취득일(기본 = acqDate) · newAcq 신규주택 취득일 · oldAdj 신규 취득일 현재 종전주택 조정대상지역 · newAdj 신규주택 조정대상지역 · preNotice 공고일 이전 신규 취득·계약금 지급 · waive1y §154①1·2가·3호 사유(1년 요건 없음) · late3y §155⑱ 사유(매각의뢰·경매·공매·현금청산·매도청구 소송) · relocate §155⑯ 공공기관·법인 지방 이전(3년 → 5년) · rule current(기본 · 현행 문언) | prev3(2026.9.30. 판 3년)',
     'sp.inh': 'inhD 상속개시일 · genAcq 일반주택 취득일(기본 = acqDate · 상속개시 당시 보유분만) · gift2y 상속개시 전 2년 안 피상속인에게 증여받은 일반주택 · sameHH 상속개시 당시 동일세대 · careBefore 동거봉양 합가 전부터 보유 · list[{hold, res, live, std}] 피상속인 주택 여럿이면 선순위 판정(pick = 상속받은 주택 번호)',
@@ -2380,6 +2529,10 @@ var HTX = (function () {
     '98의2': { law: '조특법 §98의2 지방 미분양주택', g: [], free: 0, kind: 'rate', house: 1, f: [Fm('unsold', '수도권 밖 미분양·신규분양주택(사업주체 최초 계약)', 'c', 1)] },
     '98의3': { law: '조특법 §98의3 서울 밖 미분양주택', g: [], free: 7, kind: 'tax', house: 1, f: [Fm('dense', '수도권과밀억제권역(60%)', 'c', 0), Fm('unsold', '미분양주택 유형(사업주체 최초 계약 · 자기건설 등) · 확인 날인', 'c', 1), Fm('areaOK', '과밀억제권역이면 대지 660㎡ · 연면적 149㎡ 이내', 'c', 1)].concat(STD5) },
     '98의4': { law: '조특법 §98의4 비거주자 주택 취득', g: [], free: 0, kind: 'tax', house: 1, f: [Fm('nrBoth', '취득일·양도일 모두 국내사업장 없는 비거주자', 'c', 1), Fm('notUnsold', '§98의3 미분양주택 아님', 'c', 1)] },
+    
+    '71의3': { law: '조특법 §71의3 고령 1주택자 한시 감면(2026 세제개편안 · 국회 미통과)', g: [], free: 0, kind: 'tax', house: 1, f: [Fm('age65', '양도일 기준 만 65세 이상', 'c', 1), Fm('capArea', '수도권 소재 주택', 'c', 1), Fm('res2', '양도일 현재 2년 이상 계속 거주 중', 'c', 1), Fm('third', '특수관계인(직계비속 등 친족, 지배법인 등) 외 제3자에게 양도', 'c', 1), Fm('move6', '양도 후 6개월 안 비수도권 이주(본인, 배우자 주민등록 + 실제 거주)', 'c', 1), Fm('share', '지분·분할양도 비율(%) — 감면 한도 안분', 'n', 100)] },
+    '97의11': { law: '조특법 §97의11 조정대상지역 매입임대 아파트 과세특례(2026 세제개편안 · 국회 미통과)', g: [], free: 0, kind: 'lt', house: 1, f: [Fm('auto', '임대의무기간 종료 후 자동 등록말소된 조정대상지역 매입임대 아파트(4년 단기, 8년 장기일반)', 'c', 1), Fm('baseD', '기산일(의무임대종료일, 조정대상지역 지정 공고일, 재건축·재개발 이전고시일 중 가장 늦은 날)', 'd'), Fm('stdAcq', '취득일 기준시가', 'm'), Fm('stdStart', '임대개시일 기준시가', 'm'), Fm('stdEnd', '임대기간 마지막 날 기준시가', 'm'), Fm('stdSale', '양도일 기준시가', 'm')] },
+    '30의8': { law: '조특법 §30의8 제3자 사업승계 주식·사업용자산 양도 감면(2026 세제개편안 · 국회 미통과)', g: [], free: 0, kind: 'tax', stock: 1, f: [Fm('mgmtY', '매도자 경영연수(년 · 피승계기업 계속 경영)', 'n', 20), Fm('age60', '매도자 = 60세 이상 최대주주 또는 최대출자자', 'c', 1), Fm('bizOK', '피승계기업 = 가업상속공제 대상 업종 주된 사업 + 중소기업 또는 중견기업(3년 평균 매출액 5천억원 미만)', 'c', 1), Fm('buyer', '매수자 = 같은 대분류 업종 10년 이상 경영한 개인·기업 또는 5년 이상 근무한 임직원', 'c', 1), Fm('ratio', '사업승계 위해 일정 비율 이상 양도(유형·비율 = 대통령령)', 'c', 1)] },
     '98의5': { law: '조특법 §98의5 수도권 밖 미분양주택', g: [], free: 7, kind: 'tax', house: 1, f: [Fm('offer', '입주자 모집공고 분양가격', 'm'), Fm('price', '계약 매매가격', 'm'), Fm('unsold', '2010.2.11. 현재 수도권 밖 미분양 · 최초 계약', 'c', 1)].concat(STD5) },
     '98의6': { law: '조특법 §98의6 준공후미분양주택(2011)', g: [], free: 0, kind: 'tax', house: 1, f: [Fm('type', '유형', 's:1=사업주체가 2년 이상 임대한 주택 취득(①1호)|2=취득 후 5년 이상 임대(①2호)', '1'), Fm('std', '취득 당시 기준시가(6억원 이하)', 'm'), Fm('area', '연면적·전용면적(㎡ · 149㎡ 이하)', 'n'), Fm('rentOK', '임대 요건(2011.12.31. 이전 임대계약 · 등록)', 'c', 1)].concat(STD5) },
     '98의7': { law: '조특법 §98의7 미분양주택(2012)', g: [], free: 0, kind: 'tax', house: 1, f: [Fm('contractD', '최초 매매계약일(비우면 취득일)', 'd'), Fm('unsold', '2012.9.24. 현재 미분양 · 사업주체 최초 계약', 'c', 1)].concat(STD5) },
@@ -2490,6 +2643,7 @@ var HTX = (function () {
       case '97의4': { var ry4 = N('rentY'), add = ry4 >= 10 ? 10 : ry4 >= 9 ? 8 : ry4 >= 8 ? 6 : ry4 >= 7 ? 4 : ry4 >= 6 ? 2 : 0;
         st('6년 이상 임대', add > 0, ry4 + '년 → 추가 ' + add + '%p'); st('2018.3.31. 이전 등록(소령 §167의3①2호 가·다목 장기임대주택)', !!q.regD && q.regD <= '2018-03-31', q.regD || '칸 없음');
         st('임대개시일 기준시가 ' + (q.cap ? '6억원' : '3억원') + ' 이하', N('std') > 0 && N('std') <= (q.cap ? 6e8 : 3e8), won0(N('std')));
+        if (I.reform26 && I.nonres && S >= '2029-01-01') st('거주자(2029.1.1. 이후 양도 비거주자 제외 · 2026 세제개편안 정부안, 국회 미통과)', false, '비거주자');   
         o.ltFn = function (H) { if (H.lt.t === 2) return null; var p = (H.lt.pct || 0) + add; return { t: 1, hold: H.lt.pct || 0, res: 0, pct: p, add: add, why: '표1 ' + (H.lt.pct || 0) + '% + 조특법 §97의4 추가 ' + add + '%p(임대 ' + ry4 + '년)' }; };
         CK.push('§97의4 : 1세대1주택 표2 대상이면 적용 안 함(①단서) · 장특 합계 한도 문언 없음 [확인 필요]'); break; }
       case '97의5': { var cd = q.contractD || A; st('2015.1.1.~2018.12.31. 매입임대 취득(계약금 납부 포함)', inR(cd, '2015-01-01', '2018-12-31'), cd); st('취득일부터 3개월 안 장기일반·공공지원 등록', q.reg3m); st('등록 후 10년 이상 계속 임대', N('rentY') >= 10, N('rentY') + '년'); st('임대료 5% 증액 제한', q.rent5);
@@ -2502,7 +2656,35 @@ var HTX = (function () {
         CK.push('§98의2 장특 = 표2 「보유기간별 공제율」만(거주기간별 공제율은 문언에 없음 · 2021.1.1. 이후 표2 나뉨) [확인 필요]'); break;
       case '98의3': { var nr = !!I.nonres; st((nr ? '2009.3.16.' : '2009.2.12.') + '~2010.2.11. 최초 계약 취득(계약금 납부 포함)', inR(A, nr ? '2009-03-16' : '2009-02-12', '2010-02-11'), A); st('서울 밖(지정지역 제외) 미분양주택 요건', q.unsold); if (q.dense) st('과밀억제권역 대지 660㎡ · 연면적 149㎡ 이내', q.areaOK);
         o.rate = q.dense ? 60 : 100; r5(q.dense ? 60 : 100); o.rateFn = function () { return [{ n: '기본세율(조특법 §98의3④2호)', add: 0, k: 'b' }]; }; o.noHeavy = '조특법 §98의3④ 기본세율'; break; }
-      case '98의4': st('2009.3.16.~2010.2.11. 취득', inR(A, '2009-03-16', '2010-02-11'), A); st('취득일·양도일 모두 국내사업장 없는 비거주자(기준-2022-법무재산-0187)', q.nrBoth && !!I.nonres); st('§98의3 미분양주택 아님', q.notUnsold); o.rate = 10; break;
+      case '98의4': st('2009.3.16.~2010.2.11. 취득', inR(A, '2009-03-16', '2010-02-11'), A); st('취득일·양도일 모두 국내사업장 없는 비거주자(기준-2022-법무재산-0187)', q.nrBoth && !!I.nonres); st('§98의3 미분양주택 아님', q.notUnsold); o.rate = 10;
+        if (I.reform26) { st('2028.12.31. 이전 양도(2026 세제개편안 양도기한 신설안 · 국회 미통과)', S <= '2028-12-31', S); CK.push('§98의4 양도기한(2028.12.31.) 신설안 : 상세본에 적용시기 문구 없음 [확인 필요]'); }   
+        break;
+      case '71의3': { var y3 = S.slice(0, 4), rY3 = (+I.resY || 0) + (+I.resM || 0) / 12, sh3 = Math.min(100, Math.max(0, q.share === '' || q.share == null ? 100 : N('share')));
+        st('개정안 가정 켬(reform26 · 2026 세제개편안 정부안, 국회 미통과)', !!I.reform26); st('2027.1.1.~2028.12.31. 양도', inR(S, '2027-01-01', '2028-12-31'), S);
+        st('양도일 기준 만 65세 이상', q.age65); st('1세대 1주택', I.count === 1 || !!I.temp2, '주택 수 ' + I.count); st('수도권 소재 주택', q.capArea);
+        st('양도일 현재 2년 이상 계속 거주 중', q.res2); st('보유기간 중 총 5년 이상 거주', rY3 >= 5, '거주 ' + (Math.round(rY3 * 100) / 100) + '년');
+        st('특수관계인 외 제3자에게 양도', q.third && !I.related); st('양도 후 6개월 안 비수도권 이주', q.move6);
+        o.rate = y3 === '2028' ? 30 : 50; o.capOwn = Math.floor((y3 === '2028' ? 3e8 : 5e8) * sh3 / 100); o.why = '양도소득 전부 · ' + y3 + '년 양도 ' + o.rate + '%, 한도 ' + won0(o.capOwn) + (sh3 < 100 ? '(지분·분할 ' + sh3 + '% 안분)' : '');
+        CK.push('§71의3 사후관리(개정안) : 양도 후 6개월 안 비수도권 미이주, 5년 안 수도권 주택 취득·수도권 이주, 5년 안 같은 주택 세대원 재매수 → 2개월 안 감면세액 + 이자상당가산액(1일 0.022%) 납부');
+        CK.push('§71의3 농어촌특별세 비과세 여부, 지방소득세 감면(지특법), 감면 종합한도(§133) 포함 여부 = 개정안 문구 없음 → 농특세 20%, 한도 = 이 조 한도만으로 계산 [확인 필요]'); break; }
+      case '97의11': { var bD = q.baseD || '', lo = bD ? addY(bD, 1) : '', hi = bD ? addY(bD, 2) : '';
+        st('개정안 가정 켬(reform26 · 2026 세제개편안 정부안, 국회 미통과)', !!I.reform26); st('2028.1.1.~2028.12.31. 양도', inR(S, '2028-01-01', '2028-12-31'), S);
+        st('임대의무기간 종료 후 자동 등록말소된 조정대상지역 매입임대 아파트', q.auto); st('양도 당시 조정대상지역', !!I.adjSale);
+        st('기산일부터 1년 지나 2년 이내 양도', !!bD && S > lo && S <= hi, bD ? '기산일 ' + bD + ' → ' + lo + ' 다음 날 ~ ' + hi : '기산일 칸 없음');
+        var n11 = Math.round(+I.count || 1) >= 3, add11 = n11 ? 15 : 10;
+        var g11 = q.stdAcq || q.stdStart || q.stdEnd || q.stdSale; if (!g11) D.push('§97의11 임대기간 중 양도차익 = 양도차익 전부(기준시가 4칸 비움)');
+        o.rateFn = function () { return [{ n: '조특법 §97의11 중과세율 1/2(기본세율 + ' + add11 + '%p · 개정안)', add: add11, k: 'h' + add11 }]; }; o.noHeavy = '조특법 §97의11 중과세율 1/2 적용(개정안)';
+        o.ltFn = function (H) { var g = H.gain, rg = g;
+          if (g11) { var dn = N('stdSale') - N('stdAcq'), nu = N('stdEnd') - N('stdStart'); rg = dn > 0 ? Math.max(0, Math.min(g, mulDiv(g, Math.max(0, nu), dn))) : g; }
+          var rest = g - rg, rp = (H.lt && H.lt.pct) || 0;
+          return { t: 1, pct: rg === g ? 30 : null, hold: 30, res: 0, full: fl(rg * 30 / 100) + fl(rest * rp / 100), why: '조특법 §97의11 임대기간 중 양도차익 ' + won0(rg) + ' × 우대 30%(개정안)' + (rest > 0 ? ' + 나머지 ' + won0(rest) + ' × ' + rp + '%' : '') }; };
+        CK.push('§97의11 : 임대기간 밖 양도차익의 공제율, 2029.1.1. 이후 「중과 전면 적용·우대공제 배제」(v8 요약 표)는 상세본 조문 문구로 확인 못 함 [확인 필요] · 법인 = 추가과세 10%(이 계산 밖)'); break; }
+      case '30의8': { var my = Math.floor(N('mgmtY'));
+        st('개정안 가정 켬(reform26 · 2026 세제개편안 정부안, 국회 미통과)', !!I.reform26); st('2028.1.1.~2030.12.31. 양도', inR(S, '2028-01-01', '2030-12-31'), S);
+        st('매도자 피승계기업 20년 이상 계속 경영', my >= 20, my + '년'); st('매도자 60세 이상 최대주주(최대출자자)', q.age60); st('가업상속공제 대상 업종 + 중소·중견(매출 5천억원 미만)', q.bizOK);
+        st('매수자 요건(같은 대분류 업종 10년 경영 또는 5년 근무 임직원)', q.buyer); st('사업승계 위해 일정 비율 이상 양도', q.ratio);
+        o.rate = 20; o.capOwn = my * 50000000; o.why = '양도소득 전부 · 20% 세액감면, 한도 경영연수 ' + my + '년 × 5천만원 = ' + won0(o.capOwn) + '(감면 종합한도와 별도)';
+        CK.push('§30의8 사후관리(개정안) : 매도자가 5년 안 다시 사들이면 감면세액 + 이자상당액 추징 · 사업승계 유형·양도 비율 = 대통령령(미정) · 농어촌특별세 = 20%로 계산 [확인 필요]'); break; }
       case '98의5': { var off = N('offer'), cut = off > 0 ? (off - N('price')) / off * 100 : 0; o.rate = cut <= 10 ? 60 : cut <= 20 ? 80 : 100;
         st('2011.4.30.까지 최초 계약 취득', A <= '2011-04-30', A); st('2010.2.11. 현재 수도권 밖 미분양주택', q.unsold); L.push({ t: '분양가격 인하율 ' + (Math.round(cut * 100) / 100) + '% → 감면율 ' + o.rate + '%', ok: true, why: '10% 이하 60 · 20% 이하 80 · 초과 100(①각 호)' });
         if (!off) D.push('§98의5 분양가격 인하율 0% → 60%(offer 비움)'); CK.push('§98의5 취득 시작일 = 책 2010.5.14.(시행일) · 원문은 「2011.4.30.까지」만 [확인 필요]');
@@ -2636,7 +2818,7 @@ var HTX = (function () {
     var LS = (q.list || []).map(function (e) { var T = YS.RLAW[e.c]; if (!T) return null; var J = YS.RJ(e.c, e, I, ctx), kind = J.mode || T.kind;
       if (kind === 'count' || kind === 'lt' || kind === 'rate' || kind === 'pre') return null;
       if (kind === 'tax' && J.rate <= 0 && J.ok) { J.ok = false; J.L.push({ t: '감면율 0%', ok: false }); }
-      return { c: e.c, law: T.law, kind: kind, rate: J.rate, part: Math.min(inc, Math.max(0, J.part)), g: T.g, nongFree: !!T.free, freeWhy: T.free === 7 ? '(농특세법 §4 12호, 시행령 §4⑦1호)' : '', ok: J.ok, steps: J.L, partWhy: J.why, ratio: J.ratio, sched: J.sched, refund: J.refund };
+      return { c: e.c, law: T.law, kind: kind, rate: J.rate, part: Math.min(inc, Math.max(0, J.part)), g: T.g, nongFree: !!T.free, freeWhy: T.free === 7 ? '(농특세법 §4 12호, 시행령 §4⑦1호)' : '', ok: J.ok, steps: J.L, partWhy: J.why, ratio: J.ratio, sched: J.sched, refund: J.refund, capOwn: J.capOwn };
     }).filter(Boolean);
     items = items.concat(LS.filter(function (x) { return x.kind === 'tax' && (x.g || []).indexOf('A') >= 0; }), LS.filter(function (x) { return x.kind === 'tax' && (x.g || []).indexOf('Ax') >= 0; }));
     if (q.s77 && q.s77.on) {
@@ -2693,6 +2875,7 @@ var HTX = (function () {
       } else { raw = f90(x.part); covered += x.part; }
       if (x.Ci == null) x.Ci = reliefInc > 0 ? Math.floor(C * x.part / reliefInc) : 0;
       var red = Math.min(raw, left), hit = [];
+      if (x.capOwn != null && red > x.capOwn) { hit.push(x.law.replace(/^조특법 /, '').replace(/\(.*$/, '') + ' 감면 한도 ' + won0(x.capOwn)); red = x.capOwn; }   
       caps.forEach(function (k) { if ((x.g || []).some(function (g) { return k.on.indexOf(g) >= 0; })) { if (red > k.left) hit.push(k.n); red = Math.min(red, k.left); } });
       caps.forEach(function (k) { if ((x.g || []).some(function (g) { return k.on.indexOf(g) >= 0; })) k.left -= red; });
       x.raw = raw; x.red = red; x.capCut = raw - red > 0 && x.rate >= 100 ? raw - red : 0; x.capHit = hit;
@@ -4092,8 +4275,10 @@ var IGT = (function () {
     startup: { deduct: 500000000, rate: 0.10, limit: 5000000000, limitHire: 10000000000 },
     
     
+    
     bizInh: [[10, 30000000000], [20, 40000000000], [30, 60000000000]],
-    bizInhReform: { from: 2027, perYear: 2000000000, cap: 100000000000, minYears: 20 },
+    bizInhReform: { from: 2027, fromDate: '2027-07-01', perYear: 2000000000, cap: 100000000000, minYears: 20, fullYears: 30, follow: 10 },
+    bizInhFollow: 5,   
     
     rentRate: 0.12,   
     excludedDed: 30000000, feeMax: { appraisal: 5000000, stockEval: 10000000 }
@@ -4113,6 +4298,21 @@ var IGT = (function () {
     var c = 0;
     for (var i = 0; i < R.bizInh.length; i++) if (years >= R.bizInh[i][0]) c = R.bizInh[i][1];
     return c;
+  }
+  
+  function bizInhCapReform(years) {
+    var F = R.bizInhReform, y = Math.floor((+years || 0) + 1e-9);
+    return y >= F.minYears ? Math.min(y * F.perYear, F.cap) : 0;
+  }
+  
+  function bizInhReformOn(ymd) { return !!ymd && String(ymd).slice(0, 10) >= R.bizInhReform.fromDate; }
+  
+  function bizInhCapAt(years, ymd) { return bizInhReformOn(ymd) ? bizInhCapReform(years) : bizInhCap(years); }
+  
+  function bizInhRule(years, ymd) {
+    var F = R.bizInhReform, on = bizInhReformOn(ymd), y = Math.floor((+years || 0) + 1e-9);
+    return on ? { reform: true, min: F.minYears, follow: F.follow + Math.max(0, F.fullYears - y), cap: bizInhCapReform(y) }
+              : { reform: false, min: R.bizInh[0][0], follow: R.bizInhFollow, cap: bizInhCap(y) };
   }
   
   function xlRate(ref, T) {
@@ -4303,7 +4503,7 @@ var IGT = (function () {
     var reinv = Math.max(0, (o.deposited || 0) - (o.notReinvested || 0));
     return Math.max(0, (o.withdrawn || 0) - reinv);
   }
-  return { R: R, rateTax: rateTax, bizInhCap: bizInhCap, xlRate: xlRate, belowMin: belowMin, skipRate: skipRate, specialTax: specialTax, finDeduct: finDeduct,
+  return { R: R, rateTax: rateTax, bizInhCap: bizInhCap, bizInhCapReform: bizInhCapReform, bizInhReformOn: bizInhReformOn, bizInhCapAt: bizInhCapAt, bizInhRule: bizInhRule, xlRate: xlRate, belowMin: belowMin, skipRate: skipRate, specialTax: specialTax, finDeduct: finDeduct,
     spouseDed: spouseDed, lumpSum: lumpSum, houseDed: houseDed, reinheritRate: reinheritRate,
     legalShares: legalShares, deemedInsurance: deemedInsurance, insuranceGift: insuranceGift, netWithdrawal: netWithdrawal,
     securedValue: securedValue, divDiff: divDiff, convBond: convBond, warrantValue: warrantValue, irr: irr, cryptoDayAvg: cryptoDayAvg,
@@ -5206,13 +5406,17 @@ var TREATY = [{"n": "가봉", "d": 15.0, "i": 10.0, "dt": "25% 이상 직접 소
     if (!raw('h_acqDate') || !raw('h_saleDate')) { $('o-house').innerHTML = card('주택 양도', '<p class="err">취득일, 양도일 입력 필요</p>'); return; }
     var q = { kind: 'house', sale: eok('h_sale'), acq: eok('h_acq'), exp: eok('h_exp'), acqDate: raw('h_acqDate'), saleDate: raw('h_saleDate'),
       count: Math.max(1, Math.round(v('h_count'))), resY: Math.floor(v('h_resY')), resM: Math.round((v('h_resY') % 1) * 12), adjAcq: ok('h_adjAcq'), adjSale: ok('h_adjSale'),
-      emig2y: ok('h_emig2y'), buyerCorp: ok('h_buyerCorp'), prepaid: ok('h_prepaid') };
+      emig2y: ok('h_emig2y'), buyerCorp: ok('h_buyerCorp'), prepaid: ok('h_prepaid'), reform26: raw('h_law') === 'reform' };
     var r = NRT.house(q), a = r.res, b = r.non;
+    
+    var alt = null; if (q.saleDate >= '2026-01-01') { try { var rA = NRT.house(Object.assign({}, q, { reform26: !q.reform26 })); if ((rA.res.total || 0) !== (a.total || 0) || (rA.non.total || 0) !== (b.total || 0)) alt = rA; } catch (e) {} }
     function col(x) { return [x.exempt ? '비과세' : x.hi ? '12억 초과분 과세' : (x.nt && x.nt.ok ? '비과세 요건 충족' : '과세'), W(x.gain || 0), W(x.taxGain || 0), (x.lt ? pct((x.lt.pct || 0) / 100) + '<small>' + (x.lt.why || '') + '</small>' : '0%'), W(x.base || 0), W(x.nat || 0), W(x.loc || 0), W(x.total || 0)]; }
     var A = col(a), B = col(b), lab = ['비과세 판정', '양도차익', '과세 양도차익', '장기보유특별공제', '과세표준', '양도소득세', '지방소득세', '합계'];
     var rows = lab.map(function (l, i) { return tr([l, A[i], B[i]], i === 7 ? 'tot' : ''); });
     var h = vs('거주자로 양도(출국 전)', a.total || 0, '', '비거주자로 양도(출국 후)', b.total || 0, q.emig2y ? '해외이주 2년 예외 — 비과세만 살고 표2는 안 됨' : '1세대1주택 비과세·표2 없음') +
       table(['', '거주자', '비거주자'], rows);
+    if (q.reform26) h += '<p class="err">⚠ 2026 세제개편안 정부안 가정(국회 미통과) — 거주자 기본공제 2,500만원(10년 거주 30억원 이하 1주택)은 비거주자 제외 · 비거주자 §97의4 장기임대 추가공제는 2029.1.1. 이후 양도 제외(개편안) · 현행법이면 거주자 ' + W(alt ? alt.res.total || 0 : a.total || 0) + ' / 비거주자 ' + W(alt ? alt.non.total || 0 : b.total || 0) + '</p>';
+    else if (alt) h += '<p class="err">⚠ 2026 세제개편안 정부안(국회 미통과)이 그대로 통과되면 : 거주자 ' + W(alt.res.total || 0) + ' / 비거주자 ' + W(alt.non.total || 0) + ' (위 표 = 현행법 · 「세법 기준」 칸에서 바꿈)</p>';
     if (r.wh.on) h += '<p>법인 등이 살 때 원천징수 : 양도소득세 ' + W(r.wh.nat) + ' + 지방소득세 ' + W(r.wh.local) + ' (MIN(양도가액 × 10%, 양도차익 × 20%) · §156①5호) → 확정신고 때 정산</p>';
     h += law('· 비거주자 = 1세대1주택 비과세(§89①3호)와 장기보유특별공제 표2(§95② 단서) 배제(소득세법 §121② 단서 · 영 §180의2①) → 표1(보유 3년 6% ~ 15년 30%)<br>· 예외 : 해외이주법상 해외이주 또는 1년 이상 국외 취학·근무로 세대전원 출국 + 출국일 현재 1주택 + 출국일부터 2년 안 양도 = 비과세(영 §154①2호 나·다 · §180의2① 단서) · 현지이주는 영주권 등 취득일을 출국일로 봄 · 12억 초과분은 과세하되 표1만<br>· 이민 뒤 새로 산 주택, 상속·증여받은 주택은 2년 예외 안 됨(책 Q8) · 거주자 → 비거주자 → 거주자면 보유기간 통산(책 Q9)<br>· 양수자가 법인이면 원천징수(§156①5호) · 미리 신고·납부하거나 비과세 증명하면 안 함(§156⑮)<br>· 계산 = 주택양도세_시뮬레이터 엔진 HTX(2026-11-02 비거주자 칸 추가 · 비우면 종전과 같음) · 다주택 중과, 단기세율, 12억 안분은 그 엔진 그대로');
     $('o-house').innerHTML = card('주택 양도 비교', h);

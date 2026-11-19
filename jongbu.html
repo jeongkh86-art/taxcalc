@@ -361,7 +361,117 @@ html.fwait body{visibility:hidden}
   #txMap.open .tx-bd{display:block}
 }
 </style>
-
+<style id="pubDesign">@media screen{
+:root{--pd-bg:#FFFFFF;--pd-surface:#FFFFFF;--pd-surface2:#F5F7FA;--pd-ink:#111827;--pd-ink2:#374151;--pd-ink3:#6B7280;--pd-line:#E5E7EB;--pd-line2:#D1D5DB;
+  --pd-acc:#1E3A8A;--pd-acc-soft:#EEF2FB;--pd-acc-hover:#172E6E;--pd-th-bg:#F5F7FA;--pd-th-fg:#374151;--pd-minus:#1E3A8A;
+  --pd-r-card:8px;--pd-r-ctl:6px;--pd-tl:.5px;--pd-cap:15px;--pd-body:16px;--pd-lead:17px;--pd-h3:18px;--pd-q:22px;--pd-h1:24px;--pd-num:36px;--pd-hmin:44px;
+  --paper:#FFFFFF;--card:#FFFFFF;--ink:#111827;--ink2:#374151;--ink3:#6B7280;--rule:#E5E7EB;--band:#F5F7FA;
+  --ver:#1E3A8A;--verbg:#EEF2FB;--ok:#1E3A8A;--okbg:#EEF2FB;--blue:#1E3A8A;--bluebg:#EEF2FB}
+#pkRoot{--blue:#1E3A8A;--bluebg:#EEF2FB}
+html,body{background:var(--pd-bg)}
+body{color:var(--pd-ink);font-size:var(--pd-body);font-variant-numeric:tabular-nums}
+h1{font-size:var(--pd-h1)!important;font-weight:800;letter-spacing:-.01em}
+.eyebrow,.lead,.dfl,.law,details.why>summary,.fld .mh,.cfm{font-size:var(--pd-cap)}
+.lead{font-size:var(--pd-body)}
+.eyebrow .ex{color:var(--pd-acc)}
+.sec>h2{font-size:var(--pd-h3);border-bottom:1px solid var(--pd-ink2)}
+.card h3{font-size:var(--pd-h3)}
+.law,.howto{background:var(--pd-surface2);border-radius:var(--pd-r-ctl)}
+.card,.box,#pkRoot .pk-step,#pkRoot .pk-card,#pkRoot .pk-res,#pkRoot .pk-op,#pkRoot .pk-spx,.pk-coc{border:1px solid var(--pd-line);border-radius:var(--pd-r-card);box-shadow:none}
+#pkRoot .pk-step,#pkRoot .pk-spx{background:var(--pd-surface)}
+button,select,summary,[role=button],textarea,input:not([type=checkbox]):not([type=radio]):not([type=hidden]):not([type=file]):not([type=range]){min-height:var(--pd-hmin)}
+button{border-radius:var(--pd-r-ctl)}
+.calc button,button[data-run],.xlb,#pkRoot .pk-go,#pkRoot .pk-xl,#pkRoot [data-pkwn],#pkRoot .sbz-btns button,#pkRoot .sbz-btns button.xl,.uxq-go{background:var(--pd-acc)!important;color:#fff!important;border:0!important;border-radius:var(--pd-r-ctl)!important;min-height:52px;font-weight:700}
+.calc button:hover,.xlb:hover,#pkRoot .pk-go:hover,#pkRoot .pk-xl:hover{background:var(--pd-acc-hover)!important}
+#pkRoot .pk-go2,#pkRoot .pk-wd summary,#pkRoot .pk-wz0,#pkRoot .pk-wb{border:1px solid var(--pd-line2);border-radius:var(--pd-r-ctl);background:var(--pd-surface);color:var(--pd-ink2)}
+#pkRoot .pk-wb{min-height:var(--pd-hmin);font-size:var(--pd-cap);display:inline-flex;align-items:center;justify-content:center}
+#pkRoot .pk-wd summary{color:var(--pd-ink);display:flex;align-items:center;justify-content:center}
+#pkRoot .pk-wd[open] summary{background:var(--pd-acc-soft);color:var(--pd-acc);border-color:var(--pd-acc)}
+.tabs button.on,.seg button.on,#pkRoot .pk-mtab button.on,#pkRoot .pk-cnt button.on,#pkRoot .pk-sd.on,.stepnav button.hi,.mode button.on{background:var(--pd-acc)!important;border-color:var(--pd-acc)!important;color:#fff!important}
+.tabs button,.seg button,#pkRoot .pk-mtab button,#pkRoot .pk-cnt button,#pkRoot .pk-chip,#pkRoot .pk-tog button,#pkRoot .pk-wo button,#pkRoot .pk-kd,#pkRoot .pk-spi,#pkRoot .pk-swap{border-width:1px;border-radius:var(--pd-r-ctl)}
+#pkRoot .pk-wo button{border:1.5px solid var(--pd-line2);font-size:var(--pd-lead)}
+#pkRoot .pk-wo button.on,#pkRoot .pk-kd.on,#pkRoot .pk-spi.on{border-color:var(--pd-acc);background:var(--pd-acc-soft)}
+#pkRoot .pk-chip,#pkRoot .pk-tog button,#pkRoot .pk-cosel button,.pk-cosel button{min-height:var(--pd-hmin);display:inline-flex;align-items:center;font-size:var(--pd-cap)}
+#pkRoot .pk-terms button{min-height:var(--pd-hmin);border:0;border-radius:0;background:none;color:var(--pd-acc);text-decoration:underline;text-underline-offset:3px;font-size:var(--pd-cap);padding:0 4px;display:inline-flex;align-items:center}
+#pkRoot .pk-terms button.on{background:var(--pd-acc-soft);font-weight:700}
+#pkRoot .pk-tl{font-size:var(--pd-cap)}
+#pkRoot .pk-need-l button{min-height:var(--pd-hmin);font-size:var(--pd-cap);border-radius:var(--pd-r-ctl)}
+#pkRoot .pk-xpl button,#pkXpBtn{min-height:var(--pd-hmin);font-size:var(--pd-cap);color:var(--pd-acc)}
+details.why>summary{display:inline-flex;align-items:center;min-height:var(--pd-hmin);border-bottom:0;text-decoration:underline dotted;text-underline-offset:4px}
+summary{display:flex;align-items:center}
+details.why>summary{display:inline-flex}
+.fld input,.fld select,#pkRoot .pk-qf input,#pkRoot .sbz-in input,#pkRoot .sbz-in select,#pkRoot .sbz-in2 input,#pkRoot .sbz-in2 select,#pkRoot .sbz-txt input,#pkRoot .sbz-txt select{min-height:var(--pd-hmin);border:1px solid var(--pd-line2);border-radius:var(--pd-r-ctl)}
+#pkRoot .pk-wi input{border:1.5px solid var(--pd-line2);border-radius:var(--pd-r-ctl)}
+.fld input:focus,.fld select:focus,#pkRoot .pk-wi input:focus,#pkRoot .pk-qf input:focus,input:focus,select:focus{outline:none;border-color:var(--pd-acc)!important;box-shadow:0 0 0 2px var(--pd-acc-soft)}
+.chk input,input[type=checkbox],input[type=radio]{accent-color:var(--pd-acc)}
+#pkRoot .pk-wq{font-size:var(--pd-q)}
+#pkRoot .pk-wh{font-size:var(--pd-cap);color:var(--pd-ink2)}
+#pkRoot .pk-dots i.d{background:var(--pd-ink3)}
+#pkRoot .pk-dots i.c{background:var(--pd-acc)}
+#pkRoot .pk-sh i{background:var(--pd-acc)}
+#pkRoot .pk-tdef{background:var(--pd-surface2);border-left:3px solid var(--pd-acc);border-radius:var(--pd-r-ctl);font-size:var(--pd-cap)}
+#pkRoot .pk-tdef b{color:var(--pd-ink)}
+#pkRoot .pk-tdef .pk-lw{font-size:var(--pd-cap)}
+#pkRoot .pk-sp,#pkRoot .pk-kd,#pkRoot .pk-ql,#pkRoot .pk-qf label,#pkRoot .pk-swq,#pkRoot .pk-oe,#pkRoot .pk-rn,#pkRoot .pk-eng,#pkRoot .pk-need-l span,#pkRoot .pk-det summary,#pkRoot .pk-card h3,#pkRoot .pk-qnote,#pkRoot .pk-mtab button,#pkRoot .pk-sd,#pkRoot .pk-oh,#pkRoot .pk-bd{font-size:var(--pd-cap)}
+#pkRoot .pk-sd small,#pkRoot .pk-oe s,.pk-tag{font-size:var(--pd-cap)}
+#pkRoot .pk-res ul,#pkRoot .pk-card ul{font-size:var(--pd-cap)}
+#pkRoot .pk-card h3{font-size:var(--pd-h3)}
+#pkRoot .pk-eng{background:var(--pd-surface2)}
+#pkRoot .pk-op.on .pk-sw{background:var(--pd-acc)}
+#pkRoot .pk-spx>summary::before{border-width:1.5px}
+#pkRoot .pk-spx>summary span{color:var(--pd-acc)}
+#pkRoot .pk-spg{border-top:1px solid var(--pd-ink2)}
+#pkRoot .b-ok,#pkRoot .b-tax,#pkRoot .b-blue{background:var(--pd-acc-soft);color:var(--pd-acc)}
+#pkRoot .pk-wr,#pkRoot .pk-wr.ok,#pkRoot .pk-wr.ng{background:var(--pd-surface);color:var(--pd-ink);border:0;border-left:5px solid var(--pd-acc);border-radius:0;padding:6px 0 6px 16px}
+#pkRoot .pk-wr0{font-size:var(--pd-cap);color:var(--pd-ink2);font-weight:700}
+#pkRoot .pk-wr1,#pkRoot .pk-wr.ng .pk-wr1,#pkRoot .pk-wr.ok .pk-wr1{font-size:var(--pd-num);font-weight:700;color:var(--pd-acc);letter-spacing:-.01em}
+#pkRoot .pk-wr3{font-size:var(--pd-cap);color:var(--pd-ink2)}
+#pkRoot .pk-wr2{font-size:var(--pd-body)}
+.pk-cot{color:var(--pd-acc)}
+.pk-coc.on{border:2px solid var(--pd-acc)}
+table{font-size:var(--pd-body)}
+th{background:var(--pd-th-bg);color:var(--pd-th-fg);font-weight:700;font-size:var(--pd-cap)}
+th,td{border-bottom:var(--pd-tl) solid var(--pd-line2)}
+thead th{border-bottom:1px solid var(--pd-line2);color:var(--pd-th-fg);font-size:var(--pd-cap)}
+td small,th small{font-size:var(--pd-cap)}
+tr.tot td,tr.sum td{border-top:1.5px solid var(--pd-ink2)}
+tr.hl td{background:var(--pd-acc-soft)}
+td.band{background:var(--pd-surface2)}
+table.y4t,.yaBox table.yaT{font-size:var(--pd-body)}
+table.y4t th,.yaBox .yaT th{background:var(--pd-th-bg)!important;color:var(--pd-th-fg)!important;font-size:var(--pd-cap);font-weight:700}
+.yaBox .yaT th small,table.y4t small,.y4n,.y4dfl,.yaBox ul.yaA,.yaBox .yaT td small{font-size:var(--pd-cap)}
+table.y4t small.y4d{font-size:var(--pd-cap)}
+table.y4t .y4d.dn,table.y4t small.y4d.dn{color:var(--pd-minus)}
+table.y4t .y4d.up,table.y4t small.y4d.up{color:var(--pd-ink)}
+table.y4t tr.y4now td{background:var(--pd-surface2)}
+table.y4t tr.y4tot td{border-top:1.5px solid var(--pd-ink2)}
+.yaBox input{min-height:var(--pd-hmin);border-radius:var(--pd-r-ctl);border-color:var(--pd-line2)}
+.yaBox .yaG{font-size:var(--pd-cap)}
+@media(max-width:599.98px){
+  #txMap{background:var(--pd-surface);border-bottom:1px solid var(--pd-line)}
+  #txMap .tx-bar{min-height:var(--pd-hmin);font-size:var(--pd-cap)}
+  #txMap .tx-bar .a b{color:var(--pd-acc)}
+}
+#txMap .tx-h{border-bottom:1px solid var(--pd-ink2)}
+#txMap li.now{background:var(--pd-acc-soft)}
+#txMap li.now::before,#txMap li.now .n::after{background:var(--pd-acc);border-color:var(--pd-acc)}
+#txMap li.now .n{color:var(--pd-acc)}
+details.pk-easy>summary{display:inline-flex;align-items:center;min-height:var(--pd-hmin);color:var(--pd-acc);text-decoration-color:var(--pd-acc);font-size:var(--pd-cap)}
+details.pk-easy[open]>summary{color:var(--pd-ink2)}
+details.pk-easy>ul{border-left-color:var(--pd-acc);background:var(--pd-surface2);border-radius:0 var(--pd-r-ctl) var(--pd-r-ctl) 0}
+body .y4box .y4t th{background:var(--pd-th-bg)!important;color:var(--pd-th-fg)!important;font-size:var(--pd-cap)!important}
+body .y4box .y4t{font-size:var(--pd-body)}
+body .y4box .y4d.dn,body .y4box .y4t small.y4d.dn{color:var(--pd-minus)!important}
+body .y4box .y4d.up,body .y4box .y4t small.y4d.up{color:var(--pd-ink)!important}
+body .y4box .y4t tr.y4now td{background:var(--pd-surface2)!important}
+body .y4box .y4e,body .y4box .y4t small,body .y4box .y4lg,body .y4box .y4n,body .y4box .y4h small,body .y4box .y4dfl,body .y4box .y4gs,body .y4box .y4c,body .y4box .y4t small.y4d,body .y4box table.y4t{font-size:var(--pd-cap)!important}
+body .y4box .y4dfl,.y4dfl{background:var(--pd-acc-soft)!important;color:var(--pd-acc)!important}
+table.y4t small.y4same,body .y4box .y4t small.y4same{color:var(--pd-acc)!important}
+body .y4box .y4e{color:var(--pd-acc)!important}
+#pkRoot svg [fill="#e4572e" i]{fill:var(--pd-acc)}
+#pkRoot svg [stroke="#e4572e" i]{stroke:var(--pd-acc)}
+#pubFoot{font-size:var(--pd-cap)!important;color:var(--pd-ink3)!important;border-top-color:var(--pd-line)!important}
+}</style>
 </head>
 <body>
 <div id="txMap" aria-label="세금 구조도"><button type="button" class="tx-bar" id="txBar"><span class="a" id="txBarT"></span><span class="c" id="txBarC">펼치기</span></button><div class="tx-bd"><div class="tx-h" id="txHead">계산 흐름</div><ol id="txList"></ol></div></div>
@@ -450,7 +560,7 @@ html.fwait body{visibility:hidden}
     <div class="row">
       <div class="fld" id="prevFld"><label>직전연도 재산세 + 종부세(만원 · 본인 · 세부담 상한용, 비우면 생략)</label><input id="prev" type="number" placeholder="비움"><span class="mh" data-for="prev"></span></div>
       <div class="fld" id="multiFld"><label>개편안 다주택 기본공제</label>
-        <select id="multi"><option value="9억">9억(현행 유지로 봄)</option><option value="산식">4억 + 5억 × 거주주택 비중(8.3안)</option></select></div>
+        <select id="multi"><option value="산식">4억 + 5억 × 거주주택 공시가 비중(9.1 정부안)</option><option value="9억">9억(종전 현행 유지 가정)</option></select></div>
     </div>
   </section>
 
@@ -567,6 +677,8 @@ var JBS = (function () {
   
   
   
+  
+  function gOk(v) { return v != null && v !== '' && isFinite(+v) && +v > -1; }   
   function installment(tax) {
     var t = +tax || 0, later = t <= 250 * MAN ? 0 : t <= 500 * MAN ? t - 250 * MAN : t * .5;
     return { tax: t, can: t > 250 * MAN, later: later, now: t - later };
@@ -603,8 +715,8 @@ var JBS = (function () {
       if (year === 2026) { ded = 12 * EOK; dedWhy = '1세대 1주택 12억(§8①1호)'; }
       else if (residSum > 0) { ded = 14 * EOK; dedWhy = '실거주 1주택 14억(개편안)'; }
       else { ded = 12 * EOK; dedWhy = '비거주 1주택 12억(9.1 수정 · 현행 유지)'; }
-    } else if (year === 2026 || inp.multi !== '산식') { ded = 9 * EOK; dedWhy = '9억(§8①3호' + (year === 2026 ? ')' : ' · 개편안도 유지로 봄)'); }
-    else { ded = 4 * EOK + 5 * EOK * (sum ? residSum / sum : 0); dedWhy = '4억 + 5억 × 거주주택 비중(8.3안)'; }
+    } else if (year === 2026 || inp.multi === '9억') { ded = 9 * EOK; dedWhy = '9억(§8①3호' + (year === 2026 ? ')' : ' · 종전 현행 유지 가정)'); }
+    else { ded = 4 * EOK + 5 * EOK * (sum ? residSum / sum : 0); dedWhy = '4억 + 5억 × 거주주택 공시가 비중(9.1 정부안 · 국회 미통과)'; }
 
     
     var fmv;
@@ -725,7 +837,7 @@ var JBS = (function () {
   function scenarios(hh, year) {
     var hs = hh.houses.filter(function (h) { return h.price > 0; });
     var A = hh.a, B = hh.b, out = [];
-    function P(houses, who, extra) { return Object.assign({ owner: '개인', houses: houses, age: who.age, hold: who.hold, resid: who.resid, prev: null, multi: '9억' }, extra || {}); }
+    function P(houses, who, extra) { return Object.assign({ owner: '개인', houses: houses, age: who.age, hold: who.hold, resid: who.resid, prev: null, multi: hh.multi === '9억' ? '9억' : '산식' }, extra || {}); }
     function add(key, label, people) {
       var rs = people.map(function (p) { return person(p, year); });
       out.push({ key: key, label: label, n: people.length, pay: rs.reduce(function (a, r) { return a + r.pay; }, 0), hold: rs.reduce(function (a, r) { return a + r.hold; }, 0), parts: rs });
@@ -765,7 +877,8 @@ var JBS = (function () {
     function inpAt(k, Y) {
       var f = Math.pow(1 + g, k), fb = Math.pow(1 + gb, k);
       return Object.assign({}, inp, {
-        houses: (inp.houses || []).map(function (h) { var x = Object.assign({}, h, { price: h.price * f }); delete x.ptCap; return x; }),
+        
+        houses: (inp.houses || []).map(function (h) { var x = Object.assign({}, h, { price: h.price * (gOk(h.g) ? Math.pow(1 + +h.g, k) : f) }); delete x.ptCap; return x; }),
         comb: (inp.comb || 0) * f, sep: (inp.sep || 0) * f, bldg: (inp.bldg || 0) * fb,
         age: (inp.age || 0) + k, hold: (inp.hold || 0) + k, resid: (inp.resid || 0) + k,
         ptRule: ptRule(Y), prev: null, fmvAdd: (o.fmvAdd && o.fmvAdd[Y]) || 0, fmvSet: ov(o.fmvSet, Y), ptFmvL: ov(o.ptFmvL, Y)
@@ -876,6 +989,7 @@ var JBS = (function () {
         if (!(w > 0)) return;
         if (o.type === 'house' || o.type === 'otRes') {
           var hx = { price: o.price, share: w, adj: !!o.adj, resid: !!o.resid };
+          if (gOk(o.g)) hx.g = +o.g;   
           if (o.ex === 'small') hx.xr = true;
           else if (o.ex && o.ex !== 'rent') { hx.ex = o.ex; hx.crx = CRX.indexOf(o.ex) >= 0; hx.xr = XR_ALWAYS.indexOf(o.ex) >= 0 || (deem && (o.ex === 'temp' || o.ex === 'local')); }
           q.houses.push(hx);
@@ -901,7 +1015,7 @@ var JBS = (function () {
   var APPLY = [
     ['세제', ['현행', '현행', '현행', '현행'], ['현행', '개편 1단계', '개편 2단계', '2028안 유지(확인 필요)']],
     ['1세대 1주택 기본공제', ['12억', '12억', '12억', '12억'], ['12억', '거주 14억, 비거주 12억', '거주 14억, 비거주 12억', '거주 14억, 비거주 12억']],
-    ['그 외 기본공제(법인 0)', ['9억', '9억', '9억', '9억'], ['9억', '9억(3번 칸 「산식」이면 4억 + 5억 × 거주 비중)', '같음', '같음']],
+    ['그 외 기본공제(법인 0)', ['9억', '9억', '9억', '9억'], ['9억', '4억 + 5억 × 거주주택 공시가 비중(9.1 정부안 · ③ 칸 「9억」이면 종전 유지 가정)', '같음', '같음']],
     ['종부세 주택분 공정시장가액비율(기본)', ['60%', '60%', '60%', '60%'], ['60%', '70%', '3주택 이상, 조정지역(1주택 제외) 80%, 그 외 70%', '2028과 같음']],
     ['종부세 주택분 세율(개인)', ['2주택 이하 0.5~2.7%, 3주택 이상 0.5~5.0%', '같음', '같음', '같음'], ['현행', '1·2주택 0.5~3.5%(6~12억 1.3%), 3주택 이상 0.5~5.0%(6~12억 1.3%)', '가액 기준 일원화 0.5~5.0%', '2028과 같음']],
     ['법인 세율', ['2.7% / 5.0%', '같음', '같음', '같음'], ['2.7% / 5.0%', '3.5% / 5.0%', '5.0%', '5.0%']],
@@ -949,7 +1063,7 @@ var JBS = (function () {
   function runCases() {
     var rows = [];
     CASES.forEach(function (c) {
-      var inp = { owner: '개인', one: !!c.inp.one, houses: [{ price: c.inp.p * EOK, adj: false, resid: true }], age: c.inp.age, hold: c.inp.hold, resid: c.inp.resid, prev: null, multi: '9억' };
+      var inp = { owner: '개인', one: !!c.inp.one, houses: [{ price: c.inp.p * EOK, adj: false, resid: true }], age: c.inp.age, hold: c.inp.hold, resid: c.inp.resid, prev: null, multi: '산식' };
       Object.keys(c.exp).forEach(function (y) {
         var r = calc(inp, +y), e = c.exp[y];
         var g1 = Math.round(r.pay / 1000) / 10, g2 = Math.round(r.hold.total / 1000) / 10;
@@ -1033,10 +1147,13 @@ var JBS = (function () {
     return (n === 0 ? '주택 없음(토지, 건축물만)' : n === 1 ? '1세대 1주택(세대 주택 1채' + (HH.jointOne ? ', 부부 공동 = §10의2 특례 신청, 납세의무자 ' + (HH.jointPayer === 'sp' ? '배우자' : '본인') + '(영 §5의2③)' : HH.jointNo ? ', 부부 공동 = 특례 안 함, 각자 9억' : '') + ')' : '1세대 1주택 아님(세대 주택 ' + n + '채 · 주거용 오피스텔 포함)') + corpT;
   }
   
-  function assumeLines(YO) {
+  function assumeLines(YO, objs) {
     YO = YO || {}; var L = [], Ys = [2026, 2027, 2028, 2029], pc = function (v) { return Math.round(v * 1000) / 10 + '%'; };
     var g = YO.g != null ? YO.g : .03, gb = YO.gb || 0;
     if (Math.abs(g - .03) > 1e-12) L.push('가정 : 공시가격, 공시지가 연 상승률 ' + pc(g) + '(기본 3%)');
+    
+    var hg = (objs || []).map(function (o, i) { return (o.type === 'house' || o.type === 'otRes' || o.type == null) && gOk(o.g) ? (o.type === 'otRes' ? '주거용 오피스텔' : '주택') + (i + 1) + ' ' + pc(+o.g) : null; }).filter(Boolean);
+    if (hg.length) L.push('가정 : ' + hg.join(', ') + '(집마다 공시가격 연 상승률 · 나머지 = 공통 ' + pc(g) + ')');
     if (Math.abs(gb) > 1e-12) L.push('가정 : 건축물 시가표준액 연 변동률 ' + pc(gb) + '(기본 0%)');
     function one(m, nm, rng, lo, hi) {
       var a = Ys.filter(function (y) { return m && m[y] != null && m[y] !== '' && isFinite(+m[y]); });
@@ -1052,7 +1169,7 @@ var JBS = (function () {
     var todo = [
       '개편안은 정부안(9.1 확정, 9.3 국회 제출) — 2026-10-22 기준 국회 통과 확인 못 함, 의안 부칙(시행일) 원문 못 찾음',
       '개편 2027년 3주택 이상 6~12억 구간 1.3% — 원문 표의 열 대응이 불명확해 1·2주택과 같게 둠',
-      '개편안 일반 다주택 기본공제 — 8.3안 「4억 + 5억 × 거주주택 비중」이 9.1 이후에도 유지되는지 확인 못 함(기본 9억, 선택 칸으로 바꿔 볼 수 있음)',
+      '개편안 일반 다주택 기본공제 — 9.1 정부안 = 4억 + 5억 × 거주주택 공시가 비중(국회 미통과 · 9.1 수정사항은 1세대 1주택 비거주 12억, 부부 공동 비거주 6억만 바꿈 · 재정경제부 개편안 「그 외 4억 + (5억 × 거주주택 비중) ’27.1.1.」) · 기본 = 이 산식, ③ 칸 「9억」으로 종전 유지 가정도 볼 수 있음',
       '재산세 중복분 공제 분자의 표준세율 적용방법(영 §4의3⑤ 시행규칙 위임) 원문 미확인 — 1천분의 4로 계산, 정부 사례 1주택 9건으로 역검증',
       '세부담 상한 총세액상당액(영 §5) 원문 미조회 — 「올해 재산세 본세 + 종부세」와 직전연도 입력값의 150%만 비교',
       '정부 사례③(공시 50억, 70세 10년 거주) 2027년 종부세 1,942.1만원은 같은 표의 「공제한도 적용 전 2,141.1만원」과 맞지 않음 — 표 안 숫자로 다시 맞추면 2,251.7만원(이 시뮬레이터 값). 나머지 17건은 0.1만원까지 일치',
@@ -1118,7 +1235,7 @@ var JBS = (function () {
   
   function report(I) {
     I = I || {};
-    var base = Object.assign({ owner: '개인', age: 0, hold: 0, resid: 0, prev: null, multi: '9억', jointPayer: 'me', nonres: false }, I.base || {});
+    var base = Object.assign({ owner: '개인', age: 0, hold: 0, resid: 0, prev: null, multi: '산식', jointPayer: 'me', nonres: false }, I.base || {});
     var sp = Object.assign({ age: 0, hold: 0, resid: 0 }, I.sp || {});
     var objs = (I.objs || []).filter(function (o) { return o.price > 0 || o.land > 0; });
     var YO = Object.assign({ start: 2026, years: 4, g: .03, gb: 0, fmvAdd: {}, reformStart: 2027, keepSpecial: false, mode: 'cur' }, I.yo || {});
@@ -1142,8 +1259,8 @@ var JBS = (function () {
     dual.push('2027년 이후 세제 — 현행 법 그대로 4년 보유세 ' + wonT(C.total) + ' / 2026 세제개편안(정부안 9.1, 국회 미통과) ' + wonT(F.total) + '(차이 ' + (F.total - C.total >= 0 ? '+' : '') + wonT(F.total - C.total) + ') · 연도별 현행 / 개편안 : ' + yrs.join(', ') + ' · 2026년분은 둘 다 현행');
     if (altT) dual.push((HH.jointDeem || HH.jointDeemNo ? '부부 공동명의 + 신규주택 등' : '부부 공동 1주택') + ' §10의2 특례 — 지금 ' + (jOn ? '신청' : '안 함') + ' 4년 현행 ' + wonT(C.total) + ', 개편안 ' + wonT(F.total) + ' / ' + (jOn ? '안 함(각자 9억)' : '신청(12억)') + '이면 현행 ' + wonT(altT[0]) + ', 개편안 ' + wonT(altT[1]) + ' · 신청은 9.16.~9.30.(§10의2)');
     var rc = runCases(), rok = rc.filter(function (r) { return r.ok; }).length;
-    var notes = assumeLines(YO).concat(['2026년분 = 현행 법(과세기준일 2026.6.1. · §3) · 2027년 이후 = 공시가격 연 ' + (YO.g * 100).toFixed(1) + '% 가정 추정', '정부 사례 검산(재정경제부 2026.8.3 문답자료 별첨) ' + rok + ' / ' + rc.length + '건 일치(±0.1만원)']);
-    return { HH: HH, judge: judge(HH, base), base: base, sp: sp, yo: YO, people: people, cur: C, reform: F, now: now, alt: alt, altT: altT, jOn: jOn, steps: steps, dual: dual, flags: N.flags, defaults: N.defaults, notes: notes, assume: assumeLines(YO), anySpecial: anySpecial };
+    var notes = assumeLines(YO, objs).concat(['2026년분 = 현행 법(과세기준일 2026.6.1. · §3) · 2027년 이후 = 공시가격 연 ' + (YO.g * 100).toFixed(1) + '% 가정 추정', '정부 사례 검산(재정경제부 2026.8.3 문답자료 별첨) ' + rok + ' / ' + rc.length + '건 일치(±0.1만원)']);
+    return { HH: HH, judge: judge(HH, base), base: base, sp: sp, yo: YO, people: people, cur: C, reform: F, now: now, alt: alt, altT: altT, jOn: jOn, steps: steps, dual: dual, flags: N.flags, defaults: N.defaults, notes: notes, assume: assumeLines(YO, objs), anySpecial: anySpecial };
   }
 
   return { calc: calc, calc0: calc0, report: report, judge: judge, notesOf: notesOf, hSteps: hSteps, lSteps: lSteps, rowSteps: rowSteps, mergeSteps: mergeSteps, EXN: EXN, CASES: CASES, installment: installment, land: land, person: person, scenarios: scenarios, runCases: runCases, yearly: yearly, assumeLines: assumeLines, officetel: officetel, applied: applied, household: household, propTax: propTax, EOK: EOK, MAN: MAN };
@@ -1284,12 +1401,13 @@ function calcBtn() {
 function objLine(o, i) {   
   var tn = TYPES.filter(function (t) { return t[0] === o.type; })[0][1], isH = o.type === 'house' || o.type === 'otRes';
   var who = ({ me: '본인', sp: '배우자', joint: '부부 공동' })[o.owner] + ' ' + (o.sh === '' ? 100 : o.sh) + '%' + (o.owner === 'joint' ? '(본인 몫)' : '');
-  var ex = [who]; if (o.adj) ex.push('조정'); if (o.resid) ex.push('실거주'); if (isH && o.owner === 'joint') ex.push('§10의2 특례 ' + (o.el !== false ? '신청' : '안 함')); if (isH && o.ex) ex.push('<span class="cfm">주택 수 제외 · ' + exName(o.ex) + '</span>');
+  var ex = [who]; if (o.adj) ex.push('조정'); if (o.resid) ex.push('실거주'); if (isH && o.owner === 'joint') ex.push('§10의2 특례 ' + (o.el !== false ? '신청' : '안 함')); if (isH && o.ex) ex.push('<span class="cfm">주택 수 제외 · ' + exName(o.ex) + '</span>'); if (isH && o.g !== '' && o.g != null) ex.push('상승률 ' + esc(o.g) + '%');
   var v = o.type === 'otBiz' ? '건물 ' + eokT(o.p) + '<small>토지 ' + eokT(o.l) + '</small>' : eokT(o.p) + '<small>' + (o.conf ? '불러옴' : '입력') + '</small>';
   return '<div class="ofold" id="o' + i + '-fold" onclick="unfold(' + i + ')"><div class="t"><b>' + (i + 1) + '. ' + tn + '</b>' + (o.adr ? ' ' + esc(o.adr) + (o.dong ? ' ' + esc(o.dong) + '동' : '') + (o.ho ? ' ' + esc(o.ho) + '호' : '') : '') + '<br>' + ex.join(', ') + ' · 눌러서 고치기</div><div class="v">' + v + '</div></div>';
 }
 function delObj(i) { objs.splice(i, 1); drawObjs(); run(); }
-function setO(i, k, v) { objs[i][k] = v; if (k === 'p' || k === 'l') objs[i].conf = false; var mh = document.getElementById('o' + i + '-' + k + '-mh'); if (mh) mh.textContent = kor(v); if (k === 'type' || k === 'owner' || k === 'ex') drawObjs(); soon(); }
+var YAG = {};   
+function setO(i, k, v) { objs[i][k] = v; if (k === 'g') YAG[i] = v; if (k === 'p' || k === 'l') objs[i].conf = false; var mh = document.getElementById('o' + i + '-' + k + '-mh'); if (mh) mh.textContent = kor(v); if (k === 'type' || k === 'owner' || k === 'ex') drawObjs(); soon(); }
 function drawObjs() {
   var h = '';
   objs.forEach(function (o, i) {
@@ -1306,6 +1424,7 @@ function drawObjs() {
       (biz ? num('l', '부속토지 공시지가 × 대지권(만원)') : '') +
       '<div class="fld"><label>소유자</label><select id="o' + i + '-owner" onchange="setO(' + i + ',\'owner\',this.value)"><option value="me"' + (o.owner === 'me' ? ' selected' : '') + '>본인</option><option value="sp"' + (o.owner === 'sp' ? ' selected' : '') + '>배우자</option><option value="joint"' + (o.owner === 'joint' ? ' selected' : '') + '>부부 공동</option></select></div>' +
       '<div class="fld"><label>지분율 %' + (o.owner === 'joint' ? '(본인 몫)' : '') + '</label><input id="o' + i + '-sh" type="number" step="1" value="' + esc(o.sh) + '" oninput="setO(' + i + ',\'sh\',this.value)"></div>' +
+      (isH ? '<div class="fld"><label>이 집 공시가격 연 상승률 %(비우면 공통)</label><input id="o' + i + '-g" type="number" step="0.1" inputmode="decimal" placeholder="공통" value="' + esc(o.g == null ? '' : o.g) + '" oninput="setO(' + i + ',\'g\',this.value)"></div>' : '') +
       (isH && o.owner === 'joint' ? '<div class="fld"><label>공동명의 1주택 특례(§10의2)</label><select id="o' + i + '-el" onchange="setO(' + i + ',\'el\',this.value === \'y\')"><option value="y"' + (o.el !== false ? ' selected' : '') + '>신청(1명이 1세대 1주택 · 12억)</option><option value="n"' + (o.el === false ? ' selected' : '') + '>안 함(각자 9억)</option></select></div>' : '') + '</div>' +
       (isH ? '<div class="row"><div class="fld"><label>주택 수에서 빼기(§8④, 조특법 §71의2·§98의9 1세대 1주택 판정 · 영 §4의3③ 세율 주택 수)</label><select id="o' + i + '-ex" onchange="setO(' + i + ',\'ex\',this.value)">' + EXR.map(function (r) { return '<option value="' + r[0] + '"' + ((o.ex || '') === r[0] ? ' selected' : '') + '>' + r[1] + '</option>'; }).join('') + '</select>' + (o.ex ? '<p class="law" style="margin-top:4px">' + EXD[o.ex] + (EXAPPLY.indexOf(o.ex) >= 0 ? '<br>' + EXAPPLYT : '') + '</p>' : '<details class="law" style="margin-top:4px"><summary>항목별 요건 보기</summary>' + EXR.slice(1).map(function (r) { return '<b>' + r[1] + '</b> : ' + EXD[r[0]]; }).join('<br>') + '<br>' + EXAPPLYT + '</details>') + '</div></div>' : '') +
       (biz ? '<div class="row otx">' + num('xh', '주거용이면 주택 시가표준액(만원 · ⑤ 비교용 · 비우면 건물분 + 토지분)') + '</div>' : '') +
@@ -1350,7 +1469,7 @@ function loadObj(i) {
 }
 function objsLive() {
   function E(v) { return (+v || 0) * JBS.MAN; }   
-  return objs.map(function (o) { return { type: o.type, price: E(o.p), land: E(o.l), xb: E(o.xb), xl: E(o.xl), xh: E(o.xh), share: (o.sh === '' || isNaN(+o.sh) ? 100 : +o.sh) / 100, owner: o.owner, elect: o.el !== false, ex: (o.type === 'house' || o.type === 'otRes') && o.ex ? o.ex : '', adj: o.adj, resid: o.resid, conf: o.conf }; })
+  return objs.map(function (o) { return { type: o.type, price: E(o.p), land: E(o.l), xb: E(o.xb), xl: E(o.xl), xh: E(o.xh), share: (o.sh === '' || isNaN(+o.sh) ? 100 : +o.sh) / 100, owner: o.owner, elect: o.el !== false, ex: (o.type === 'house' || o.type === 'otRes') && o.ex ? o.ex : '', adj: o.adj, resid: o.resid, conf: o.conf, g: (o.type === 'house' || o.type === 'otRes') && o.g !== '' && o.g != null && isFinite(+o.g) ? +o.g / 100 : undefined }; })
     .filter(function (o) { return o.price > 0 || o.land > 0; });
 }
 
@@ -1431,7 +1550,7 @@ function drawScen(L, base, sp) {
   var hs = L.filter(function (o) { return o.type === 'house' || o.type === 'otRes'; })
     .map(function (o) { return { price: o.price * (o.owner === 'joint' ? 1 : o.share), adj: !!o.adj, resid: !!o.resid }; });
   if (!hs.length) return '<p class="law">목록에 주택이 없어요</p>';
-  var hh = { houses: hs, a: { age: base.age, hold: base.hold, resid: base.resid }, b: sp };
+  var hh = { houses: hs, a: { age: base.age, hold: base.hold, resid: base.resid }, b: sp, multi: base.multi };
   var S = [2026, 2027, 2028].map(function (y) { return JBS.scenarios(hh, colRule(y)); });
   var s = '<p class="law">목록 주택 ' + hs.length + '채(공동 = 집 전체 가액) · 지금 명의와 상관없이 경우별로 다시 나눔</p><table><thead><tr><th>명의</th>' + colHead() + '</tr></thead><tbody>';
   var mins = S.map(function (ys) { return Math.min.apply(null, ys.map(function (x) { return x.pay; })); });
@@ -1587,7 +1706,7 @@ function objDetail(HH, YO) {
 }
 function drawApply(Y) {
   var A = JBS.applied(Y.mode, Y.keepSpecial);
-  var h = '<p class="law"><b>연도별 적용 내용</b>(' + (Y.mode === 'reform' ? '2026 개편안 정부안 — 8.3 개조식·문답자료 + 9.1 수정' : '현행 법 그대로') + ')</p><table class="yt rt"><thead><tr><th>항목</th>' + Y.rows.map(function (r) { return '<th>' + r.year + '</th>'; }).join('') + '</tr></thead><tbody>';
+  var h = '<p class="law"><b>연도별 적용 내용</b>(' + (Y.mode === 'reform' ? '2026 개편안 정부안 — 8.3 개조식·문답자료 + 9.1 수정 · 국회 미통과' : '현행 법 그대로') + ')</p><table class="yt rt"><thead><tr><th>항목</th>' + Y.rows.map(function (r) { return '<th>' + r.year + '</th>'; }).join('') + '</tr></thead><tbody>';
   A.forEach(function (a) { h += '<tr><td>' + a.item + '</td>' + Y.rows.map(function (r, i) { return '<td style="white-space:normal;min-width:110px;text-align:left">' + (a.y[i] || '') + '</td>'; }).join('') + '</tr>'; });
   h += '<tr class="key"><td>이 납세자 종부세 주택분 비율<small>기본 + 입력 %p</small></td>' + Y.rows.map(function (r) { var x = r.house; return '<td style="text-align:left">' + (x ? pct(x.fmv) + '<small>' + pct(x.fmvBase) + ' + ' + Math.round((x.fmv - x.fmvBase) * 100) + '%p</small>' : '주택 없음') + '</td>'; }).join('') + '</tr>';
   return h + '</tbody></table>';
@@ -1645,6 +1764,9 @@ function yaPanel() {
   var h = '<div class="yaBox"><div class="yaH">연도 가정 바꾸기</div><div class="yaG">' +
     '<label>공시가격, 공시지가 연 상승률<input data-ya="yg" type="number" step="0.1" inputmode="decimal" value="' + esc(gv) + '">%</label>' + (+gv === 3 || gv === '' ? '<span class="y4dfl">기본값</span>' : '') +
     (hasL ? '<label>건축물 시가표준액 연 변동률<input data-ya="ygb" type="number" step="0.1" inputmode="decimal" value="' + esc(gbv) + '">%</label>' : '') + '</div>';
+  
+  var HG = objs.map(function (o, i) { return { o: o, i: i }; }).filter(function (x) { return (x.o.type === 'house' || x.o.type === 'otRes') && filled(x.o); });
+  if (HG.length) h += '<div class="yaG yaHG">' + HG.map(function (x) { var o = x.o; return '<label>' + (x.i + 1) + '. ' + (o.type === 'otRes' ? '주거용 오피스텔' : '주택') + ' ' + eokT(o.p) + ' 이 집 상승률<input data-yo="' + x.i + '" type="number" step="0.1" inputmode="decimal" placeholder="' + esc(gv === '' ? 3 : gv) + '" value="' + esc(o.g == null ? '' : o.g) + '">%</label>'; }).join('') + '<span class="y4n" style="flex-basis:100%">이 집 상승률 = 비우면 공통 상승률 · 세부담 상한(종부세법 §10, 영 §5②) 직전 연도 가격도 이 집 상승률로</span></div>';
   if (hasH || hasL) {
     h += '<table class="yaT"><thead><tr><th>공정시장가액비율</th>' + (hasH ? '<th>종부세<small>주택분</small></th><th>재산세<small>주택</small></th>' : '') + (hasL ? '<th>재산세<small>토지, 건축물</small></th>' : '') + '</tr></thead><tbody>';
     Ys.forEach(function (y, i) {
@@ -1657,13 +1779,20 @@ function yaPanel() {
     h += '</tbody></table>';
   }
   h += '<p class="y4n">빈칸 = 법정 비율 · 법 범위 = 종부세 60~100%(종부세법 §8①), 재산세 주택 40~80%, 1세대 1주택 30~70%(지방세법 §110①2호), 토지, 건축물 50~90%(같은 조 1호) · 범위 밖 = 범위 끝으로 맞춤 · 지정한 해는 현행, 개편안 둘 다 그 비율</p>';
-  var A = JBS.assumeLines(R.yo || {});
+  var A = JBS.assumeLines(R.yo || {}, objsLive());
   if (A.length) h += '<ul class="yaA">' + A.map(function (x) { return '<li>' + esc(x) + '</li>'; }).join('') + '</ul>';
   return h + '</div>';
 }
 
 document.addEventListener('change', function (e) {
-  var t = e.target; if (!t || !t.dataset || !t.dataset.ya) return;
+  var t = e.target; if (!t || !t.dataset) return;
+  if (t.dataset.yo != null && t.dataset.yo !== '') {   
+    var i = +t.dataset.yo, gv = String(t.value).trim(); if (!objs[i]) return;
+    objs[i].g = gv; YAG[i] = gv; drawObjs();
+    if (t.closest && t.closest('#pkRoot') && window.JBSWZ && window.JBSWZ.ya) window.JBSWZ.ya(); else soon();
+    return;
+  }
+  if (!t.dataset.ya) return;
   var m = document.getElementById(t.dataset.ya); if (!m) return;
   m.value = String(t.value).trim();
   if (t.closest && t.closest('#pkRoot') && window.JBSWZ && window.JBSWZ.ya) window.JBSWZ.ya(); else soon();
@@ -1742,7 +1871,7 @@ document.addEventListener('input', function (e) { var t = e.target; if (t && t.d
 document.addEventListener('change', function (e) { if (mineEl(e.target)) soon(); }, false);
 
 
-var DEF = { owner: '개인', age: 60, hold: 10, resid: 10, bage: 60, bhold: 10, bresid: 10, prev: '', multi: '9억', jointPayer: 'me', nonresOn: false, notOneOn: false, yg: 3, ygb: 0, fa2026: 0, fa2027: 0, fa2028: 0, fa2029: 0, fs2026: '', fs2027: '', fs2028: '', fs2029: '', ps2026: '', ps2027: '', ps2028: '', ps2029: '', pl2026: '', pl2027: '', pl2028: '', pl2029: '', ykeep: false, ymode: 'cur', reformCols: false, birthD: '', acqD: '', moveD: '', bbirthD: '', bacqD: '', bmoveD: '' };
+var DEF = { owner: '개인', age: 60, hold: 10, resid: 10, bage: 60, bhold: 10, bresid: 10, prev: '', multi: '산식', jointPayer: 'me', nonresOn: false, notOneOn: false, yg: 3, ygb: 0, fa2026: 0, fa2027: 0, fa2028: 0, fa2029: 0, fs2026: '', fs2027: '', fs2028: '', fs2029: '', ps2026: '', ps2027: '', ps2028: '', ps2029: '', pl2026: '', pl2027: '', pl2028: '', pl2029: '', ykeep: false, ymode: 'cur', reformCols: false, birthD: '', acqD: '', moveD: '', bbirthD: '', bacqD: '', bmoveD: '' };
 function H(p, x) { return Object.assign({ type: 'house', p: p, owner: 'me', sh: 100 }, x || {}); }
 var EX = (function () {
   var L = JBS.CASES.map(function (c) { return ['g' + c.id, '정부 사례 ' + c.id + ' — ' + c.d, { objs: [H(c.inp.p * 10000, { resid: true })], age: c.inp.age, hold: c.inp.hold, resid: c.inp.resid }]; });
@@ -1770,6 +1899,8 @@ function fill(v, opt) {
   Object.keys(DEF).forEach(function (id) { if (K[id]) return; var x = v[id] !== undefined ? v[id] : DEF[id], e = document.getElementById(id); if (!e) return; if (typeof x === 'boolean') e.checked = x; else e.value = x; });
   var m = document.querySelector('.mh[data-for="prev"]'); if (m) m.textContent = kor(document.getElementById('prev').value);
   objs = (v.objs || []).map(function (o) { return Object.assign({ type: 'house', adr: '', dong: '', ho: '', p: '', l: '', xb: '', xl: '', xh: '', sh: 100, owner: 'me', el: true, adj: false, resid: false, ex: '', src: '', conf: false, fold: true }, o); });
+  if (K.yg) objs.forEach(function (o, i) { if (o.g == null && YAG[i] != null) o.g = YAG[i]; });   
+  else { YAG = {}; objs.forEach(function (o, i) { if (o.g != null && o.g !== '') YAG[i] = o.g; }); }
   WZD = opt.wzD || [];
   drawObjs(); run();
 }
@@ -1959,7 +2090,7 @@ adrMsg('가액(만원)을 손으로 넣으면 바로 계산 · 주소 불러오�
   var ALL = function () { return true; };
   var SPX = [
     { id: 'yrs', t: '연도 가정 바꾸기(공시가격 상승률, 종부세 공정시장가액비율 올림, 재산세 1주택 특례 연장)', on: ALL, el: ['@secYear'] },
-    { id: 'multi', t: '개편안 다주택 기본공제를 「4억 + 5억 × 거주 비중」(8.3안)으로', on: function (a) { return P(a) && NN(a) >= 2; }, el: ['multiFld'] },
+    { id: 'multi', t: '개편안 다주택 기본공제를 「9억」(종전 현행 유지 가정)으로 보기', on: function (a) { return P(a) && NN(a) >= 2; }, el: ['multiFld'] },
     { id: 'jp', t: '공동명의 특례 납세의무자를 배우자로(영 §5의2③)', on: function (a) { return a.el === 'y' || a.el === 'u'; }, el: ['jpFld'] }
   ];
   function nodes(x) {
@@ -2381,7 +2512,7 @@ adrMsg('가액(만원)을 손으로 넣으면 바로 계산 · 주소 불러오�
       ST('ONE', '1세대 1주택(종부세)', YN(h.one), '엔진 판정', { fmt: 't', law: '종부세법 §8①1호, §8④, 영 §2의3', d: c.judge || '' });
       ST('JNE', '부부 공동 1주택 특례 안 함(각자 지분)', YN(!corp && !h.one && !!inp.jointNoElect), '엔진 판정', { fmt: 't', law: '종부세법 §10의2, 영 §4의3③1호' });
       ST('PTONE', '재산세 1세대 1주택', YN(h.ptOne), '엔진 판정', { fmt: 't', law: '지방세법 §111의2, 영 §109①2호' });
-      ST('MULTI', '다주택 기본공제(개편안 가정)', inp.multi === '산식' ? '산식' : '9억', '입력', { fmt: 't', d: '9억 = 개편안도 유지로 봄 · 산식 = 4억 + 5억 × 거주주택 비중(8.3안)' });
+      ST('MULTI', '다주택 기본공제(개편안 가정)', inp.multi === '9억' ? '9억' : '산식', '입력', { fmt: 't', d: '산식(기본) = 4억 + 5억 × 거주주택 공시가 비중(9.1 정부안 · 국회 미통과) · 9억 = 종전 현행 유지 가정' });
       F('END', '재산세 1주택 특례 끝남(2027~ 가정)', 'IF(AND({Y}>=2027,{$KEEP}="아니요"),"예","아니요")', null, { fmt: 't', law: '영 §109①2호 단서, 지방세법 §111의2', d: '4년 비교 시트 「재산세 1주택 특례 연장 가정」' });
       F('FA', '종부세 공정시장가액비율 가산(가정)', '{$FA' + c.Y + '}', null, { fmt: 'r', d: '4년 비교 시트 가정 칸' });
       F('FSY', '종부세 공정시장가액비율 그해 지정(가정 · 0 = 법정)', '{$FSET' + c.Y + '}', null, { fmt: 'r', d: '4년 비교 시트 가정 칸 · 2026-11-19 결과창 가정' });
@@ -2392,7 +2523,9 @@ adrMsg('가액(만원)을 손으로 넣으면 바로 계산 · 주소 불러오�
       YV('PREV', '직전 연도 주택분 재산세 + 종부세(§10 상한 비교)', inp.prev > 0 ? inp.prev : 0, '{PTSUMR@P}+{JR@P}', { law: '종부세법 §10, 영 §5', d: yr && k > 0 ? '직전 연도 주택을 그해 법, 가격으로 다시 계산한 재산세 + 종부세(영 §5② · 상한, 과표상한 전)' : '모르면 0 = 상한 안 봄' });
       hs.forEach(function (x, j) {
         var i = j + 1, s = x.share == null ? 1 : x.share;
-        YV('H' + i + 'P', '주택 ' + i + ' 공시가격(집 전체)', x.price, '{H' + i + 'P@0}*(1+{$G})^' + k, { law: '종부세법 §8①, 부동산공시법', d: yr && k > 0 ? '1년차 × (1 + 상승률)^' + k : '' });
+        var hg = x.g != null && isFinite(+x.g);   
+        if (hg) ST('H' + i + 'G', '  주택 ' + i + ' 이 집 공시가격 연 상승률(가정)', +x.g, '입력', { fmt: 'r', d: '집마다 상승률 · 비우면 공통 상승률' });
+        YV('H' + i + 'P', '주택 ' + i + ' 공시가격(집 전체)', x.price, '{H' + i + 'P@0}*(1+' + (hg ? '{H' + i + 'G}' : '{$G}') + ')^' + k, { law: '종부세법 §8①, 부동산공시법', d: yr && k > 0 ? '1년차 × (1 + ' + (hg ? '이 집 ' : '') + '상승률)^' + k : '' });
         ST('H' + i + 'S', '  지분(이 사람 몫)', s, '입력', { fmt: 's', law: '영 §4의3③1호(공동 소유 = 각자 1채)' });
         ST('H' + i + 'EX', '  주택 수 제외 사유', x.ex ? (EXN[x.ex] || x.ex) : '없음', '입력', { fmt: 't', law: '종부세법 §8④, 영 §4의2' });
         ST('H' + i + 'XR', '  세율 주택 수에서 뺌', YN(!!x.xr), '엔진 판정', { fmt: 't', law: '영 §4의3③3호' });
@@ -2414,7 +2547,7 @@ adrMsg('가액(만원)을 손으로 넣으면 바로 계산 · 주소 불러오�
       F('XSUM', '  세액공제 제외 주택분', sumT(nh, function (i) { return 'IF({H' + i + 'CX}="예",{H' + i + 'P}*{H' + i + 'S},0)'; }), h.exSum, { law: '종부세법 §9⑦⑨' });
       F('N', '세율 적용 주택 수', 'IF({ONE}="예",1,' + sumT(nh, function (i) { return 'IF({H' + i + 'XR}="예",0,1)'; }) + ')', h.n, { fmt: 'y', law: '종부세법 §9①, 영 §4의3③' });
       F('ADJ', '  조정대상지역 주택 있음', 'IF(OR(' + lin(nh, function (i) { return '{H' + i + 'ADJ}="예"'; }) + '),"예","아니요")', null, { fmt: 't' });
-      F('DED', '(−) 기본공제', 'IF({CORP}="예",0,IF({JNE}="예",IF(OR({R}=2026,{RSUM}>0),900000000,600000000),IF({ONE}="예",IF({R}=2026,1200000000,IF({RSUM}>0,1400000000,1200000000)),IF(OR({R}=2026,{MULTI}<>"산식"),900000000,400000000+500000000*IF({HSUM}<>0,{RSUM}/{HSUM},0)))))',
+      F('DED', '(−) 기본공제', 'IF({CORP}="예",0,IF({JNE}="예",IF(OR({R}=2026,{RSUM}>0),900000000,600000000),IF({ONE}="예",IF({R}=2026,1200000000,IF({RSUM}>0,1400000000,1200000000)),IF(OR({R}=2026,{MULTI}="9억"),900000000,400000000+500000000*IF({HSUM}<>0,{RSUM}/{HSUM},0)))))',
         h.ded, { law: '종부세법 §8①(2027~ 개편안)', d: '법인 0 · 1세대 1주택 12억(개편안 거주 14억) · 그 외 9억(공동 미신청 개편안 비거주 6억) · 엔진 : ' + h.dedWhy });
       F('FMV0', '공정시장가액비율(기본)', 'IF({R}=2026,0.6,IF({R}=2027,0.7,IF(AND({ONE}<>"예",{JNE}<>"예",OR({N}>=3,{ADJ}="예")),0.8,0.7)))', h.fmvBase, { fmt: 'r', law: '종부세법 시행령 §2의4(2027~ 개편안)', d: '현행 60% · 2027 70% · 2028~ 3주택 이상, 조정 80%' });
       F('FMV', '공정시장가액비율(적용)', 'IF({FSY}>0,MIN(1,MAX(0.6,{FSY})),MIN(1,{FMV0}+{FA}))', h.fmv, { fmt: 'r', law: '종부세법 §8①(60~100%)', d: '그해 지정 있으면 그 비율(60~100% 안으로), 없으면 기본 + 가산' });
@@ -2978,5 +3111,164 @@ https://github.com/nodeca/pako/blob/main/LICENSE
 
 </script>
 <div id="pubFoot" style="margin:28px auto 0;padding:14px 16px 22px;max-width:1100px;font:14px/1.6 Freesentation,-apple-system,BlinkMacSystemFont,'Apple SD Gothic Neo','Malgun Gothic','Noto Sans KR',sans-serif;color:#6B7684;text-align:center;border-top:1px solid #E5E8EB">본 자료 = 일반적 정보 제공 목적, 실제 적용 시 개별 사안별 법률적 검토 및 전문가 자문 필수<br>계산은 이 기기 안에서만 하며 입력값은 어디에도 보내지 않습니다. · 판 2026-11-19</div><script>try{if(window.self!==window.top)document.getElementById("pubFoot").style.display="none";}catch(e){}</script>
+<script id="gsgJs">(function () {
+  'use strict';
+  var TAB = "jbs", KEY = "66360EF1-780E-4AB9-A5AA-A119D3364B46";
+  var NOW = new Date().getFullYear();
+  function $(id) { return document.getElementById(id); }
+  /* ── 탭별 : 지금 질문 id, 답, 어떤 값을 넣을지(house 주택 · land 땅 · any 둘 다), 기본 연도 ── */
+  function pubYear(d) { if (!d || !/^\d{4}-\d{2}-\d{2}$/.test(d)) return 0; var y = +d.slice(0, 4); return d.slice(5) < '04-30' ? y - 1 : y; }   /* 그 날 현재 고시된 가격 = 4월 말 공시 전이면 전년도 */
+  var CFG = {
+    jbs: { h: function () { return window.JBSWZ; },
+      pick: function (id) { return /^p\d$/.test(id) || id === 'cothp' ? { want: 'house', year: NOW, why: '종부세, 재산세 = 그 해 6월 1일 현재 공시가격' } : (id === 'comb' || id === 'sep') ? { want: 'land', year: NOW, why: '땅 = 개별공시지가 × 면적' } : null; } },
+    acq: { h: function () { return window.ACQWZ; },
+      pick: function (id, a) { return (id === 'price' && a.how === 'inh') || id === 'std' ? { want: 'any', year: 0, why: a.how === 'inh' ? '상속 = 시가표준액(지방세법 §10의2②1호)' : '증여 = 공시가격(1억원 이하 판정, 3억원 중과 판정)' } : null; } },
+    igt: { h: function () { return window.IGWZ; },
+      pick: function (id) { return id === 'gAmt' || id === 'cAmt' ? { want: 'any', year: 0, why: '시가(매매사례, 감정가액)가 없을 때 = 공시가격(상증법 §61 · 시가가 먼저)' } : id === 'iEst' ? { want: 'any', year: 0, add: 1, why: '시가가 없을 때 = 공시가격(상증법 §61) · 재산이 여럿이면 [더하기]' } : id === 'iHouseAmt' ? { want: 'house', year: 0, why: '상속주택 가액' } : null; } },
+    cgt: { h: function () { return window.YSWZ; },
+      pick: function (id, a) { if (id === 'cvA') { var dm = a.acqD && a.acqD < '1985-01-01'; return { want: 'any', year: dm ? 1985 : pubYear(a.acqD), why: dm ? '의제취득일 1985.1.1. 현재 기준시가' : '산 날 현재 고시된 기준시가(소득세법 §99①)' }; }
+        if (id === 'cvS') return { want: 'any', year: pubYear(a.saleD), why: '파는 날 현재 고시된 기준시가(소득세법 §99①)' }; return null; } }
+  }[TAB];
+  if (!CFG) return;
+  /* ── JSONP(브이월드는 CORS 머리글이 없어 script 로 부름) ── */
+  var seq = 0;
+  function jsonp(url) {
+    return new Promise(function (ok, no) {
+      var cb = '__gsg' + (++seq) + '_' + Date.now(), sc = document.createElement('script'), done = false;
+      var end = function () { done = true; try { delete window[cb]; } catch (e) { window[cb] = undefined; } if (sc.parentNode) sc.parentNode.removeChild(sc); };
+      window[cb] = function (d) { if (done) return; end(); ok(d); };
+      sc.onerror = function () { if (done) return; end(); no(new Error('연결 실패')); };
+      setTimeout(function () { if (done) return; end(); no(new Error('응답 없음(15초)')); }, 15000);
+      sc.referrerPolicy = 'origin';
+      sc.src = url + '&callback=' + cb + '&key=' + KEY + (/\.github\.io$/.test(location.hostname) ? '&domain=' + encodeURIComponent(location.origin) : '');
+      document.head.appendChild(sc);
+    });
+  }
+  function qs(o) { return Object.keys(o).map(function (k) { return k + '=' + encodeURIComponent(o[k]); }).join('&'); }
+  function search(q) {
+    var one = function (cat) { return jsonp('https://api.vworld.kr/req/search?' + qs({ service: 'search', request: 'search', version: '2.0', size: 5, page: 1, query: q, type: 'address', category: cat, format: 'json', errorformat: 'json' }))
+      .then(function (d) { var r = (d && d.response) || {}; if (r.status === 'ERROR') throw new Error((r.error && r.error.text) || '검색 오류'); return ((r.result || {}).items) || []; }); };
+    return one('road').then(function (L) { return L.length ? L : one('parcel'); });
+  }
+  function ned(ep, p) {
+    return jsonp('https://api.vworld.kr/ned/data/' + ep + '?' + qs(Object.assign({ format: 'json', numOfRows: 50, pageNo: 1 }, p))).then(function (d) {
+      var b = d ? d[Object.keys(d)[0]] : null; if (!b) return { rows: [], n: 0 };
+      if (b.resultCode && b.resultCode !== 'INFO-000' && !b.field) { if (/NOT_FOUND|INFO-200/.test(b.resultCode)) return { rows: [], n: 0 }; throw new Error(b.resultMsg || b.resultCode); }
+      return { rows: b.field || [], n: +b.totalCount || (b.field || []).length };
+    });
+  }
+  function latest(rows) { return rows.slice().sort(function (x, y) { return String(y.lastUpdtDt || '').localeCompare(String(x.lastUpdtDt || '')); })[0]; }
+  /* ── 금액 글자 · 칸 단위 ── */
+  function won(v) { return '<span>' + Math.round(v).toLocaleString('ko-KR') + '</span>원'; }   /* 숫자와 「원」을 나눠 둠 = 화면의 「원 → 억」 자동 바꾸기(반올림)가 건드리지 않게 */
+  function wonT(v) { return Math.round(v).toLocaleString('ko-KR') + '원'; }   /* 글자 안(esc 하는 곳)용 */
+  function eokT(v) { return ' (' + manToEok(Math.floor(v / 10000)) + '억' + (v % 10000 ? ', 만원 아래 버림' : '') + ')'; }   /* [이 값 넣기]가 칸에 쓰는 값 그대로(만원 아래 버림) */
+  function manToEok(m) { var e = Math.floor(m / 10000), r = m % 10000; return r ? e + '.' + ('000' + r).slice(-4).replace(/0+$/, '') : String(e); }
+  function eokToMan(x) { x = String(x || '').trim(); if (!/^\d*\.?\d*$/.test(x) || x === '' || x === '.') return 0; var p = x.split('.'); return Number(p[0] || 0) * 10000 + Number(((p[1] || '') + '0000').slice(0, 4)); }
+  /* ── 화면 ── */
+  var CSS = '#pkWz .gsg{margin-top:10px}#pkWz .gsg-o{display:flex;align-items:center;gap:6px;min-height:44px;padding:8px 12px;border:1px solid var(--pd-acc,#1E3A8A);border-radius:6px;background:#fff;color:var(--pd-acc,#1E3A8A);font:inherit;font-size:16px;font-weight:700;cursor:pointer;width:100%;justify-content:center}' +
+    '#pkWz .gsg-p{margin-top:8px;border:1px solid var(--pd-line,#E5E7EB);border-radius:8px;padding:12px;background:var(--pd-surface2,#F5F7FA);font-size:16px}' +
+    '#pkWz .gsg-p .gsg-r{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px}#pkWz .gsg-p input,#pkWz .gsg-p select{min-height:44px;font:inherit;font-size:16px;border:1px solid var(--pd-line2,#D1D5DB);border-radius:6px;padding:6px 10px;background:#fff;color:#111827;box-sizing:border-box}' +
+    '#pkWz .gsg-p .gsg-a{flex:1 1 200px;min-width:0}#pkWz .gsg-p .gsg-dh{width:96px}#pkWz .gsg-p button{min-height:44px;font:inherit;font-size:16px;border-radius:6px;padding:6px 14px;cursor:pointer;border:1px solid var(--pd-acc,#1E3A8A);background:var(--pd-acc,#1E3A8A);color:#fff;font-weight:700}' +
+    '#pkWz .gsg-p button.gsg-2{background:#fff;color:var(--pd-acc,#1E3A8A)}#pkWz .gsg-n{font-size:15px;color:var(--pd-ink3,#6B7280);margin:6px 0 0;line-height:1.5}#pkWz .gsg-e{color:#B91C1C;font-size:15px;margin-top:6px}' +
+    '#pkWz .gsg-v{border-top:1px solid var(--pd-line,#E5E7EB);padding:10px 0 4px;margin-top:8px}#pkWz .gsg-v b{display:block;font-size:16px;color:#111827}#pkWz .gsg-v .gsg-big{font-size:20px;font-weight:800;color:var(--pd-acc,#1E3A8A);margin:2px 0 6px;font-variant-numeric:tabular-nums}' +
+    '#pkWz .gsg-ok{color:var(--pd-acc,#1E3A8A);font-weight:700;font-size:15px;margin-top:6px}#pkWz .gsg-list{display:flex;flex-direction:column;gap:6px;margin:6px 0}#pkWz .gsg-list button{text-align:left;background:#fff;color:#111827;border-color:var(--pd-line2,#D1D5DB);font-weight:500}#pkWz .gsg [hidden]{display:none!important}';
+  var st = document.createElement('style'); st.id = 'gsgCss'; st.textContent = CSS; document.head.appendChild(st);
+  var MEM = { addr: '', item: null, dong: '', ho: '' };   /* 같은 집을 두 해(산 해, 파는 해) 찾을 때 다시 안 치게 — 이 화면에만(저장 안 함) */
+  function esc(t) { return String(t == null ? '' : t).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+  function yearOpts(sel) { var h = ''; for (var y = NOW; y >= 1990; y--) h += '<option value="' + y + '"' + (y === sel ? ' selected' : '') + '>' + y + '년</option>'; return h; }
+  function curStep() { var H = CFG.h(); if (!H || !H.W) return null; var W = H.W; if (W.done) return null; var id = W.cur, p = CFG.pick(id, W.a || {}); return p ? { id: id, p: p } : null; }
+  function mount() {
+    var box = $('pkWz'); if (!box) return; var S = curStep(); var old = box.querySelector('.gsg');
+    if (!S) { if (old) old.remove(); return; }
+    if (old && old.getAttribute('data-step') === S.id) return;
+    if (old) old.remove();
+    var wi = box.querySelector('.pk-wi'); if (!wi) return;
+    var g = document.createElement('div'); g.className = 'gsg'; g.setAttribute('data-step', S.id);
+    var y0 = S.p.year && S.p.year >= 1990 ? S.p.year : (S.p.year ? 0 : NOW);
+    g.innerHTML = '<button type="button" class="gsg-o" data-gsg="open">주소로 공시가격 찾기</button>' +
+      '<div class="gsg-p" hidden><div class="gsg-r"><input class="gsg-a" type="text" enterkeyhint="search" placeholder="도로명 또는 지번 주소" value="' + esc(MEM.addr) + '"></div>' +
+      '<div class="gsg-r"><input class="gsg-dh gsg-d" type="text" inputmode="numeric" placeholder="동" value="' + esc(MEM.dong) + '"><input class="gsg-dh gsg-h" type="text" inputmode="numeric" placeholder="호" value="' + esc(MEM.ho) + '">' +
+      '<select class="gsg-y" aria-label="기준 연도">' + yearOpts(y0 || NOW) + '</select><button type="button" data-gsg="find">찾기</button></div>' +
+      '<div class="gsg-n">아파트, 연립, 다세대 = 동, 호까지 · ' + esc(S.p.why) + (S.p.year === 1985 ? ' · 브이월드 자료는 1990년부터라 1985년 값은 직접 넣어 주세요(지금 고른 해 = 참고)' : '') + '</div>' +
+      '<div class="gsg-n">주소는 국토교통부 브이월드로만 보내고 이 사이트는 저장하지 않아요</div><div class="gsg-out"></div></div>';
+    wi.insertAdjacentElement('afterend', g);
+    if (MEM.item && S.p.year) { open(g); find(g, S); }
+  }
+  function open(g) { g.querySelector('.gsg-p').hidden = false; g.querySelector('.gsg-o').hidden = true; }
+  function out(g, h) { g.querySelector('.gsg-out').innerHTML = h; }
+  function find(g, S, item) {
+    var a = g.querySelector('.gsg-a').value.trim(), d = g.querySelector('.gsg-d').value.trim(), h = g.querySelector('.gsg-h').value.trim(), y = +g.querySelector('.gsg-y').value;
+    var m = a.match(/\s(\d+)\s*동\s*(\d+)\s*호\s*$/) || a.match(/\s(\d+)\s*호\s*$/);   /* 주소 끝 「28동 1207호」 → 동, 호 칸 */
+    if (m) { if (m.length === 3) { d = d || m[1]; h = h || m[2]; } else h = h || m[1]; a = a.slice(0, m.index).trim(); g.querySelector('.gsg-a').value = a; g.querySelector('.gsg-d').value = d; g.querySelector('.gsg-h').value = h; }
+    d = d.replace(/동$/, ''); h = h.replace(/호$/, '');
+    if (!a && !item && !MEM.item) { out(g, '<div class="gsg-e">주소를 넣어 주세요</div>'); return; }
+    out(g, '<div class="gsg-n">찾는 중…</div>');
+    var useMem = !item && MEM.item && (!a || a === MEM.addr);
+    var p0 = item ? Promise.resolve([item]) : useMem ? Promise.resolve([MEM.item]) : search(a);
+    p0.then(function (L) {
+      if (!L.length) { out(g, '<div class="gsg-e">주소를 못 찾았어요 — 도로명(예 ○○로 12) 또는 지번(예 ○○동 123-4)으로 넣어 주세요</div>'); return; }
+      if (L.length > 1 && !item) { out(g, '<div class="gsg-n">어느 곳이에요?</div><div class="gsg-list">' + L.map(function (x, i) { return '<button type="button" data-gsgi="' + i + '">' + esc(x.address.road || '') + (x.address.parcel ? ' · ' + esc(x.address.parcel) : '') + (x.address.bldnm ? ' (' + esc(x.address.bldnm) + ')' : '') + '</button>'; }).join('') + '</div>');
+        g.__L = L; return; }
+      var it = L[0]; MEM.item = it; MEM.addr = a || MEM.addr; MEM.dong = d; MEM.ho = h;
+      return look(g, S, it, y, d, h);
+    }).catch(function (e) { out(g, '<div class="gsg-e">불러오기 실패 — ' + esc(e.message) + ' · 잠시 뒤 다시 [찾기]</div>'); });
+  }
+  function look(g, S, it, y, d, h) {
+    var pnu = it.id, ad = (it.address.road || '') + (it.address.parcel ? ' · ' + it.address.parcel : '');
+    var want = S.p.want;
+    var apt = ned('getApartHousingPriceAttr', Object.assign({ pnu: pnu, stdrYear: y, numOfRows: h ? 20 : 1 }, d ? { dongNm: d } : {}, h ? { hoNm: h } : {}));
+    var hou = ned('getIndvdHousingPriceAttr', { pnu: pnu, stdrYear: y });
+    var lnd = want === 'house' ? Promise.resolve(null) : ned('getIndvdLandPriceAttr', { pnu: pnu, stdrYear: y });
+    var chr = want === 'house' ? Promise.resolve(null) : ned('getLandCharacteristics', { pnu: pnu, stdrYear: y }).catch(function () { return null; });
+    return Promise.all([apt, hou, lnd, chr]).then(function (R) {
+      var V = [], N = [];
+      var A = R[0], Hh = R[1], Ld = R[2], Ch = R[3];
+      if (A.n > 0) {
+        if (!h) N.push('공동주택(아파트, 연립, 다세대)이에요 — 동, 호를 넣고 다시 [찾기]');
+        else if (!A.rows.length) N.push(y + '년 ' + (d ? d + '동 ' : '') + h + '호 공동주택가격을 못 찾았어요 — 동, 호 번호만(예 28, 1207)');
+        else { var ds = {}; A.rows.forEach(function (r) { ds[r.dongNm + '|' + r.hoNm] = ds[r.dongNm + '|' + r.hoNm] || r; }); var K = Object.keys(ds);
+          K.forEach(function (k) { var r = ds[k]; V.push({ kind: 'house', v: +r.pblntfPc, t: y + '년 공동주택가격 · ' + (r.aphusNm || '') + ' ' + (r.dongNm ? r.dongNm + '동 ' : '') + r.hoNm + '호 · 전용 ' + r.prvuseAr + '㎡' }); }); }
+      }
+      if (Hh.rows.length) { var hs = {}; Hh.rows.forEach(function (r) { var k = (r.bildRegstrEsntlNo || '') + '|' + (r.dongCode || ''); if (!hs[k] || String(r.lastUpdtDt) > String(hs[k].lastUpdtDt)) hs[k] = r; });
+        Object.keys(hs).forEach(function (k, i, arr) { var r = hs[k]; V.push({ kind: 'house', v: +r.housePc, t: y + '년 개별주택가격(땅 + 건물)' + (arr.length > 1 ? ' · ' + (i + 1) + '번째 집 · 건물 연면적 ' + r.buldAllTotAr + '㎡' : '') }); }); }
+      if (Ld && Ld.rows.length && A.n === 0) {
+        var lr = latest(Ld.rows), up = +lr.pblntfPclnd, ar = Ch && Ch.rows.length ? +latest(Ch.rows).lndpclAr : 0;
+        if (ar > 0) V.push({ kind: 'land', v: Math.floor(up * ar), t: y + '년 개별공시지가 ' + wonT(up) + '/㎡ × 면적 ' + ar.toLocaleString('ko-KR') + '㎡' + (lr.pblntfDe ? ' · 공시일 ' + lr.pblntfDe : '') + (Hh.rows.length ? ' · 땅만일 때' : '') });
+        else N.push(y + '년 개별공시지가 ' + wonT(up) + '/㎡ — 면적을 못 읽어 합계는 직접(공시지가 × 면적)');
+      }
+      if (want === 'house') V = V.filter(function (x) { return x.kind === 'house'; });
+      if (want === 'land') V = V.filter(function (x) { return x.kind === 'land'; });
+      if (!V.length && !N.length) N.push(y + '년 ' + (want === 'land' ? '공시지가' : '공시가격') + ' 자료가 없어요' + (y < 2006 ? ' — 개별주택가격 2005년, 공동주택가격 2006년부터 · 그 전은 국세청 기준시가(홈택스)나 환산 기준시가(소득세법 시행령 §164)를 직접' : ' — 다른 해를 고르거나 직접 넣어 주세요'));
+      g.__V = V;
+      out(g, '<div class="gsg-n">' + esc(ad) + '</div>' + N.map(function (t) { return '<div class="gsg-e">' + esc(t) + '</div>'; }).join('') +
+        V.map(function (x, i) { return '<div class="gsg-v"><b>' + esc(x.t) + '</b><div class="gsg-big">' + won(x.v) + eokT(x.v) + '</div><div class="gsg-r"><button type="button" data-gsgput="' + i + '">이 값 넣기</button>' + (S.p.add ? '<button type="button" class="gsg-2" data-gsgadd="' + i + '">더하기</button>' : '') + '</div></div>'; }).join('') +
+        (V.length ? '<div class="gsg-n">공시가격 = 브이월드 국토교통부 자료 · 부동산공시가격알리미와 같은 값 · 지분이면 전체 값 그대로(지분은 다음 질문)</div>' : ''));
+    });
+  }
+  function put(g, x, add) {
+    var box = $('pkWz'), inp = box && box.querySelector('[data-pkwi="0"]'); if (!inp) return;
+    var unitEl = inp.parentNode && inp.parentNode.querySelector('span'), eok = unitEl && /억/.test(unitEl.textContent), man = Math.floor(x.v / 10000);
+    var cur = add ? (eok ? eokToMan(inp.value) : Math.round(+inp.value || 0)) : 0, tot = cur + man;
+    inp.value = eok ? manToEok(tot) : String(tot);
+    inp.dispatchEvent(new Event('input', { bubbles: true })); inp.dispatchEvent(new Event('change', { bubbles: true }));
+    var ok = g.querySelector('.gsg-ok') || document.createElement('div'); ok.className = 'gsg-ok';
+    ok.textContent = (add ? '더했어요' : '넣었어요') + ' : ' + inp.value + (eok ? '억' : '만원') + (x.v % 10000 ? '(만원 아래 버림)' : '') + ' — [다음]을 눌러 주세요';
+    g.querySelector('.gsg-out').appendChild(ok);
+  }
+  document.addEventListener('click', function (e) {
+    var t = e.target.closest && e.target.closest('.gsg [data-gsg],.gsg [data-gsgi],.gsg [data-gsgput],.gsg [data-gsgadd]'); if (!t) return;
+    var g = t.closest('.gsg'), S = curStep(); if (!S) return; e.preventDefault();
+    if (t.getAttribute('data-gsg') === 'open') { open(g); var a = g.querySelector('.gsg-a'); if (MEM.item) find(g, S); else try { a.focus(); } catch (x) {} return; }
+    if (t.getAttribute('data-gsg') === 'find') { MEM.item = g.querySelector('.gsg-a').value.trim() === MEM.addr ? MEM.item : null; find(g, S); return; }
+    if (t.hasAttribute('data-gsgi')) { find(g, S, g.__L[+t.getAttribute('data-gsgi')]); return; }
+    if (t.hasAttribute('data-gsgput')) { put(g, g.__V[+t.getAttribute('data-gsgput')], 0); return; }
+    if (t.hasAttribute('data-gsgadd')) { put(g, g.__V[+t.getAttribute('data-gsgadd')], 1); return; }
+  }, true);
+  document.addEventListener('keydown', function (e) { var t = e.target; if (e.key !== 'Enter' || !t || !t.closest || !t.closest('.gsg-p')) return; e.preventDefault(); e.stopPropagation(); var b = t.closest('.gsg').querySelector('[data-gsg="find"]'); if (b) b.click(); }, true);
+  document.addEventListener('change', function (e) { var t = e.target; if (!t || !t.classList || !t.classList.contains('gsg-y')) return; var g = t.closest('.gsg'), S = curStep(); if (S && (MEM.item || g.querySelector('.gsg-a').value.trim())) find(g, S); }, true);
+  function watch() { var box = $('pkWz'); if (!box) return setTimeout(watch, 500); new MutationObserver(function () { mount(); }).observe(box, { childList: true, subtree: true }); mount(); }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', watch); else watch();
+})();
+</script>
 </body>
 </html>

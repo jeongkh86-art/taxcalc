@@ -237,7 +237,117 @@ html.fwait body{visibility:hidden}
   #pkRoot .ig-st tr.tot td { font-weight:800; border-top:2px solid var(--ink) }
   #pkRoot .ig-ck { background:#FFF7D6; border:1px solid #F1D36B; border-radius:12px; padding:8px 12px; margin-top:10px; font-size:16px; line-height:1.5; color:#5b4a00 }
 </style>
-
+<style id="pubDesign">@media screen{
+:root{--pd-bg:#FFFFFF;--pd-surface:#FFFFFF;--pd-surface2:#F5F7FA;--pd-ink:#111827;--pd-ink2:#374151;--pd-ink3:#6B7280;--pd-line:#E5E7EB;--pd-line2:#D1D5DB;
+  --pd-acc:#1E3A8A;--pd-acc-soft:#EEF2FB;--pd-acc-hover:#172E6E;--pd-th-bg:#F5F7FA;--pd-th-fg:#374151;--pd-minus:#1E3A8A;
+  --pd-r-card:8px;--pd-r-ctl:6px;--pd-tl:.5px;--pd-cap:15px;--pd-body:16px;--pd-lead:17px;--pd-h3:18px;--pd-q:22px;--pd-h1:24px;--pd-num:36px;--pd-hmin:44px;
+  --paper:#FFFFFF;--card:#FFFFFF;--ink:#111827;--ink2:#374151;--ink3:#6B7280;--rule:#E5E7EB;--band:#F5F7FA;
+  --ver:#1E3A8A;--verbg:#EEF2FB;--ok:#1E3A8A;--okbg:#EEF2FB;--blue:#1E3A8A;--bluebg:#EEF2FB}
+#pkRoot{--blue:#1E3A8A;--bluebg:#EEF2FB}
+html,body{background:var(--pd-bg)}
+body{color:var(--pd-ink);font-size:var(--pd-body);font-variant-numeric:tabular-nums}
+h1{font-size:var(--pd-h1)!important;font-weight:800;letter-spacing:-.01em}
+.eyebrow,.lead,.dfl,.law,details.why>summary,.fld .mh,.cfm{font-size:var(--pd-cap)}
+.lead{font-size:var(--pd-body)}
+.eyebrow .ex{color:var(--pd-acc)}
+.sec>h2{font-size:var(--pd-h3);border-bottom:1px solid var(--pd-ink2)}
+.card h3{font-size:var(--pd-h3)}
+.law,.howto{background:var(--pd-surface2);border-radius:var(--pd-r-ctl)}
+.card,.box,#pkRoot .pk-step,#pkRoot .pk-card,#pkRoot .pk-res,#pkRoot .pk-op,#pkRoot .pk-spx,.pk-coc{border:1px solid var(--pd-line);border-radius:var(--pd-r-card);box-shadow:none}
+#pkRoot .pk-step,#pkRoot .pk-spx{background:var(--pd-surface)}
+button,select,summary,[role=button],textarea,input:not([type=checkbox]):not([type=radio]):not([type=hidden]):not([type=file]):not([type=range]){min-height:var(--pd-hmin)}
+button{border-radius:var(--pd-r-ctl)}
+.calc button,button[data-run],.xlb,#pkRoot .pk-go,#pkRoot .pk-xl,#pkRoot [data-pkwn],#pkRoot .sbz-btns button,#pkRoot .sbz-btns button.xl,.uxq-go{background:var(--pd-acc)!important;color:#fff!important;border:0!important;border-radius:var(--pd-r-ctl)!important;min-height:52px;font-weight:700}
+.calc button:hover,.xlb:hover,#pkRoot .pk-go:hover,#pkRoot .pk-xl:hover{background:var(--pd-acc-hover)!important}
+#pkRoot .pk-go2,#pkRoot .pk-wd summary,#pkRoot .pk-wz0,#pkRoot .pk-wb{border:1px solid var(--pd-line2);border-radius:var(--pd-r-ctl);background:var(--pd-surface);color:var(--pd-ink2)}
+#pkRoot .pk-wb{min-height:var(--pd-hmin);font-size:var(--pd-cap);display:inline-flex;align-items:center;justify-content:center}
+#pkRoot .pk-wd summary{color:var(--pd-ink);display:flex;align-items:center;justify-content:center}
+#pkRoot .pk-wd[open] summary{background:var(--pd-acc-soft);color:var(--pd-acc);border-color:var(--pd-acc)}
+.tabs button.on,.seg button.on,#pkRoot .pk-mtab button.on,#pkRoot .pk-cnt button.on,#pkRoot .pk-sd.on,.stepnav button.hi,.mode button.on{background:var(--pd-acc)!important;border-color:var(--pd-acc)!important;color:#fff!important}
+.tabs button,.seg button,#pkRoot .pk-mtab button,#pkRoot .pk-cnt button,#pkRoot .pk-chip,#pkRoot .pk-tog button,#pkRoot .pk-wo button,#pkRoot .pk-kd,#pkRoot .pk-spi,#pkRoot .pk-swap{border-width:1px;border-radius:var(--pd-r-ctl)}
+#pkRoot .pk-wo button{border:1.5px solid var(--pd-line2);font-size:var(--pd-lead)}
+#pkRoot .pk-wo button.on,#pkRoot .pk-kd.on,#pkRoot .pk-spi.on{border-color:var(--pd-acc);background:var(--pd-acc-soft)}
+#pkRoot .pk-chip,#pkRoot .pk-tog button,#pkRoot .pk-cosel button,.pk-cosel button{min-height:var(--pd-hmin);display:inline-flex;align-items:center;font-size:var(--pd-cap)}
+#pkRoot .pk-terms button{min-height:var(--pd-hmin);border:0;border-radius:0;background:none;color:var(--pd-acc);text-decoration:underline;text-underline-offset:3px;font-size:var(--pd-cap);padding:0 4px;display:inline-flex;align-items:center}
+#pkRoot .pk-terms button.on{background:var(--pd-acc-soft);font-weight:700}
+#pkRoot .pk-tl{font-size:var(--pd-cap)}
+#pkRoot .pk-need-l button{min-height:var(--pd-hmin);font-size:var(--pd-cap);border-radius:var(--pd-r-ctl)}
+#pkRoot .pk-xpl button,#pkXpBtn{min-height:var(--pd-hmin);font-size:var(--pd-cap);color:var(--pd-acc)}
+details.why>summary{display:inline-flex;align-items:center;min-height:var(--pd-hmin);border-bottom:0;text-decoration:underline dotted;text-underline-offset:4px}
+summary{display:flex;align-items:center}
+details.why>summary{display:inline-flex}
+.fld input,.fld select,#pkRoot .pk-qf input,#pkRoot .sbz-in input,#pkRoot .sbz-in select,#pkRoot .sbz-in2 input,#pkRoot .sbz-in2 select,#pkRoot .sbz-txt input,#pkRoot .sbz-txt select{min-height:var(--pd-hmin);border:1px solid var(--pd-line2);border-radius:var(--pd-r-ctl)}
+#pkRoot .pk-wi input{border:1.5px solid var(--pd-line2);border-radius:var(--pd-r-ctl)}
+.fld input:focus,.fld select:focus,#pkRoot .pk-wi input:focus,#pkRoot .pk-qf input:focus,input:focus,select:focus{outline:none;border-color:var(--pd-acc)!important;box-shadow:0 0 0 2px var(--pd-acc-soft)}
+.chk input,input[type=checkbox],input[type=radio]{accent-color:var(--pd-acc)}
+#pkRoot .pk-wq{font-size:var(--pd-q)}
+#pkRoot .pk-wh{font-size:var(--pd-cap);color:var(--pd-ink2)}
+#pkRoot .pk-dots i.d{background:var(--pd-ink3)}
+#pkRoot .pk-dots i.c{background:var(--pd-acc)}
+#pkRoot .pk-sh i{background:var(--pd-acc)}
+#pkRoot .pk-tdef{background:var(--pd-surface2);border-left:3px solid var(--pd-acc);border-radius:var(--pd-r-ctl);font-size:var(--pd-cap)}
+#pkRoot .pk-tdef b{color:var(--pd-ink)}
+#pkRoot .pk-tdef .pk-lw{font-size:var(--pd-cap)}
+#pkRoot .pk-sp,#pkRoot .pk-kd,#pkRoot .pk-ql,#pkRoot .pk-qf label,#pkRoot .pk-swq,#pkRoot .pk-oe,#pkRoot .pk-rn,#pkRoot .pk-eng,#pkRoot .pk-need-l span,#pkRoot .pk-det summary,#pkRoot .pk-card h3,#pkRoot .pk-qnote,#pkRoot .pk-mtab button,#pkRoot .pk-sd,#pkRoot .pk-oh,#pkRoot .pk-bd{font-size:var(--pd-cap)}
+#pkRoot .pk-sd small,#pkRoot .pk-oe s,.pk-tag{font-size:var(--pd-cap)}
+#pkRoot .pk-res ul,#pkRoot .pk-card ul{font-size:var(--pd-cap)}
+#pkRoot .pk-card h3{font-size:var(--pd-h3)}
+#pkRoot .pk-eng{background:var(--pd-surface2)}
+#pkRoot .pk-op.on .pk-sw{background:var(--pd-acc)}
+#pkRoot .pk-spx>summary::before{border-width:1.5px}
+#pkRoot .pk-spx>summary span{color:var(--pd-acc)}
+#pkRoot .pk-spg{border-top:1px solid var(--pd-ink2)}
+#pkRoot .b-ok,#pkRoot .b-tax,#pkRoot .b-blue{background:var(--pd-acc-soft);color:var(--pd-acc)}
+#pkRoot .pk-wr,#pkRoot .pk-wr.ok,#pkRoot .pk-wr.ng{background:var(--pd-surface);color:var(--pd-ink);border:0;border-left:5px solid var(--pd-acc);border-radius:0;padding:6px 0 6px 16px}
+#pkRoot .pk-wr0{font-size:var(--pd-cap);color:var(--pd-ink2);font-weight:700}
+#pkRoot .pk-wr1,#pkRoot .pk-wr.ng .pk-wr1,#pkRoot .pk-wr.ok .pk-wr1{font-size:var(--pd-num);font-weight:700;color:var(--pd-acc);letter-spacing:-.01em}
+#pkRoot .pk-wr3{font-size:var(--pd-cap);color:var(--pd-ink2)}
+#pkRoot .pk-wr2{font-size:var(--pd-body)}
+.pk-cot{color:var(--pd-acc)}
+.pk-coc.on{border:2px solid var(--pd-acc)}
+table{font-size:var(--pd-body)}
+th{background:var(--pd-th-bg);color:var(--pd-th-fg);font-weight:700;font-size:var(--pd-cap)}
+th,td{border-bottom:var(--pd-tl) solid var(--pd-line2)}
+thead th{border-bottom:1px solid var(--pd-line2);color:var(--pd-th-fg);font-size:var(--pd-cap)}
+td small,th small{font-size:var(--pd-cap)}
+tr.tot td,tr.sum td{border-top:1.5px solid var(--pd-ink2)}
+tr.hl td{background:var(--pd-acc-soft)}
+td.band{background:var(--pd-surface2)}
+table.y4t,.yaBox table.yaT{font-size:var(--pd-body)}
+table.y4t th,.yaBox .yaT th{background:var(--pd-th-bg)!important;color:var(--pd-th-fg)!important;font-size:var(--pd-cap);font-weight:700}
+.yaBox .yaT th small,table.y4t small,.y4n,.y4dfl,.yaBox ul.yaA,.yaBox .yaT td small{font-size:var(--pd-cap)}
+table.y4t small.y4d{font-size:var(--pd-cap)}
+table.y4t .y4d.dn,table.y4t small.y4d.dn{color:var(--pd-minus)}
+table.y4t .y4d.up,table.y4t small.y4d.up{color:var(--pd-ink)}
+table.y4t tr.y4now td{background:var(--pd-surface2)}
+table.y4t tr.y4tot td{border-top:1.5px solid var(--pd-ink2)}
+.yaBox input{min-height:var(--pd-hmin);border-radius:var(--pd-r-ctl);border-color:var(--pd-line2)}
+.yaBox .yaG{font-size:var(--pd-cap)}
+@media(max-width:599.98px){
+  #txMap{background:var(--pd-surface);border-bottom:1px solid var(--pd-line)}
+  #txMap .tx-bar{min-height:var(--pd-hmin);font-size:var(--pd-cap)}
+  #txMap .tx-bar .a b{color:var(--pd-acc)}
+}
+#txMap .tx-h{border-bottom:1px solid var(--pd-ink2)}
+#txMap li.now{background:var(--pd-acc-soft)}
+#txMap li.now::before,#txMap li.now .n::after{background:var(--pd-acc);border-color:var(--pd-acc)}
+#txMap li.now .n{color:var(--pd-acc)}
+details.pk-easy>summary{display:inline-flex;align-items:center;min-height:var(--pd-hmin);color:var(--pd-acc);text-decoration-color:var(--pd-acc);font-size:var(--pd-cap)}
+details.pk-easy[open]>summary{color:var(--pd-ink2)}
+details.pk-easy>ul{border-left-color:var(--pd-acc);background:var(--pd-surface2);border-radius:0 var(--pd-r-ctl) var(--pd-r-ctl) 0}
+body .y4box .y4t th{background:var(--pd-th-bg)!important;color:var(--pd-th-fg)!important;font-size:var(--pd-cap)!important}
+body .y4box .y4t{font-size:var(--pd-body)}
+body .y4box .y4d.dn,body .y4box .y4t small.y4d.dn{color:var(--pd-minus)!important}
+body .y4box .y4d.up,body .y4box .y4t small.y4d.up{color:var(--pd-ink)!important}
+body .y4box .y4t tr.y4now td{background:var(--pd-surface2)!important}
+body .y4box .y4e,body .y4box .y4t small,body .y4box .y4lg,body .y4box .y4n,body .y4box .y4h small,body .y4box .y4dfl,body .y4box .y4gs,body .y4box .y4c,body .y4box .y4t small.y4d,body .y4box table.y4t{font-size:var(--pd-cap)!important}
+body .y4box .y4dfl,.y4dfl{background:var(--pd-acc-soft)!important;color:var(--pd-acc)!important}
+table.y4t small.y4same,body .y4box .y4t small.y4same{color:var(--pd-acc)!important}
+body .y4box .y4e{color:var(--pd-acc)!important}
+#pkRoot svg [fill="#e4572e" i]{fill:var(--pd-acc)}
+#pkRoot svg [stroke="#e4572e" i]{stroke:var(--pd-acc)}
+#pubFoot{font-size:var(--pd-cap)!important;color:var(--pd-ink3)!important;border-top-color:var(--pd-line)!important}
+}</style>
 </head>
 <body>
 <div class="wrap">
@@ -378,8 +488,10 @@ var IGT = (function () {
     startup: { deduct: 500000000, rate: 0.10, limit: 5000000000, limitHire: 10000000000 },
     
     
+    
     bizInh: [[10, 30000000000], [20, 40000000000], [30, 60000000000]],
-    bizInhReform: { from: 2027, perYear: 2000000000, cap: 100000000000, minYears: 20 },
+    bizInhReform: { from: 2027, fromDate: '2027-07-01', perYear: 2000000000, cap: 100000000000, minYears: 20, fullYears: 30, follow: 10 },
+    bizInhFollow: 5,   
     
     rentRate: 0.12,   
     excludedDed: 30000000, feeMax: { appraisal: 5000000, stockEval: 10000000 }
@@ -399,6 +511,21 @@ var IGT = (function () {
     var c = 0;
     for (var i = 0; i < R.bizInh.length; i++) if (years >= R.bizInh[i][0]) c = R.bizInh[i][1];
     return c;
+  }
+  
+  function bizInhCapReform(years) {
+    var F = R.bizInhReform, y = Math.floor((+years || 0) + 1e-9);
+    return y >= F.minYears ? Math.min(y * F.perYear, F.cap) : 0;
+  }
+  
+  function bizInhReformOn(ymd) { return !!ymd && String(ymd).slice(0, 10) >= R.bizInhReform.fromDate; }
+  
+  function bizInhCapAt(years, ymd) { return bizInhReformOn(ymd) ? bizInhCapReform(years) : bizInhCap(years); }
+  
+  function bizInhRule(years, ymd) {
+    var F = R.bizInhReform, on = bizInhReformOn(ymd), y = Math.floor((+years || 0) + 1e-9);
+    return on ? { reform: true, min: F.minYears, follow: F.follow + Math.max(0, F.fullYears - y), cap: bizInhCapReform(y) }
+              : { reform: false, min: R.bizInh[0][0], follow: R.bizInhFollow, cap: bizInhCap(y) };
   }
   
   function xlRate(ref, T) {
@@ -589,7 +716,7 @@ var IGT = (function () {
     var reinv = Math.max(0, (o.deposited || 0) - (o.notReinvested || 0));
     return Math.max(0, (o.withdrawn || 0) - reinv);
   }
-  return { R: R, rateTax: rateTax, bizInhCap: bizInhCap, xlRate: xlRate, belowMin: belowMin, skipRate: skipRate, specialTax: specialTax, finDeduct: finDeduct,
+  return { R: R, rateTax: rateTax, bizInhCap: bizInhCap, bizInhCapReform: bizInhCapReform, bizInhReformOn: bizInhReformOn, bizInhCapAt: bizInhCapAt, bizInhRule: bizInhRule, xlRate: xlRate, belowMin: belowMin, skipRate: skipRate, specialTax: specialTax, finDeduct: finDeduct,
     spouseDed: spouseDed, lumpSum: lumpSum, houseDed: houseDed, reinheritRate: reinheritRate,
     legalShares: legalShares, deemedInsurance: deemedInsurance, insuranceGift: insuranceGift, netWithdrawal: netWithdrawal,
     securedValue: securedValue, divDiff: divDiff, convBond: convBond, warrantValue: warrantValue, irr: irr, cryptoDayAvg: cryptoDayAvg,
@@ -2152,5 +2279,164 @@ https://github.com/nodeca/pako/blob/main/LICENSE
 
 </script>
 <div id="pubFoot" style="margin:28px auto 0;padding:14px 16px 22px;max-width:1100px;font:14px/1.6 Freesentation,-apple-system,BlinkMacSystemFont,'Apple SD Gothic Neo','Malgun Gothic','Noto Sans KR',sans-serif;color:#6B7684;text-align:center;border-top:1px solid #E5E8EB">본 자료 = 일반적 정보 제공 목적, 실제 적용 시 개별 사안별 법률적 검토 및 전문가 자문 필수<br>계산은 이 기기 안에서만 하며 입력값은 어디에도 보내지 않습니다. · 판 2026-11-19</div><script>try{if(window.self!==window.top)document.getElementById("pubFoot").style.display="none";}catch(e){}</script>
+<script id="gsgJs">(function () {
+  'use strict';
+  var TAB = "igt", KEY = "66360EF1-780E-4AB9-A5AA-A119D3364B46";
+  var NOW = new Date().getFullYear();
+  function $(id) { return document.getElementById(id); }
+  /* ── 탭별 : 지금 질문 id, 답, 어떤 값을 넣을지(house 주택 · land 땅 · any 둘 다), 기본 연도 ── */
+  function pubYear(d) { if (!d || !/^\d{4}-\d{2}-\d{2}$/.test(d)) return 0; var y = +d.slice(0, 4); return d.slice(5) < '04-30' ? y - 1 : y; }   /* 그 날 현재 고시된 가격 = 4월 말 공시 전이면 전년도 */
+  var CFG = {
+    jbs: { h: function () { return window.JBSWZ; },
+      pick: function (id) { return /^p\d$/.test(id) || id === 'cothp' ? { want: 'house', year: NOW, why: '종부세, 재산세 = 그 해 6월 1일 현재 공시가격' } : (id === 'comb' || id === 'sep') ? { want: 'land', year: NOW, why: '땅 = 개별공시지가 × 면적' } : null; } },
+    acq: { h: function () { return window.ACQWZ; },
+      pick: function (id, a) { return (id === 'price' && a.how === 'inh') || id === 'std' ? { want: 'any', year: 0, why: a.how === 'inh' ? '상속 = 시가표준액(지방세법 §10의2②1호)' : '증여 = 공시가격(1억원 이하 판정, 3억원 중과 판정)' } : null; } },
+    igt: { h: function () { return window.IGWZ; },
+      pick: function (id) { return id === 'gAmt' || id === 'cAmt' ? { want: 'any', year: 0, why: '시가(매매사례, 감정가액)가 없을 때 = 공시가격(상증법 §61 · 시가가 먼저)' } : id === 'iEst' ? { want: 'any', year: 0, add: 1, why: '시가가 없을 때 = 공시가격(상증법 §61) · 재산이 여럿이면 [더하기]' } : id === 'iHouseAmt' ? { want: 'house', year: 0, why: '상속주택 가액' } : null; } },
+    cgt: { h: function () { return window.YSWZ; },
+      pick: function (id, a) { if (id === 'cvA') { var dm = a.acqD && a.acqD < '1985-01-01'; return { want: 'any', year: dm ? 1985 : pubYear(a.acqD), why: dm ? '의제취득일 1985.1.1. 현재 기준시가' : '산 날 현재 고시된 기준시가(소득세법 §99①)' }; }
+        if (id === 'cvS') return { want: 'any', year: pubYear(a.saleD), why: '파는 날 현재 고시된 기준시가(소득세법 §99①)' }; return null; } }
+  }[TAB];
+  if (!CFG) return;
+  /* ── JSONP(브이월드는 CORS 머리글이 없어 script 로 부름) ── */
+  var seq = 0;
+  function jsonp(url) {
+    return new Promise(function (ok, no) {
+      var cb = '__gsg' + (++seq) + '_' + Date.now(), sc = document.createElement('script'), done = false;
+      var end = function () { done = true; try { delete window[cb]; } catch (e) { window[cb] = undefined; } if (sc.parentNode) sc.parentNode.removeChild(sc); };
+      window[cb] = function (d) { if (done) return; end(); ok(d); };
+      sc.onerror = function () { if (done) return; end(); no(new Error('연결 실패')); };
+      setTimeout(function () { if (done) return; end(); no(new Error('응답 없음(15초)')); }, 15000);
+      sc.referrerPolicy = 'origin';
+      sc.src = url + '&callback=' + cb + '&key=' + KEY + (/\.github\.io$/.test(location.hostname) ? '&domain=' + encodeURIComponent(location.origin) : '');
+      document.head.appendChild(sc);
+    });
+  }
+  function qs(o) { return Object.keys(o).map(function (k) { return k + '=' + encodeURIComponent(o[k]); }).join('&'); }
+  function search(q) {
+    var one = function (cat) { return jsonp('https://api.vworld.kr/req/search?' + qs({ service: 'search', request: 'search', version: '2.0', size: 5, page: 1, query: q, type: 'address', category: cat, format: 'json', errorformat: 'json' }))
+      .then(function (d) { var r = (d && d.response) || {}; if (r.status === 'ERROR') throw new Error((r.error && r.error.text) || '검색 오류'); return ((r.result || {}).items) || []; }); };
+    return one('road').then(function (L) { return L.length ? L : one('parcel'); });
+  }
+  function ned(ep, p) {
+    return jsonp('https://api.vworld.kr/ned/data/' + ep + '?' + qs(Object.assign({ format: 'json', numOfRows: 50, pageNo: 1 }, p))).then(function (d) {
+      var b = d ? d[Object.keys(d)[0]] : null; if (!b) return { rows: [], n: 0 };
+      if (b.resultCode && b.resultCode !== 'INFO-000' && !b.field) { if (/NOT_FOUND|INFO-200/.test(b.resultCode)) return { rows: [], n: 0 }; throw new Error(b.resultMsg || b.resultCode); }
+      return { rows: b.field || [], n: +b.totalCount || (b.field || []).length };
+    });
+  }
+  function latest(rows) { return rows.slice().sort(function (x, y) { return String(y.lastUpdtDt || '').localeCompare(String(x.lastUpdtDt || '')); })[0]; }
+  /* ── 금액 글자 · 칸 단위 ── */
+  function won(v) { return '<span>' + Math.round(v).toLocaleString('ko-KR') + '</span>원'; }   /* 숫자와 「원」을 나눠 둠 = 화면의 「원 → 억」 자동 바꾸기(반올림)가 건드리지 않게 */
+  function wonT(v) { return Math.round(v).toLocaleString('ko-KR') + '원'; }   /* 글자 안(esc 하는 곳)용 */
+  function eokT(v) { return ' (' + manToEok(Math.floor(v / 10000)) + '억' + (v % 10000 ? ', 만원 아래 버림' : '') + ')'; }   /* [이 값 넣기]가 칸에 쓰는 값 그대로(만원 아래 버림) */
+  function manToEok(m) { var e = Math.floor(m / 10000), r = m % 10000; return r ? e + '.' + ('000' + r).slice(-4).replace(/0+$/, '') : String(e); }
+  function eokToMan(x) { x = String(x || '').trim(); if (!/^\d*\.?\d*$/.test(x) || x === '' || x === '.') return 0; var p = x.split('.'); return Number(p[0] || 0) * 10000 + Number(((p[1] || '') + '0000').slice(0, 4)); }
+  /* ── 화면 ── */
+  var CSS = '#pkWz .gsg{margin-top:10px}#pkWz .gsg-o{display:flex;align-items:center;gap:6px;min-height:44px;padding:8px 12px;border:1px solid var(--pd-acc,#1E3A8A);border-radius:6px;background:#fff;color:var(--pd-acc,#1E3A8A);font:inherit;font-size:16px;font-weight:700;cursor:pointer;width:100%;justify-content:center}' +
+    '#pkWz .gsg-p{margin-top:8px;border:1px solid var(--pd-line,#E5E7EB);border-radius:8px;padding:12px;background:var(--pd-surface2,#F5F7FA);font-size:16px}' +
+    '#pkWz .gsg-p .gsg-r{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px}#pkWz .gsg-p input,#pkWz .gsg-p select{min-height:44px;font:inherit;font-size:16px;border:1px solid var(--pd-line2,#D1D5DB);border-radius:6px;padding:6px 10px;background:#fff;color:#111827;box-sizing:border-box}' +
+    '#pkWz .gsg-p .gsg-a{flex:1 1 200px;min-width:0}#pkWz .gsg-p .gsg-dh{width:96px}#pkWz .gsg-p button{min-height:44px;font:inherit;font-size:16px;border-radius:6px;padding:6px 14px;cursor:pointer;border:1px solid var(--pd-acc,#1E3A8A);background:var(--pd-acc,#1E3A8A);color:#fff;font-weight:700}' +
+    '#pkWz .gsg-p button.gsg-2{background:#fff;color:var(--pd-acc,#1E3A8A)}#pkWz .gsg-n{font-size:15px;color:var(--pd-ink3,#6B7280);margin:6px 0 0;line-height:1.5}#pkWz .gsg-e{color:#B91C1C;font-size:15px;margin-top:6px}' +
+    '#pkWz .gsg-v{border-top:1px solid var(--pd-line,#E5E7EB);padding:10px 0 4px;margin-top:8px}#pkWz .gsg-v b{display:block;font-size:16px;color:#111827}#pkWz .gsg-v .gsg-big{font-size:20px;font-weight:800;color:var(--pd-acc,#1E3A8A);margin:2px 0 6px;font-variant-numeric:tabular-nums}' +
+    '#pkWz .gsg-ok{color:var(--pd-acc,#1E3A8A);font-weight:700;font-size:15px;margin-top:6px}#pkWz .gsg-list{display:flex;flex-direction:column;gap:6px;margin:6px 0}#pkWz .gsg-list button{text-align:left;background:#fff;color:#111827;border-color:var(--pd-line2,#D1D5DB);font-weight:500}#pkWz .gsg [hidden]{display:none!important}';
+  var st = document.createElement('style'); st.id = 'gsgCss'; st.textContent = CSS; document.head.appendChild(st);
+  var MEM = { addr: '', item: null, dong: '', ho: '' };   /* 같은 집을 두 해(산 해, 파는 해) 찾을 때 다시 안 치게 — 이 화면에만(저장 안 함) */
+  function esc(t) { return String(t == null ? '' : t).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+  function yearOpts(sel) { var h = ''; for (var y = NOW; y >= 1990; y--) h += '<option value="' + y + '"' + (y === sel ? ' selected' : '') + '>' + y + '년</option>'; return h; }
+  function curStep() { var H = CFG.h(); if (!H || !H.W) return null; var W = H.W; if (W.done) return null; var id = W.cur, p = CFG.pick(id, W.a || {}); return p ? { id: id, p: p } : null; }
+  function mount() {
+    var box = $('pkWz'); if (!box) return; var S = curStep(); var old = box.querySelector('.gsg');
+    if (!S) { if (old) old.remove(); return; }
+    if (old && old.getAttribute('data-step') === S.id) return;
+    if (old) old.remove();
+    var wi = box.querySelector('.pk-wi'); if (!wi) return;
+    var g = document.createElement('div'); g.className = 'gsg'; g.setAttribute('data-step', S.id);
+    var y0 = S.p.year && S.p.year >= 1990 ? S.p.year : (S.p.year ? 0 : NOW);
+    g.innerHTML = '<button type="button" class="gsg-o" data-gsg="open">주소로 공시가격 찾기</button>' +
+      '<div class="gsg-p" hidden><div class="gsg-r"><input class="gsg-a" type="text" enterkeyhint="search" placeholder="도로명 또는 지번 주소" value="' + esc(MEM.addr) + '"></div>' +
+      '<div class="gsg-r"><input class="gsg-dh gsg-d" type="text" inputmode="numeric" placeholder="동" value="' + esc(MEM.dong) + '"><input class="gsg-dh gsg-h" type="text" inputmode="numeric" placeholder="호" value="' + esc(MEM.ho) + '">' +
+      '<select class="gsg-y" aria-label="기준 연도">' + yearOpts(y0 || NOW) + '</select><button type="button" data-gsg="find">찾기</button></div>' +
+      '<div class="gsg-n">아파트, 연립, 다세대 = 동, 호까지 · ' + esc(S.p.why) + (S.p.year === 1985 ? ' · 브이월드 자료는 1990년부터라 1985년 값은 직접 넣어 주세요(지금 고른 해 = 참고)' : '') + '</div>' +
+      '<div class="gsg-n">주소는 국토교통부 브이월드로만 보내고 이 사이트는 저장하지 않아요</div><div class="gsg-out"></div></div>';
+    wi.insertAdjacentElement('afterend', g);
+    if (MEM.item && S.p.year) { open(g); find(g, S); }
+  }
+  function open(g) { g.querySelector('.gsg-p').hidden = false; g.querySelector('.gsg-o').hidden = true; }
+  function out(g, h) { g.querySelector('.gsg-out').innerHTML = h; }
+  function find(g, S, item) {
+    var a = g.querySelector('.gsg-a').value.trim(), d = g.querySelector('.gsg-d').value.trim(), h = g.querySelector('.gsg-h').value.trim(), y = +g.querySelector('.gsg-y').value;
+    var m = a.match(/\s(\d+)\s*동\s*(\d+)\s*호\s*$/) || a.match(/\s(\d+)\s*호\s*$/);   /* 주소 끝 「28동 1207호」 → 동, 호 칸 */
+    if (m) { if (m.length === 3) { d = d || m[1]; h = h || m[2]; } else h = h || m[1]; a = a.slice(0, m.index).trim(); g.querySelector('.gsg-a').value = a; g.querySelector('.gsg-d').value = d; g.querySelector('.gsg-h').value = h; }
+    d = d.replace(/동$/, ''); h = h.replace(/호$/, '');
+    if (!a && !item && !MEM.item) { out(g, '<div class="gsg-e">주소를 넣어 주세요</div>'); return; }
+    out(g, '<div class="gsg-n">찾는 중…</div>');
+    var useMem = !item && MEM.item && (!a || a === MEM.addr);
+    var p0 = item ? Promise.resolve([item]) : useMem ? Promise.resolve([MEM.item]) : search(a);
+    p0.then(function (L) {
+      if (!L.length) { out(g, '<div class="gsg-e">주소를 못 찾았어요 — 도로명(예 ○○로 12) 또는 지번(예 ○○동 123-4)으로 넣어 주세요</div>'); return; }
+      if (L.length > 1 && !item) { out(g, '<div class="gsg-n">어느 곳이에요?</div><div class="gsg-list">' + L.map(function (x, i) { return '<button type="button" data-gsgi="' + i + '">' + esc(x.address.road || '') + (x.address.parcel ? ' · ' + esc(x.address.parcel) : '') + (x.address.bldnm ? ' (' + esc(x.address.bldnm) + ')' : '') + '</button>'; }).join('') + '</div>');
+        g.__L = L; return; }
+      var it = L[0]; MEM.item = it; MEM.addr = a || MEM.addr; MEM.dong = d; MEM.ho = h;
+      return look(g, S, it, y, d, h);
+    }).catch(function (e) { out(g, '<div class="gsg-e">불러오기 실패 — ' + esc(e.message) + ' · 잠시 뒤 다시 [찾기]</div>'); });
+  }
+  function look(g, S, it, y, d, h) {
+    var pnu = it.id, ad = (it.address.road || '') + (it.address.parcel ? ' · ' + it.address.parcel : '');
+    var want = S.p.want;
+    var apt = ned('getApartHousingPriceAttr', Object.assign({ pnu: pnu, stdrYear: y, numOfRows: h ? 20 : 1 }, d ? { dongNm: d } : {}, h ? { hoNm: h } : {}));
+    var hou = ned('getIndvdHousingPriceAttr', { pnu: pnu, stdrYear: y });
+    var lnd = want === 'house' ? Promise.resolve(null) : ned('getIndvdLandPriceAttr', { pnu: pnu, stdrYear: y });
+    var chr = want === 'house' ? Promise.resolve(null) : ned('getLandCharacteristics', { pnu: pnu, stdrYear: y }).catch(function () { return null; });
+    return Promise.all([apt, hou, lnd, chr]).then(function (R) {
+      var V = [], N = [];
+      var A = R[0], Hh = R[1], Ld = R[2], Ch = R[3];
+      if (A.n > 0) {
+        if (!h) N.push('공동주택(아파트, 연립, 다세대)이에요 — 동, 호를 넣고 다시 [찾기]');
+        else if (!A.rows.length) N.push(y + '년 ' + (d ? d + '동 ' : '') + h + '호 공동주택가격을 못 찾았어요 — 동, 호 번호만(예 28, 1207)');
+        else { var ds = {}; A.rows.forEach(function (r) { ds[r.dongNm + '|' + r.hoNm] = ds[r.dongNm + '|' + r.hoNm] || r; }); var K = Object.keys(ds);
+          K.forEach(function (k) { var r = ds[k]; V.push({ kind: 'house', v: +r.pblntfPc, t: y + '년 공동주택가격 · ' + (r.aphusNm || '') + ' ' + (r.dongNm ? r.dongNm + '동 ' : '') + r.hoNm + '호 · 전용 ' + r.prvuseAr + '㎡' }); }); }
+      }
+      if (Hh.rows.length) { var hs = {}; Hh.rows.forEach(function (r) { var k = (r.bildRegstrEsntlNo || '') + '|' + (r.dongCode || ''); if (!hs[k] || String(r.lastUpdtDt) > String(hs[k].lastUpdtDt)) hs[k] = r; });
+        Object.keys(hs).forEach(function (k, i, arr) { var r = hs[k]; V.push({ kind: 'house', v: +r.housePc, t: y + '년 개별주택가격(땅 + 건물)' + (arr.length > 1 ? ' · ' + (i + 1) + '번째 집 · 건물 연면적 ' + r.buldAllTotAr + '㎡' : '') }); }); }
+      if (Ld && Ld.rows.length && A.n === 0) {
+        var lr = latest(Ld.rows), up = +lr.pblntfPclnd, ar = Ch && Ch.rows.length ? +latest(Ch.rows).lndpclAr : 0;
+        if (ar > 0) V.push({ kind: 'land', v: Math.floor(up * ar), t: y + '년 개별공시지가 ' + wonT(up) + '/㎡ × 면적 ' + ar.toLocaleString('ko-KR') + '㎡' + (lr.pblntfDe ? ' · 공시일 ' + lr.pblntfDe : '') + (Hh.rows.length ? ' · 땅만일 때' : '') });
+        else N.push(y + '년 개별공시지가 ' + wonT(up) + '/㎡ — 면적을 못 읽어 합계는 직접(공시지가 × 면적)');
+      }
+      if (want === 'house') V = V.filter(function (x) { return x.kind === 'house'; });
+      if (want === 'land') V = V.filter(function (x) { return x.kind === 'land'; });
+      if (!V.length && !N.length) N.push(y + '년 ' + (want === 'land' ? '공시지가' : '공시가격') + ' 자료가 없어요' + (y < 2006 ? ' — 개별주택가격 2005년, 공동주택가격 2006년부터 · 그 전은 국세청 기준시가(홈택스)나 환산 기준시가(소득세법 시행령 §164)를 직접' : ' — 다른 해를 고르거나 직접 넣어 주세요'));
+      g.__V = V;
+      out(g, '<div class="gsg-n">' + esc(ad) + '</div>' + N.map(function (t) { return '<div class="gsg-e">' + esc(t) + '</div>'; }).join('') +
+        V.map(function (x, i) { return '<div class="gsg-v"><b>' + esc(x.t) + '</b><div class="gsg-big">' + won(x.v) + eokT(x.v) + '</div><div class="gsg-r"><button type="button" data-gsgput="' + i + '">이 값 넣기</button>' + (S.p.add ? '<button type="button" class="gsg-2" data-gsgadd="' + i + '">더하기</button>' : '') + '</div></div>'; }).join('') +
+        (V.length ? '<div class="gsg-n">공시가격 = 브이월드 국토교통부 자료 · 부동산공시가격알리미와 같은 값 · 지분이면 전체 값 그대로(지분은 다음 질문)</div>' : ''));
+    });
+  }
+  function put(g, x, add) {
+    var box = $('pkWz'), inp = box && box.querySelector('[data-pkwi="0"]'); if (!inp) return;
+    var unitEl = inp.parentNode && inp.parentNode.querySelector('span'), eok = unitEl && /억/.test(unitEl.textContent), man = Math.floor(x.v / 10000);
+    var cur = add ? (eok ? eokToMan(inp.value) : Math.round(+inp.value || 0)) : 0, tot = cur + man;
+    inp.value = eok ? manToEok(tot) : String(tot);
+    inp.dispatchEvent(new Event('input', { bubbles: true })); inp.dispatchEvent(new Event('change', { bubbles: true }));
+    var ok = g.querySelector('.gsg-ok') || document.createElement('div'); ok.className = 'gsg-ok';
+    ok.textContent = (add ? '더했어요' : '넣었어요') + ' : ' + inp.value + (eok ? '억' : '만원') + (x.v % 10000 ? '(만원 아래 버림)' : '') + ' — [다음]을 눌러 주세요';
+    g.querySelector('.gsg-out').appendChild(ok);
+  }
+  document.addEventListener('click', function (e) {
+    var t = e.target.closest && e.target.closest('.gsg [data-gsg],.gsg [data-gsgi],.gsg [data-gsgput],.gsg [data-gsgadd]'); if (!t) return;
+    var g = t.closest('.gsg'), S = curStep(); if (!S) return; e.preventDefault();
+    if (t.getAttribute('data-gsg') === 'open') { open(g); var a = g.querySelector('.gsg-a'); if (MEM.item) find(g, S); else try { a.focus(); } catch (x) {} return; }
+    if (t.getAttribute('data-gsg') === 'find') { MEM.item = g.querySelector('.gsg-a').value.trim() === MEM.addr ? MEM.item : null; find(g, S); return; }
+    if (t.hasAttribute('data-gsgi')) { find(g, S, g.__L[+t.getAttribute('data-gsgi')]); return; }
+    if (t.hasAttribute('data-gsgput')) { put(g, g.__V[+t.getAttribute('data-gsgput')], 0); return; }
+    if (t.hasAttribute('data-gsgadd')) { put(g, g.__V[+t.getAttribute('data-gsgadd')], 1); return; }
+  }, true);
+  document.addEventListener('keydown', function (e) { var t = e.target; if (e.key !== 'Enter' || !t || !t.closest || !t.closest('.gsg-p')) return; e.preventDefault(); e.stopPropagation(); var b = t.closest('.gsg').querySelector('[data-gsg="find"]'); if (b) b.click(); }, true);
+  document.addEventListener('change', function (e) { var t = e.target; if (!t || !t.classList || !t.classList.contains('gsg-y')) return; var g = t.closest('.gsg'), S = curStep(); if (S && (MEM.item || g.querySelector('.gsg-a').value.trim())) find(g, S); }, true);
+  function watch() { var box = $('pkWz'); if (!box) return setTimeout(watch, 500); new MutationObserver(function () { mount(); }).observe(box, { childList: true, subtree: true }); mount(); }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', watch); else watch();
+})();
+</script>
 </body>
 </html>

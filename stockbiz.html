@@ -330,7 +330,126 @@ html.fwait body{visibility:hidden}
     try { pdfjsLib.GlobalWorkerOptions.workerPort = new Worker(window.PDFJS_WORKER_URL()); } catch (e) {  } }
 })();</script>
 
-
+<style id="pubDesign">@media screen{
+:root{--pd-bg:#FFFFFF;--pd-surface:#FFFFFF;--pd-surface2:#F5F7FA;--pd-ink:#111827;--pd-ink2:#374151;--pd-ink3:#6B7280;--pd-line:#E5E7EB;--pd-line2:#D1D5DB;
+  --pd-acc:#1E3A8A;--pd-acc-soft:#EEF2FB;--pd-acc-hover:#172E6E;--pd-th-bg:#F5F7FA;--pd-th-fg:#374151;--pd-minus:#1E3A8A;
+  --pd-r-card:8px;--pd-r-ctl:6px;--pd-tl:.5px;--pd-cap:15px;--pd-body:16px;--pd-lead:17px;--pd-h3:18px;--pd-q:22px;--pd-h1:24px;--pd-num:36px;--pd-hmin:44px;
+  --paper:#FFFFFF;--card:#FFFFFF;--ink:#111827;--ink2:#374151;--ink3:#6B7280;--rule:#E5E7EB;--band:#F5F7FA;
+  --ver:#1E3A8A;--verbg:#EEF2FB;--ok:#1E3A8A;--okbg:#EEF2FB;--blue:#1E3A8A;--bluebg:#EEF2FB}
+#pkRoot{--blue:#1E3A8A;--bluebg:#EEF2FB}
+html,body{background:var(--pd-bg)}
+body{color:var(--pd-ink);font-size:var(--pd-body);font-variant-numeric:tabular-nums}
+h1{font-size:var(--pd-h1)!important;font-weight:800;letter-spacing:-.01em}
+.eyebrow,.lead,.dfl,.law,details.why>summary,.fld .mh,.cfm{font-size:var(--pd-cap)}
+.lead{font-size:var(--pd-body)}
+.eyebrow .ex{color:var(--pd-acc)}
+.sec>h2{font-size:var(--pd-h3);border-bottom:1px solid var(--pd-ink2)}
+.card h3{font-size:var(--pd-h3)}
+.law,.howto{background:var(--pd-surface2);border-radius:var(--pd-r-ctl)}
+.card,.box,#pkRoot .pk-step,#pkRoot .pk-card,#pkRoot .pk-res,#pkRoot .pk-op,#pkRoot .pk-spx,.pk-coc{border:1px solid var(--pd-line);border-radius:var(--pd-r-card);box-shadow:none}
+#pkRoot .pk-step,#pkRoot .pk-spx{background:var(--pd-surface)}
+button,select,summary,[role=button],textarea,input:not([type=checkbox]):not([type=radio]):not([type=hidden]):not([type=file]):not([type=range]){min-height:var(--pd-hmin)}
+button{border-radius:var(--pd-r-ctl)}
+.calc button,button[data-run],.xlb,#pkRoot .pk-go,#pkRoot .pk-xl,#pkRoot [data-pkwn],#pkRoot .sbz-btns button,#pkRoot .sbz-btns button.xl,.uxq-go{background:var(--pd-acc)!important;color:#fff!important;border:0!important;border-radius:var(--pd-r-ctl)!important;min-height:52px;font-weight:700}
+.calc button:hover,.xlb:hover,#pkRoot .pk-go:hover,#pkRoot .pk-xl:hover{background:var(--pd-acc-hover)!important}
+#pkRoot .pk-go2,#pkRoot .pk-wd summary,#pkRoot .pk-wz0,#pkRoot .pk-wb{border:1px solid var(--pd-line2);border-radius:var(--pd-r-ctl);background:var(--pd-surface);color:var(--pd-ink2)}
+#pkRoot .pk-wb{min-height:var(--pd-hmin);font-size:var(--pd-cap);display:inline-flex;align-items:center;justify-content:center}
+#pkRoot .pk-wd summary{color:var(--pd-ink);display:flex;align-items:center;justify-content:center}
+#pkRoot .pk-wd[open] summary{background:var(--pd-acc-soft);color:var(--pd-acc);border-color:var(--pd-acc)}
+.tabs button.on,.seg button.on,#pkRoot .pk-mtab button.on,#pkRoot .pk-cnt button.on,#pkRoot .pk-sd.on,.stepnav button.hi,.mode button.on{background:var(--pd-acc)!important;border-color:var(--pd-acc)!important;color:#fff!important}
+.tabs button,.seg button,#pkRoot .pk-mtab button,#pkRoot .pk-cnt button,#pkRoot .pk-chip,#pkRoot .pk-tog button,#pkRoot .pk-wo button,#pkRoot .pk-kd,#pkRoot .pk-spi,#pkRoot .pk-swap{border-width:1px;border-radius:var(--pd-r-ctl)}
+#pkRoot .pk-wo button{border:1.5px solid var(--pd-line2);font-size:var(--pd-lead)}
+#pkRoot .pk-wo button.on,#pkRoot .pk-kd.on,#pkRoot .pk-spi.on{border-color:var(--pd-acc);background:var(--pd-acc-soft)}
+#pkRoot .pk-chip,#pkRoot .pk-tog button,#pkRoot .pk-cosel button,.pk-cosel button{min-height:var(--pd-hmin);display:inline-flex;align-items:center;font-size:var(--pd-cap)}
+#pkRoot .pk-terms button{min-height:var(--pd-hmin);border:0;border-radius:0;background:none;color:var(--pd-acc);text-decoration:underline;text-underline-offset:3px;font-size:var(--pd-cap);padding:0 4px;display:inline-flex;align-items:center}
+#pkRoot .pk-terms button.on{background:var(--pd-acc-soft);font-weight:700}
+#pkRoot .pk-tl{font-size:var(--pd-cap)}
+#pkRoot .pk-need-l button{min-height:var(--pd-hmin);font-size:var(--pd-cap);border-radius:var(--pd-r-ctl)}
+#pkRoot .pk-xpl button,#pkXpBtn{min-height:var(--pd-hmin);font-size:var(--pd-cap);color:var(--pd-acc)}
+details.why>summary{display:inline-flex;align-items:center;min-height:var(--pd-hmin);border-bottom:0;text-decoration:underline dotted;text-underline-offset:4px}
+summary{display:flex;align-items:center}
+details.why>summary{display:inline-flex}
+.fld input,.fld select,#pkRoot .pk-qf input,#pkRoot .sbz-in input,#pkRoot .sbz-in select,#pkRoot .sbz-in2 input,#pkRoot .sbz-in2 select,#pkRoot .sbz-txt input,#pkRoot .sbz-txt select{min-height:var(--pd-hmin);border:1px solid var(--pd-line2);border-radius:var(--pd-r-ctl)}
+#pkRoot .pk-wi input{border:1.5px solid var(--pd-line2);border-radius:var(--pd-r-ctl)}
+.fld input:focus,.fld select:focus,#pkRoot .pk-wi input:focus,#pkRoot .pk-qf input:focus,input:focus,select:focus{outline:none;border-color:var(--pd-acc)!important;box-shadow:0 0 0 2px var(--pd-acc-soft)}
+.chk input,input[type=checkbox],input[type=radio]{accent-color:var(--pd-acc)}
+#pkRoot .pk-wq{font-size:var(--pd-q)}
+#pkRoot .pk-wh{font-size:var(--pd-cap);color:var(--pd-ink2)}
+#pkRoot .pk-dots i.d{background:var(--pd-ink3)}
+#pkRoot .pk-dots i.c{background:var(--pd-acc)}
+#pkRoot .pk-sh i{background:var(--pd-acc)}
+#pkRoot .pk-tdef{background:var(--pd-surface2);border-left:3px solid var(--pd-acc);border-radius:var(--pd-r-ctl);font-size:var(--pd-cap)}
+#pkRoot .pk-tdef b{color:var(--pd-ink)}
+#pkRoot .pk-tdef .pk-lw{font-size:var(--pd-cap)}
+#pkRoot .pk-sp,#pkRoot .pk-kd,#pkRoot .pk-ql,#pkRoot .pk-qf label,#pkRoot .pk-swq,#pkRoot .pk-oe,#pkRoot .pk-rn,#pkRoot .pk-eng,#pkRoot .pk-need-l span,#pkRoot .pk-det summary,#pkRoot .pk-card h3,#pkRoot .pk-qnote,#pkRoot .pk-mtab button,#pkRoot .pk-sd,#pkRoot .pk-oh,#pkRoot .pk-bd{font-size:var(--pd-cap)}
+#pkRoot .pk-sd small,#pkRoot .pk-oe s,.pk-tag{font-size:var(--pd-cap)}
+#pkRoot .pk-res ul,#pkRoot .pk-card ul{font-size:var(--pd-cap)}
+#pkRoot .pk-card h3{font-size:var(--pd-h3)}
+#pkRoot .pk-eng{background:var(--pd-surface2)}
+#pkRoot .pk-op.on .pk-sw{background:var(--pd-acc)}
+#pkRoot .pk-spx>summary::before{border-width:1.5px}
+#pkRoot .pk-spx>summary span{color:var(--pd-acc)}
+#pkRoot .pk-spg{border-top:1px solid var(--pd-ink2)}
+#pkRoot .b-ok,#pkRoot .b-tax,#pkRoot .b-blue{background:var(--pd-acc-soft);color:var(--pd-acc)}
+#pkRoot .pk-wr,#pkRoot .pk-wr.ok,#pkRoot .pk-wr.ng{background:var(--pd-surface);color:var(--pd-ink);border:0;border-left:5px solid var(--pd-acc);border-radius:0;padding:6px 0 6px 16px}
+#pkRoot .pk-wr0{font-size:var(--pd-cap);color:var(--pd-ink2);font-weight:700}
+#pkRoot .pk-wr1,#pkRoot .pk-wr.ng .pk-wr1,#pkRoot .pk-wr.ok .pk-wr1{font-size:var(--pd-num);font-weight:700;color:var(--pd-acc);letter-spacing:-.01em}
+#pkRoot .pk-wr3{font-size:var(--pd-cap);color:var(--pd-ink2)}
+#pkRoot .pk-wr2{font-size:var(--pd-body)}
+.pk-cot{color:var(--pd-acc)}
+.pk-coc.on{border:2px solid var(--pd-acc)}
+table{font-size:var(--pd-body)}
+th{background:var(--pd-th-bg);color:var(--pd-th-fg);font-weight:700;font-size:var(--pd-cap)}
+th,td{border-bottom:var(--pd-tl) solid var(--pd-line2)}
+thead th{border-bottom:1px solid var(--pd-line2);color:var(--pd-th-fg);font-size:var(--pd-cap)}
+td small,th small{font-size:var(--pd-cap)}
+tr.tot td,tr.sum td{border-top:1.5px solid var(--pd-ink2)}
+tr.hl td{background:var(--pd-acc-soft)}
+td.band{background:var(--pd-surface2)}
+table.y4t,.yaBox table.yaT{font-size:var(--pd-body)}
+table.y4t th,.yaBox .yaT th{background:var(--pd-th-bg)!important;color:var(--pd-th-fg)!important;font-size:var(--pd-cap);font-weight:700}
+.yaBox .yaT th small,table.y4t small,.y4n,.y4dfl,.yaBox ul.yaA,.yaBox .yaT td small{font-size:var(--pd-cap)}
+table.y4t small.y4d{font-size:var(--pd-cap)}
+table.y4t .y4d.dn,table.y4t small.y4d.dn{color:var(--pd-minus)}
+table.y4t .y4d.up,table.y4t small.y4d.up{color:var(--pd-ink)}
+table.y4t tr.y4now td{background:var(--pd-surface2)}
+table.y4t tr.y4tot td{border-top:1.5px solid var(--pd-ink2)}
+.yaBox input{min-height:var(--pd-hmin);border-radius:var(--pd-r-ctl);border-color:var(--pd-line2)}
+.yaBox .yaG{font-size:var(--pd-cap)}
+@media(max-width:599.98px){
+  #txMap{background:var(--pd-surface);border-bottom:1px solid var(--pd-line)}
+  #txMap .tx-bar{min-height:var(--pd-hmin);font-size:var(--pd-cap)}
+  #txMap .tx-bar .a b{color:var(--pd-acc)}
+}
+#txMap .tx-h{border-bottom:1px solid var(--pd-ink2)}
+#txMap li.now{background:var(--pd-acc-soft)}
+#txMap li.now::before,#txMap li.now .n::after{background:var(--pd-acc);border-color:var(--pd-acc)}
+#txMap li.now .n{color:var(--pd-acc)}
+details.pk-easy>summary{display:inline-flex;align-items:center;min-height:var(--pd-hmin);color:var(--pd-acc);text-decoration-color:var(--pd-acc);font-size:var(--pd-cap)}
+details.pk-easy[open]>summary{color:var(--pd-ink2)}
+details.pk-easy>ul{border-left-color:var(--pd-acc);background:var(--pd-surface2);border-radius:0 var(--pd-r-ctl) var(--pd-r-ctl) 0}
+body .y4box .y4t th{background:var(--pd-th-bg)!important;color:var(--pd-th-fg)!important;font-size:var(--pd-cap)!important}
+body .y4box .y4t{font-size:var(--pd-body)}
+body .y4box .y4d.dn,body .y4box .y4t small.y4d.dn{color:var(--pd-minus)!important}
+body .y4box .y4d.up,body .y4box .y4t small.y4d.up{color:var(--pd-ink)!important}
+body .y4box .y4t tr.y4now td{background:var(--pd-surface2)!important}
+body .y4box .y4e,body .y4box .y4t small,body .y4box .y4lg,body .y4box .y4n,body .y4box .y4h small,body .y4box .y4dfl,body .y4box .y4gs,body .y4box .y4c,body .y4box .y4t small.y4d,body .y4box table.y4t{font-size:var(--pd-cap)!important}
+body .y4box .y4dfl,.y4dfl{background:var(--pd-acc-soft)!important;color:var(--pd-acc)!important}
+table.y4t small.y4same,body .y4box .y4t small.y4same{color:var(--pd-acc)!important}
+body .y4box .y4e{color:var(--pd-acc)!important}
+#pkRoot svg [fill="#e4572e" i]{fill:var(--pd-acc)}
+#pkRoot svg [stroke="#e4572e" i]{stroke:var(--pd-acc)}
+#pubFoot{font-size:var(--pd-cap)!important;color:var(--pd-ink3)!important;border-top-color:var(--pd-line)!important}
+#pkRoot .sbz-up{background:var(--pd-surface2);border:1.5px dashed var(--pd-line2);border-radius:var(--pd-r-card)}
+#pkRoot .sbz-co{border-radius:var(--pd-r-card)}
+#pkRoot .sbz-seg{background:var(--pd-surface2);border-radius:var(--pd-r-ctl)}
+#pkRoot .sbz-seg button{min-height:44px;border-radius:var(--pd-r-ctl)}
+#pkRoot .sbz-seg button.on{background:var(--pd-acc);color:#fff;box-shadow:none}
+#pkRoot .sbz-add{border:1.5px dashed var(--pd-line2);border-radius:var(--pd-r-ctl);min-height:44px}
+#pkRoot table.sbz-t td{border-top:var(--pd-tl) solid var(--pd-line2)}
+#pkRoot table.sbz-t tr.tot td{border-top:1.5px solid var(--pd-ink2)}
+#pkRoot .sbz-msg.bad{color:#B91C1C}
+}</style>
 </head>
 <body>
 <div class="wrap">
@@ -378,8 +497,10 @@ var IGT = (function () {
     startup: { deduct: 500000000, rate: 0.10, limit: 5000000000, limitHire: 10000000000 },
     
     
+    
     bizInh: [[10, 30000000000], [20, 40000000000], [30, 60000000000]],
-    bizInhReform: { from: 2027, perYear: 2000000000, cap: 100000000000, minYears: 20 },
+    bizInhReform: { from: 2027, fromDate: '2027-07-01', perYear: 2000000000, cap: 100000000000, minYears: 20, fullYears: 30, follow: 10 },
+    bizInhFollow: 5,   
     
     rentRate: 0.12,   
     excludedDed: 30000000, feeMax: { appraisal: 5000000, stockEval: 10000000 }
@@ -399,6 +520,21 @@ var IGT = (function () {
     var c = 0;
     for (var i = 0; i < R.bizInh.length; i++) if (years >= R.bizInh[i][0]) c = R.bizInh[i][1];
     return c;
+  }
+  
+  function bizInhCapReform(years) {
+    var F = R.bizInhReform, y = Math.floor((+years || 0) + 1e-9);
+    return y >= F.minYears ? Math.min(y * F.perYear, F.cap) : 0;
+  }
+  
+  function bizInhReformOn(ymd) { return !!ymd && String(ymd).slice(0, 10) >= R.bizInhReform.fromDate; }
+  
+  function bizInhCapAt(years, ymd) { return bizInhReformOn(ymd) ? bizInhCapReform(years) : bizInhCap(years); }
+  
+  function bizInhRule(years, ymd) {
+    var F = R.bizInhReform, on = bizInhReformOn(ymd), y = Math.floor((+years || 0) + 1e-9);
+    return on ? { reform: true, min: F.minYears, follow: F.follow + Math.max(0, F.fullYears - y), cap: bizInhCapReform(y) }
+              : { reform: false, min: R.bizInh[0][0], follow: R.bizInhFollow, cap: bizInhCap(y) };
   }
   
   function xlRate(ref, T) {
@@ -589,7 +725,7 @@ var IGT = (function () {
     var reinv = Math.max(0, (o.deposited || 0) - (o.notReinvested || 0));
     return Math.max(0, (o.withdrawn || 0) - reinv);
   }
-  return { R: R, rateTax: rateTax, bizInhCap: bizInhCap, xlRate: xlRate, belowMin: belowMin, skipRate: skipRate, specialTax: specialTax, finDeduct: finDeduct,
+  return { R: R, rateTax: rateTax, bizInhCap: bizInhCap, bizInhCapReform: bizInhCapReform, bizInhReformOn: bizInhReformOn, bizInhCapAt: bizInhCapAt, bizInhRule: bizInhRule, xlRate: xlRate, belowMin: belowMin, skipRate: skipRate, specialTax: specialTax, finDeduct: finDeduct,
     spouseDed: spouseDed, lumpSum: lumpSum, houseDed: houseDed, reinheritRate: reinheritRate,
     legalShares: legalShares, deemedInsurance: deemedInsurance, insuranceGift: insuranceGift, netWithdrawal: netWithdrawal,
     securedValue: securedValue, divDiff: divDiff, convBond: convBond, warrantValue: warrantValue, irr: irr, cryptoDayAvg: cryptoDayAvg,
@@ -11435,8 +11571,12 @@ window.__FSPDF={M:"AAEAAAAMAIAAAwBARFNJRwAAAAEACfTYAAAACEdQT1MBV/JlAAnmoAAADjZPU
     var target = Math.floor(stock * biz / ta + 1e-7);   
     var start = U.startDate || (inp.corp && (inp.corp.startDate || inp.corp.founded)) || '';
     var yrs = ok(U.years) ? +U.years : (start && evalDate ? yearsBetween(start, evalDate) : null);
-    var cap = yrs === null ? null : IGT.bizInhCap(yrs);
+    
+    var reformOn = !!(IGT.bizInhReformOn && IGT.bizInhReformOn(evalDate));
+    var cap = yrs === null ? null : (IGT.bizInhCapAt ? IGT.bizInhCapAt(yrs, evalDate) : IGT.bizInhCap(yrs));
     var ded = cap === null ? target : Math.min(target, cap);
+    var capCur = yrs === null ? null : IGT.bizInhCap(yrs), dedCur = capCur === null ? target : Math.min(target, capCur);
+    var rule = IGT.bizInhRule ? IGT.bizInhRule(yrs || 0, evalDate) : { reform: false, min: 10 };
     
     if (!U.evalDate) dflt.push('상속개시일(평가기준일) = ' + evalDate + (inp.corp && inp.corp.evalDate ? '(자료 값)' : '(결산일 다음 날)'));
     if (!ok(U.shares)) dflt.push('피상속인 보유 주식수 = ' + (B.sharesWho ? '최대주주 「' + B.sharesWho + '」 ' : '') + sh.toLocaleString('ko-KR') + '주(자료 주주 명부)');
@@ -11448,11 +11588,12 @@ window.__FSPDF={M:"AAEAAAAMAIAAAwBARFNJRwAAAAEACfTYAAAACEdQT1MBV/JlAAnmoAAADjZPU
     (T.fix || B.fix || []).forEach(function (f) { if (f && f.amt) flags.push('서식 줄로 못 나눈 차이 ' + Math.round(f.amt).toLocaleString('ko-KR') + '원 → 「기타」 줄 [확인 필요]'); });
     rows.forEach(function (r) { (r.why || []).forEach(function (w) { if (/\[확인 필요\]/.test(w) && !/증자대금/.test(w)) flags.push(r.label + ' : ' + String(w).replace(/\s*\[확인 필요\]\s*/g, ' ').trim() + ' [확인 필요]'); }); if (r.book < 0 || r.ap < 0) flags.push(r.label + ' 금액이 음수(' + Math.round(r.ap).toLocaleString('ko-KR') + '원) — 자료 판독 중복 가능, 원본 재무상태표로 계정 확인 [확인 필요]'); });
     if (capInc) flags.push('결산일 뒤 증자대금 ' + Math.round(capInc).toLocaleString('ko-KR') + '원 = 상속개시일 현재 현금으로 남아 있다고 봄(라목에 들어감) [확인 필요]');
-    if (yrs !== null && yrs < 10) flags.push('가업 영위기간 ' + yrs + '년 — 10년 미만 = 가업상속공제 대상 아님(상증법 §18의2①)');
+    if (yrs !== null && yrs < rule.min) flags.push('가업 영위기간 ' + yrs + '년 — ' + rule.min + '년 미만 = 가업상속공제 대상 아님(' + (reformOn ? '2026 세제개편안 정부안 · 상속개시 2027.7.1. 이후' : '상증법 §18의2①') + ')');
+    if (reformOn && yrs !== null) flags.push('⚠ 상속개시일 ' + evalDate + ' = 2027.7.1. 이후 → 한도 = 2026 세제개편안 정부안(국회 미통과) 경영연수 ' + yrs + '년 × 20억(상한 1,000억, 20년 미만 대상 제외) ' + Math.round(cap).toLocaleString('ko-KR') + '원, 공제 ' + Math.round(ded).toLocaleString('ko-KR') + '원 / 현행 표(10·20·30년)면 한도 ' + Math.round(capCur).toLocaleString('ko-KR') + '원, 공제 ' + Math.round(dedCur).toLocaleString('ko-KR') + '원 · 개정안은 사후관리 ' + rule.follow + '년(10년 + 30년 부족분)');
     (R.check || []).forEach(function (c) { notes.push(String(c)); });
     (inp.readCheck || []).forEach(function (c) { notes.push(String(c)); });
     return { R: R, X: X, B: B, T: T, inp: inp, evalDate: evalDate, rows: rows, mok: mok, MOK_NAME: MOK_NAME, ta: ta, idle: idle, biz: biz, ratio: ratio,
-      taBook: res.taBook, per: per, shares: sh, sharesWho: B.sharesWho, stock: stock, target: target, cap: cap, ded: ded, years: yrs, start: start,
+      taBook: res.taBook, per: per, shares: sh, sharesWho: B.sharesWho, stock: stock, target: target, cap: cap, ded: ded, years: yrs, start: start, capLaw: reformOn ? '개정안' : '현행', capCur: capCur, dedCur: dedCur, follow: yrs === null ? null : rule.follow,
       cashIn: { prev: cp.map(function (v) { return ok(v); }), fill: cf.map(function (v) { return ok(v); }) }, cash: { now: CB.now, yearEnd: CB.c14, add: CB.add, prev: CB.prev, fill: CB.fill, avg3: CB.avg3, avg: CB.avg, mul: CB.mul, over: CB.over, ends: (B.G.ends || []).slice(0, 3), cashAssume: cashAssume, known: known },
       flags: flags, dflt: dflt, notes: notes, extra: extra, corp: inp.corp };
   }
@@ -11716,7 +11857,7 @@ window.__FSPDF={M:"AAEAAAAMAIAAAwBARFNJRwAAAAEACfTYAAAACEdQT1MBV/JlAAnmoAAADjZPU
       { c: ['⑤ 사업관련 자산가액', W(o.biz), '③ − ④'], b: true, bg: SUB },
       { c: ['⑥ 사업관련 자산가액 비율', P2(o.ratio), '⑤ ÷ ③'], b: true, bg: SUB },
       { c: ['⑦ 가업상속공제 대상금액', W(o.target), '② × ⑤ ÷ ③, 원 미만 버림'], b: true, bg: SUB },
-      { c: ['⑪ 가업상속공제액', W(o.ded), o.cap === null ? '영위기간 모름 → 한도 미적용 [확인 필요]' : '한도 ' + W(o.cap) + '원(영위 ' + o.years + '년), ⑦ 과 한도 중 작은 금액'], b: true, bg: SUB }
+      { c: ['⑪ 가업상속공제액', W(o.ded), o.cap === null ? '영위기간 모름 → 한도 미적용 [확인 필요]' : '한도 ' + W(o.cap) + '원(영위 ' + o.years + '년' + (o.capLaw === '개정안' ? ', 2026 세제개편안 정부안 · 현행 표면 공제 ' + W(o.dedCur) + '원' : '') + '), ⑦ 과 한도 중 작은 금액'], b: true, bg: SUB }
     ]);
     var C = o.cash, ends = C.ends || [], y0 = ends[0] ? +ends[0].slice(0, 4) : null, cy = function (k) { return y0 ? (y0 - k) + '년 말' : '직전 ' + (k + 1) + '번째 해'; };
     var cv = [C.yearEnd].concat([0, 1].map(function (k) { return C.prev[k]; })).concat([0, 1].map(function (k) { return C.fill[k]; }));
@@ -12109,6 +12250,7 @@ window.__FSPDF={M:"AAEAAAAMAIAAAwBARFNJRwAAAAEACfTYAAAACEdQT1MBV/JlAAnmoAAADjZPU
       { sec: '사업용자산비율, 가업상속공제(엔진 BIZA, IGT)' },
       { k: 'MUL', n: '라목 과다보유현금 = 직전 5개 사업연도 말 평균 현금의 배수', v: root.BIZA.CASH_MUL, fmt: 'y', law: '상증령 §15⑤2호라목(100분의 200)' }];
     root.IGT.R.bizInh.forEach(function (r, i) { TB.push({ k: 'LIM' + i, n: '가업상속공제 한도 — 영위 ' + r[0] + '년 이상', v: r[1], fmt: 'w', law: '상증법 §18의2①' }); });
+    var RF = root.IGT.R.bizInhReform; if (RF) { TB.push({ k: 'LIMR1', n: '개편안 한도 — 경영연수 1년당(상속개시 ' + RF.fromDate + ' 이후)', v: RF.perYear, fmt: 'w', law: '2026 세제개편안 정부안(국회 미통과)' }); TB.push({ k: 'LIMR2', n: '개편안 한도 상한(' + RF.minYears + '년 미만 대상 제외)', v: RF.cap, fmt: 'w', law: '2026 세제개편안 정부안(국회 미통과)' }); }   
     var M = TXXL.model(TB), I = M.info;
     var ni = X.netIncomesAdjusted || [], den = X.incomeDenominators || [], pys = X.incomePerShareByYear || [], yw = X.yearWeightsUsed || [3, 2, 1];
     
@@ -12191,7 +12333,7 @@ window.__FSPDF={M:"AAEAAAAMAIAAAwBARFNJRwAAAAEACfTYAAAACEdQT1MBV/JlAAnmoAAADjZPU
       b.F('stock', '② 주식 등의 가액(1주 × 주식수)', '{V:per}*{sh}', o.stock);
       b.F('tg', '⑦ 가업상속공제 대상금액(② × ⑤ ÷ ③, 원 미만 버림)', 'INT({stock}*{biz}/{ta})', o.target, { big: 1 });
       b.JD('yr', '가업 영위기간(년)', o.years === null ? '모름' : o.years, { fmt: o.years === null ? 't' : 'g', d: o.start ? o.start + ' ~ ' + o.evalDate : '' });
-      b.JD('cap', '공제 한도(엔진 IGT.bizInhCap)', o.cap === null ? 0 : o.cap, { d: o.cap === null ? '영위기간 모름 → 한도 미적용' : '' });
+      b.JD('cap', o.capLaw === '개정안' ? '공제 한도(엔진 IGT.bizInhCapAt · 상속개시 2027.7.1. 이후 = 2026 세제개편안 정부안)' : '공제 한도(엔진 IGT.bizInhCapAt)', o.cap === null ? 0 : o.cap, { d: o.cap === null ? '영위기간 모름 → 한도 미적용' : (o.capLaw === '개정안' ? '⚠ 현행 표면 한도 ' + Math.round(o.capCur).toLocaleString('ko-KR') + '원, 공제 ' + Math.round(o.dedCur).toLocaleString('ko-KR') + '원' : '') });
       b.F('ded', '⑪ 가업상속공제액(⑦, 한도 중 작은 금액)', o.cap === null ? '{tg}' : 'MIN({tg},{cap})', o.ded, { big: 1 });
     });
     
@@ -12718,7 +12860,7 @@ window.__FSPDF={M:"AAEAAAAMAIAAAwBARFNJRwAAAAEACfTYAAAACEdQT1MBV/JlAAnmoAAADjZPU
       ['사업관련 자산가액(⑤)', eok(o.biz), '③ − ④'],
       ['사업용자산비율(⑥)', pct(o.ratio), '⑤ ÷ ③'],
       ['공제 대상금액(⑦)', eok(o.target), '② × ⑤ ÷ ③'],
-      ['가업상속공제액', eok(o.ded), o.years === null ? '한도 미적용(영위기간 모름)' : '영위 ' + o.years + '년, 한도 ' + eok(o.cap, 0)]
+      ['가업상속공제액', eok(o.ded), o.years === null ? '한도 미적용(영위기간 모름)' : '영위 ' + o.years + '년, 한도 ' + eok(o.cap, 0) + (o.capLaw === '개정안' ? '(상속개시 2027.7.1. 이후 = 2026 세제개편안 정부안 · 국회 미통과 · 현행 표면 공제 ' + eok(o.dedCur, 0) + ')' : '')]
     ];
     h += '<table class="sbz-t"><tbody>' + L.map(function (l, i) { return '<tr' + (i === 12 ? ' class="tot"' : '') + '><td>' + esc(l[0]) + (l[2] ? '<small>' + esc(l[2]) + '</small>' : '') + '</td><td>' + esc(l[1]) + '</td></tr>'; }).join('') + '</tbody></table></div>';
     var TXI = o.txadj;
