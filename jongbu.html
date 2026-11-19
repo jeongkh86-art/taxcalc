@@ -3285,7 +3285,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     '#pkWz .gsg-p .gsg-a{flex:1 1 200px;min-width:0}#pkWz .gsg-p .gsg-k{flex:1 1 100%;width:100%}#pkWz .gsg-p .gsg-dh{width:96px}#pkWz .gsg-p button{min-height:44px;font:inherit;font-size:16px;border-radius:6px;padding:6px 14px;cursor:pointer;border:1px solid var(--pd-acc,#1E3A8A);background:var(--pd-acc,#1E3A8A);color:#fff;font-weight:700}' +
     '#pkWz .gsg-p button.gsg-2{background:#fff;color:var(--pd-acc,#1E3A8A)}#pkWz .gsg-n{font-size:15px;color:var(--pd-ink3,#6B7280);margin:6px 0 0;line-height:1.5}#pkWz .gsg-e{color:#B91C1C;font-size:15px;margin-top:6px}' +
     '#pkWz .gsg-v{border-top:1px solid var(--pd-line,#E5E7EB);padding:10px 0 4px;margin-top:8px}#pkWz .gsg-v b{display:block;font-size:16px;color:#111827}#pkWz .gsg-v .gsg-big{font-size:20px;font-weight:800;color:var(--pd-acc,#1E3A8A);margin:2px 0 6px;font-variant-numeric:tabular-nums}' +
-    '#pkWz .gsg-ok{color:var(--pd-acc,#1E3A8A);font-weight:700;font-size:15px;margin-top:6px}#pkWz .gsg-list{display:flex;flex-direction:column;gap:6px;margin:6px 0}#pkWz .gsg-list button{text-align:left;background:#fff;color:#111827;border-color:var(--pd-line2,#D1D5DB);font-weight:500}#pkWz .gsg [hidden]{display:none!important}#pkWz .gsg-m{font-size:16px;color:#111827;margin:0 0 6px;font-variant-numeric:tabular-nums}';
+    '#pkWz .gsg-ok{color:var(--pd-acc,#1E3A8A);font-weight:700;font-size:15px;margin-top:6px}#pkWz .gsg-list{display:flex;flex-direction:column;gap:6px;margin:6px 0}#pkWz .gsg-list button{text-align:left;background:#fff;color:#111827;border-color:var(--pd-line2,#D1D5DB);font-weight:500}#pkWz .gsg [hidden]{display:none!important}#pkWz .gsg-bw{align-items:center;margin-top:8px}#pkWz .gsg-bw b{flex:1 1 100%;font-size:15px;color:#111827}#pkWz .gsg-p .gsg-b{flex:1 1 120px;min-width:0}#pkWz .gsg-m{font-size:16px;color:#111827;margin:0 0 6px;font-variant-numeric:tabular-nums}';
   var st = document.createElement('style'); st.id = 'gsgCss'; st.textContent = CSS; document.head.appendChild(st);
   var MEM = { addr: '', item: null, dong: '', ho: '', kind: '' };   /* 같은 집을 두 해(산 해, 파는 해) 찾을 때 다시 안 치게 — 이 화면에만(저장 안 함) */
   function esc(t) { return String(t == null ? '' : t).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
@@ -3312,6 +3312,16 @@ https://github.com/nodeca/pako/blob/main/LICENSE
   /* 2026-11-20 「무슨 부동산?」 고르는 칸 — 짐작하지 않고 고른 종류의 자료로만 찾음(오피스텔이 땅값으로 나오던 것 막음) */
   var KINDS = [['', '무슨 부동산? (먼저 골라 주세요)'], ['apt', '아파트, 연립, 다세대'], ['house', '단독, 다가구'], ['land', '토지'], ['landbld', '토지와 건물(상가건물, 사무실)'], ['ot', '오피스텔, 구분상가']];
   function kindName(k) { var x = KINDS.filter(function (z) { return z[0] === k; })[0]; return x ? x[1] : ''; }
+  /* 2026-11-20 값 찾는 화면으로 바로 — 홈택스 기준시가 조회 메뉴(tm3lIdx), 지방세 시가표준액 = 서울(PNU 11) 이택스, 그 밖 위택스 · 세금 종류(탭)에 맞는 것만 */
+  var HTX_URL = 'https://hometax.go.kr/websquare/websquare.html?w2xPath=/ui/pp/index_pp.xml&tmIdx=47&tm2lIdx=4712090000&tm3lIdx=';
+  function goLinks(k, it, a) {
+    var seoul = /^11/.test(String(it.id || '')), L = [], burden = TAB === 'igt' && a && a.mode === 'burden';
+    var nat = TAB === 'igt' || TAB === 'cgt';
+    if (k === 'ot') { if (nat) L.push(['홈택스 오피스텔 및 상업용 건물 기준시가 조회', HTX_URL + '4712090300']); }
+    else { if (TAB === 'igt') L.push(['홈택스 건물 기준시가(상속, 증여) 계산', HTX_URL + '4712090600']); if (TAB === 'cgt' || burden) L.push(['홈택스 건물 기준시가(양도) 계산', HTX_URL + '4712090500']); }
+    if (!nat || burden) L.push(seoul ? ['서울시 이택스 주택외 건물 시가표준액 조회', 'https://etax.seoul.go.kr/jsp/BldnStndAmtLstAction.view?gnb_id=0709&lnb_id=0709&gl_gubun=g'] : ['위택스 건축물 시가표준액 조회', 'https://www.wetax.go.kr/tcp/loi/J030401M01.do']);
+    return '<div class="gsg-r">' + L.map(function (x) { return '<a class="gsg-o" style="text-decoration:none" href="' + x[1] + '" target="_blank" rel="noopener">' + esc(x[0]) + ' (새 창)</a>'; }).join('') + '</div>';
+  }
   function open(g) { g.querySelector('.gsg-p').hidden = false; g.querySelector('.gsg-o').hidden = true; }
   function out(g, h) { g.querySelector('.gsg-out').innerHTML = h; }
   function find(g, S, item) {
@@ -3383,7 +3393,8 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     if (!k) { out(g, '<div class="gsg-e">위 「무슨 부동산?」 칸에서 먼저 골라 주세요 — 고른 종류의 공시가격만 찾아요</div>'); return Promise.resolve(); }
     MEM.kind = pick;
     var KN = want === 'land' ? '' : '<div class="gsg-n">고른 것 : <b style="display:inline">' + esc(kindName(k)) + '</b></div>';
-    var OT = k === 'ot' && want !== 'land' ? '<div class="gsg-e">오피스텔, 구분상가 호실 값 = 국세청이 호실마다 땅과 건물을 한꺼번에 고시하는 기준시가라 여기서 못 찾아요(상증법 §61①3호) — 홈택스 「기준시가 조회」에서 찾아 위 칸에 직접 넣어 주세요 · 취득세, 재산세 = 위택스 시가표준액</div><div class="gsg-r"><a class="gsg-o" style="text-decoration:none" href="https://hometax.go.kr" target="_blank" rel="noopener">홈택스 열기</a></div>' : '';
+    var BL = k === 'landbld' && want !== 'land' ? goLinks(k, it, a) : '';
+    var OT = k === 'ot' && want !== 'land' ? '<div class="gsg-e">오피스텔, 구분상가 호실 값 = 국세청이 호실마다 땅과 건물을 한꺼번에 고시하는 기준시가라 여기서 못 찾아요(상증법 §61①3호) — 홈택스 「기준시가 조회」에서 찾아 위 칸에 직접 넣어 주세요 · 취득세, 재산세 = 위택스 시가표준액</div>' + goLinks(k, it, a) + '' : '';
     return Promise.all([yearVals(it, y, d, h, want, k)].concat(Y.map(function (yy) { return yearVals(it, yy, d, h, 'any', k).catch(function () { return { V: [], N: [] }; }); }))).then(function (RR) {
       var V = RR[0].V, N = RR[0].N, OY = {}; Y.forEach(function (yy, i) { OY[yy] = RR[i + 1].V; });
       V.forEach(function (x) { x.more = M.map(function (m) { var L = m.year === y ? V : OY[m.year] || []; var z = mate(x, L); if (z && m.house && z.kind !== 'house') z = null; return z ? { id: m.id, lab: m.lab, year: m.year, v: z.v } : null; }).filter(Boolean); });
@@ -3393,9 +3404,11 @@ https://github.com/nodeca/pako/blob/main/LICENSE
         V.map(function (x, i) { var mo = x.more || [];
           return '<div class="gsg-v"><b>' + esc(x.t) + '</b><div class="gsg-big">' + won(x.v) + eokT(x.v) + '</div>' +
             mo.map(function (m) { return '<div class="gsg-m">' + esc(m.lab) + ' (' + m.year + '년) ' + won(m.v) + eokT(m.v) + '</div>'; }).join('') +
-            '<div class="gsg-r">' + (mo.length ? '<button type="button" data-gsgall="' + i + '">' + (mo.length > 1 ? '세 값' : '두 해') + ' 한 번에 넣기</button><button type="button" class="gsg-2" data-gsgput="' + i + '">이 칸만</button>' : '<button type="button" data-gsgput="' + i + '">이 값 넣기</button>') +
-            (S.p.add ? '<button type="button" class="gsg-2" data-gsgadd="' + i + '">더하기</button>' : '') + '</div></div>'; }).join('') +
-        (V.length ? '<div class="gsg-n">공시가격 = 브이월드 국토교통부 자료 · 부동산공시가격알리미와 같은 값 · 지분이면 전체 값 그대로(지분은 다음 질문)</div>' : '') +
+            '<div class="gsg-r">' + (mo.length ? '<button type="button" data-gsgall="' + i + '">' + (mo.length > 1 ? '세 값' : '두 해') + ' 한 번에 넣기</button><button type="button" class="gsg-2" data-gsgput="' + i + '">이 칸만</button>' : '<button type="button"' + (k === 'landbld' && x.kind === 'land' ? ' class="gsg-2"' : '') + ' data-gsgput="' + i + '">' + (k === 'landbld' && x.kind === 'land' ? '땅만 넣기' : '이 값 넣기') + '</button>') +
+            (S.p.add ? '<button type="button" class="gsg-2" data-gsgadd="' + i + '">더하기</button>' : '') + '</div>' +
+            (k === 'landbld' && want !== 'land' && x.kind === 'land' ? '<div class="gsg-r gsg-bw"><b>+ 건물 기준시가(직접)</b><input class="gsg-b" type="text" inputmode="decimal" placeholder="건물 값 (억)"><button type="button" data-gsgsum="' + i + '">땅 + 건물 넣기</button></div>' +
+              '<div class="gsg-n">건물 값은 이 사이트에서 못 찾아요 — 상속·증여세, 양도세 = 홈택스 「기준시가 조회 → 건물」 · 취득세, 재산세 = 위택스 건물 시가표준액</div>' : '') + '</div>'; }).join('') +
+        BL + (V.length ? '<div class="gsg-n">공시가격 = 브이월드 국토교통부 자료 · 부동산공시가격알리미와 같은 값 · 지분이면 전체 값 그대로(지분은 다음 질문)</div>' : '') +
         (M.length && V.length && !V.some(function (x) { return (x.more || []).length; }) ? '<div class="gsg-n">' + esc(M.map(function (m) { return m.lab + '(' + m.year + '년)'; }).join(', ')) + ' 값은 못 찾았어요 — 그 질문에서 직접 넣어 주세요</div>' : ''));
     });
   }
@@ -3409,11 +3422,11 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     var also = [];
     if (all && x.more && x.more.length) { var H = CFG.h(), W = H && H.W; if (W && W.a) x.more.forEach(function (m) { W.a[m.id] = Math.floor(m.v / 10000); also.push(m.lab + ' ' + manToEok(Math.floor(m.v / 10000)) + '억'); }); }
     var ok = g.querySelector('.gsg-ok') || document.createElement('div'); ok.className = 'gsg-ok';
-    ok.textContent = (add ? '더했어요' : '넣었어요') + ' : ' + inp.value + (eok ? '억' : '만원') + (also.length ? ', ' + also.join(', ') + '(그 질문에 미리 채움)' : '') + (x.v % 10000 ? ' · 만원 아래 버림' : '') + ' — [다음]을 눌러 주세요';
+    ok.textContent = (add ? '더했어요' : '넣었어요') + ' : ' + (x.sum ? x.sum + ' = ' : '') + inp.value + (eok ? '억' : '만원') + (also.length ? ', ' + also.join(', ') + '(그 질문에 미리 채움)' : '') + (x.v % 10000 ? ' · 만원 아래 버림' : '') + ' — [다음]을 눌러 주세요';
     g.querySelector('.gsg-out').appendChild(ok);
   }
   document.addEventListener('click', function (e) {
-    var t = e.target.closest && e.target.closest('.gsg [data-gsg],.gsg [data-gsgi],.gsg [data-gsgput],.gsg [data-gsgadd],.gsg [data-gsgall]'); if (!t) return;
+    var t = e.target.closest && e.target.closest('.gsg [data-gsg],.gsg [data-gsgi],.gsg [data-gsgput],.gsg [data-gsgadd],.gsg [data-gsgall],.gsg [data-gsgsum]'); if (!t) return;
     var g = t.closest('.gsg'), S = curStep(); if (!S) return; e.preventDefault();
     if (t.getAttribute('data-gsg') === 'open') { open(g); var a = g.querySelector('.gsg-a'); if (MEM.item) find(g, S); else try { a.focus(); } catch (x) {} return; }
     if (t.getAttribute('data-gsg') === 'find') { var same = g.querySelector('.gsg-a').value.trim() === MEM.addr; MEM.item = same ? MEM.item : null; find(g, S); return; }
@@ -3421,8 +3434,11 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     if (t.hasAttribute('data-gsgput')) { put(g, g.__V[+t.getAttribute('data-gsgput')], 0); return; }
     if (t.hasAttribute('data-gsgall')) { put(g, g.__V[+t.getAttribute('data-gsgall')], 0, 1); return; }
     if (t.hasAttribute('data-gsgadd')) { put(g, g.__V[+t.getAttribute('data-gsgadd')], 1); return; }
+    if (t.hasAttribute('data-gsgsum')) { var xv = g.__V[+t.getAttribute('data-gsgsum')], bi = t.parentNode.querySelector('.gsg-b'), bm = eokToMan(bi && bi.value);
+      if (!(bm > 0)) { try { bi.focus(); } catch (z) {} var er = g.querySelector('.gsg-ok') || document.createElement('div'); er.className = 'gsg-ok'; er.textContent = '건물 값을 억 단위로 넣어 주세요(예 3.5)'; g.querySelector('.gsg-out').appendChild(er); return; }
+      put(g, { v: Math.floor(xv.v / 10000) * 10000 + bm * 10000, sum: '땅 ' + manToEok(Math.floor(xv.v / 10000)) + '억 + 건물 ' + manToEok(bm) + '억' }, 0); return; }
   }, true);
-  document.addEventListener('keydown', function (e) { var t = e.target; if (e.key !== 'Enter' || !t || !t.closest || !t.closest('.gsg-p') || t.closest('.gsj')) return; e.preventDefault(); e.stopPropagation(); var b = t.closest('.gsg').querySelector('[data-gsg="find"]'); if (b) b.click(); }, true);
+  document.addEventListener('keydown', function (e) { var t = e.target; if (e.key !== 'Enter' || !t || !t.closest || !t.closest('.gsg-p') || t.closest('.gsj')) return; e.preventDefault(); e.stopPropagation(); var b = t.classList.contains('gsg-b') ? t.parentNode.querySelector('[data-gsgsum]') : t.closest('.gsg').querySelector('[data-gsg="find"]'); if (b) b.click(); }, true);
   document.addEventListener('change', function (e) { var t = e.target; if (t && t.classList && t.classList.contains('gsg-k')) MEM.kind = t.value; if (!t || !t.classList || !(t.classList.contains('gsg-y') || t.classList.contains('gsg-k'))) return; var g = t.closest('.gsg'), S = curStep(); if (S && (MEM.item || g.querySelector('.gsg-a').value.trim())) find(g, S); }, true);
   /* ── 2026-11-19 「주소랑 날짜로 조정대상지역 자동 판정」 — 조정대상지역 질문에 「주소로 판정하기」 · 국토교통부 지정·해제 공고 이력(ADJ) × 그 질문의 날짜 · 판정은 브라우저 안에서(주소 검색만 브이월드) ── */
   var ADJ = null; try { ADJ = typeof ADJD === 'string' ? (ADJD.charAt(0) === '{' ? JSON.parse(ADJD) : null) : ADJD; } catch (e) { ADJ = null; }
