@@ -830,6 +830,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports.CIT = CIT;
 
 
 
+
 var IGTC = (function () {
   var G = (typeof IGT !== 'undefined' && IGT) || (typeof require === 'function' ? require('./상증세_엔진.js').IGT : null);
   var C = (typeof CIT !== 'undefined' && CIT) || (typeof require === 'function' ? require('./법인세_엔진.js').CIT : null);
@@ -845,7 +846,8 @@ var IGTC = (function () {
       limitFloor: 500000000             
     },
     fee: { appraisal: 5000000, stockEval: 10000000 },   
-    sp45: { ctrl: 0.30, threshold: 100000000 }           
+    sp45: { ctrl: 0.30, threshold: 100000000 },          
+    s35: { relRate: 30, relCap: 300000000, othRate: 30, othDed: 300000000 }   
   };
   function num(v) {
     if (v === null || v === undefined || v === '') return 0;
@@ -1125,7 +1127,36 @@ var IGTC = (function () {
       corpTaxNational: ct.subtotal, corpTaxWithLocal: ct.withLocal, giftTaxTotal: sum('payable'), directTaxTotal: sum('directTax'), anyOver: rows.some(function (c) { return c.over; }),
       totalBurden: ct.withLocal + sum('payable'), lines: L };
   }
-  return { R: R, REL: REL, SH: SH, num: num, gift: gift, inherit: inherit, corpTax: corpTax, corpGift: corpGift, credited: credited };
+
+  
+  function lowBuy(o) {
+    o = o || {};
+    var S = R.s35, V = Math.max(0, Math.round(num(o.fmv))), P = Math.max(0, Math.round(num(o.price))), related = o.related !== false;
+    var direct = related && !!o.direct, paid = o.paid !== false, d = V - P;
+    var r = { fmv: V, price: P, diff: d, related: related, direct: direct, paid: paid, presumed: false, hit: false, th: 0, ded: 0, value: 0, minPrice: null, law: '' };
+    if (direct && !paid) {
+      r.presumed = true; r.hit = true; r.value = V; r.minPrice = null;
+      r.law = '상증법 §44① : 배우자·직계존비속에게 양도한 재산 = 증여 추정(대가 지급 사실 입증 못 함 · §44③5호) → 재산가액 전부 증여재산가액';
+      return r;
+    }
+    if (related) {
+      r.th = Math.min(Math.floor(V * S.relRate / 100), S.relCap); r.ded = r.th;
+      r.hit = d > 0 && d >= r.th; r.value = r.hit ? d - r.th : 0; r.minPrice = Math.max(0, V - r.th);
+      r.law = '상증법 §35① · 시행령 §26② : 차액 ≥ MIN(시가 30%, 3억원) → 차액 − MIN(시가 30%, 3억원)';
+    } else {
+      r.th = Math.floor(V * S.othRate / 100); r.ded = S.othDed;
+      r.hit = !o.reason && d > 0 && d >= r.th; r.value = r.hit ? Math.max(0, d - r.ded) : 0;
+      r.minPrice = o.reason ? 0 : Math.max(0, V - Math.min(V, Math.max(r.ded, r.th - 1)));
+      r.law = '상증법 §35② · 시행령 §26③④ : 거래 관행상 정당한 사유 없이 차액 ≥ 시가 30% → 차액 − 3억원' + (o.reason ? ' · 정당한 사유 있음 → 적용 안 함' : '');
+    }
+    return r;
+  }
+  
+  function lowGift(o, g) {
+    var b = lowBuy(o), t = b.value > 0 ? gift(Object.assign({}, g || {}, { amount: b.value, debt: 0 })) : null;
+    return { b: b, tax: t, payable: t ? t.payableTax : 0, payable10: t ? t.payable10 : 0 };
+  }
+  return { R: R, REL: REL, SH: SH, num: num, gift: gift, inherit: inherit, corpTax: corpTax, corpGift: corpGift, credited: credited, lowBuy: lowBuy, lowGift: lowGift };
 })();
 if (typeof module !== 'undefined' && module.exports) module.exports.IGTC = IGTC;
 
@@ -1608,7 +1639,7 @@ var HTX = (function () {
       var g = I.gift, gAcq = Math.round(+g.acq || 0), gTax = Math.round(+g.tax || 0);
       var yrs = I.acqDate >= '2023-01-01' ? 10 : 5;
       var within = addY(I.saleDate, -yrs) <= I.acqDate;
-      var A = one(I, { label: '이월과세(증여자 취득 기준)', acq: gAcq, acqDate: g.acqDate, exp: I.exp + gTax });
+      var A = one(I, { label: '이월과세(증여자 취득 기준)', acq: gAcq, acqDate: g.acqDate, exp: Math.max(0, I.exp - Math.round(+g.expOut || 0)) + gTax });   
       var why, apply = false;
       if (!within) why = '증여일부터 ' + yrs + '년 지나 양도 — 대상 아님';
       else if (g.dead && (g.rel === 'spouse' || I.saleDate >= '2026-01-01')) why = '양도 당시 증여자 사망 — 배제(' + (g.rel === 'spouse' ? '배우자' : '직계존비속 · 2026.1.1. 이후 양도분(소득세법 부칙 제21221호 §7 · 원문 확인)') + ')';
@@ -3753,9 +3784,11 @@ var HTX = (function () {
     }
   };
   
+  
+  YS.ufTh = function (fmv, listed) { return listed ? 1 : Math.min(300000000, Math.floor(b3M(fmv) * 5 / 100)); };
   YS.ufApply = function (q, I, F, CK, DU) {
     var t = q.type; if (!t) return;
-    var fmv = b3M(q.fmv), th = q.listed ? 1 : Math.min(300000000, Math.floor(fmv * 5 / 100)), why;
+    var fmv = b3M(q.fmv), th = YS.ufTh(fmv, q.listed), why;
     if ((t === 'lowSell' || t === 'highBuy') && !(fmv > 0)) { CK.push('부당행위계산 : 시가 칸 필요'); return; }
     if (t === 'lowSell') {
       var d = fmv - I.sale, hit = d > 0 && d >= th && !q.corpOK;
@@ -4110,7 +4143,7 @@ var HTX = (function () {
     if (I.fd && I.fd.on) o.filing = YS.fdCalc(I.fd, I, r, F, CK, DU);
     if (I.dt && I.dt.on && !(X.ntx && X.ntx.ok)) {
       var q2 = I.dt, gd = q2.giftD || I.acqDate, yrs = gd >= '2023-01-01' ? 10 : 5, within = addY(I.saleDate, -yrs) <= gd;
-      var JD = Object.assign({}, I, { acq: b3M(q2.donorAcq), acqDate: q2.donorAcqD || I.acqDate, exp: b3M(q2.donorExp) || b3M(I.exp), gift: { on: false }, dt: null, others: b3M(q2.donorOther) ? [{ name: '증여자 다른 양도', income: b3M(q2.donorOther), k: 'b', saleDate: I.saleDate }] : [] });
+      var JD = Object.assign({}, I, { acq: b3M(q2.donorAcq), acqDate: q2.donorAcqD || I.acqDate, exp: (q2.donorExp != null && q2.donorExp !== '') ? b3M(q2.donorExp) : b3M(I.exp),    gift: { on: false }, dt: null, others: b3M(q2.donorOther) ? [{ name: '증여자 다른 양도', income: b3M(q2.donorOther), k: 'b', saleDate: I.saleDate }] : [] });
       var od = calc0(JD);
       if (!od.err) {
         var donorTax = od.multi ? (od.multi.nat ? mulDiv(od.multi.nat, od.res.income || 0, (od.res.income || 0) + b3M(q2.donorOther)) : 0) : (od.res.nat || 0) - (od.res.red || 0);
@@ -4510,16 +4543,21 @@ var ACQ = (function () {
             else why.push('조정대상지역 밖 ' + cnt + '주택 → 표준세율');
           }
         }
+      } else if (c === 'gift' && I.divSplit) {
+        
+        sp15 = true; why.push('이혼 재산분할 특례 3.5% − 2% = 1.5%, §15①6호' + (adj && I.std >= R.giftHeavy ? ' · 조정대상지역 3억원 이상이어도 무상 중과 제외(영 §28의6②2호)' : ''));
       } else if (c === 'gift') {
         if (adj && I.std >= R.giftHeavy && !(I.donorOne && !corp)) { mode = 'h12'; why.push('조정대상지역 시가표준액 3억원 이상 주택 무상취득 12%, §13의2②, 영 §28의6①'); }
         else if (adj && I.std >= R.giftHeavy) why.push('조정대상지역 3억원 이상이지만 1세대 1주택자로부터 배우자·직계존비속 증여 → 중과 제외(영 §28의6②)');
         else if (adj) why.push('조정대상지역이지만 시가표준액 3억원 미만 → 3.5%');
       } else if (c === 'inh' && I.inhNone) { sp15 = true; why.push('무주택 가구 1주택 상속 특례 2.8% − 2% = 0.8%, §15①2호가목'); }
+      
+      if (corp && c !== 'buy' && mode === 'std' && (I.corpNew || I.metro === 'est' || I.metro === 'both')) { metro = 'est'; why.push('대도시 설립·전입 5년 안 법인 주택 ' + ({ gift: '무상', inh: '상속', 'new': '원시' }[c] || '') + '취득 → 표준세율 × 3 − 4%, §13②'); }
       if (I.lux) { lux = true; why.push('고급주택 + 8%(2% × 4), §13⑤3호' + (mode !== 'std' ? ', §13의2③' : '')); }
     } else {
       var farm = !!I.farm;
       if (c === 'buy') { S = farm ? R.sBuyFarm : R.sBuy; why.push((farm ? '농지 유상 3%, §11①7호가목' : '부동산 유상 4%, §11①7호나목')); }
-      else if (c === 'gift') { S = R.sGift; why.push('무상취득 3.5%, §11①2호'); }
+      else if (c === 'gift') { S = R.sGift; why.push('무상취득 3.5%, §11①2호'); if (I.divSplit) { sp15 = true; why.push('이혼 재산분할 특례 3.5% − 2% = 1.5%, §15①6호'); } }
       else if (c === 'inh') { S = farm ? R.sInhFarm : R.sInh; why.push(farm ? '농지 상속 2.3%, §11①1호가목' : '상속 2.8%, §11①1호나목'); if (farm && I.selfFarm) { sp15 = true; why.push('자경농지 상속 특례 2.3% − 2%, §15①2호나목'); } }
       else { S = R.sNew; why.push('원시취득 2.8%, §11①3호'); }
       if (corp && I.metro) {
@@ -4554,6 +4592,7 @@ var ACQ = (function () {
     else { eRate = hb ? S / 10 : Math.max(S - R.base, 0) / 5; if (metro === 'est' || metro === 'both') eRate *= R.metroMul; }
     var nongEx = '';
     if (house && I.area <= R.nongArea) nongEx = '전용 ' + I.area + '㎡ — 국민주택규모(85㎡) 이하 주택 비과세(농특세법 §4 11호, 영 §4⑤)';
+    else if (sp15 && I.divSplit) nongEx = '§15①6호 재산분할 — 농특세 = 표준세율 2%로 계산한 취득세(2% − 중과기준세율 2% = 0)의 10%(농특세법 §5①6호 문언) → 0';
     else if (sp15) nongEx = '§15①2호 특례 취득 비과세(농특세법 §4 10의4호)';
     var nRate = nongEx ? 0 : acqRate(R.nongStd, R.nongStd) / 10;
 
@@ -4690,7 +4729,7 @@ var ACQ = (function () {
     add('std', '표준세율', pct(o.S), x.house && x.c === 'buy' ? '§11①8호' : x.c === 'inh' ? '§11①1호' : x.c === 'gift' ? '§11①2호' : x.c === 'new' ? '§11①3호' : '§11①7호');
     var hv = o.mode === 'h8' ? '8% 중과' : o.mode === 'h12' ? '12% 중과' : '중과 아님';
     if (x.house && (x.c === 'buy' || x.c === 'gift')) add('heavy', '주택 중과 판정', hv, x.c === 'gift' ? '§13의2②, 영 §28의6' : '§13의2①, 영 §28의2·§28의5', o.t2 ? '일시적 2주택' : '');
-    if (o.sp15) add('sp15', '세율 특례(− 2%)', pct(o.rate), '§15①2호');
+    if (o.sp15) add('sp15', '세율 특례(− 2%)', pct(o.rate), I.divSplit ? '§15①6호' : '§15①2호');
     if (o.lux) add('lux', '고급주택 + 8%', '중과', '§13⑤3호' + (o.mode !== 'std' ? ', §13의2③' : ''));
     if (o.metro) add('metro', '과밀억제권역 법인 중과', { hq: '§13① + 4%', est: '§13② × 3 − 4%', both: '§13⑥ × 3' }[o.metro], '§13①②⑥, §16⑤');
     add('rate', '적용 세율(취득세)', pct(o.rate), '', '합계 ' + pct(o.sumRate) + ' = 취득세 ' + pct(o.rate) + ' + 지방교육세 ' + pct(o.eRate) + ' + 농특세 ' + pct(o.nRate));
@@ -4718,10 +4757,10 @@ var ACQ = (function () {
     var base = { kind: I.kind || 'house', owner: I.owner || 'person', price: V, share: 100, burden: true };
     var giftPart = debtAsGift ? Vs : Vs - Ds;
     var g = giftPart > 0 ? calc(Object.assign({}, I, base, { cause: 'gift', part: giftPart, fam: false, relief: '' })) : null;
-    var b = (!debtAsGift && Ds > 0) ? calc(Object.assign({}, I, base, { cause: 'buy', part: Ds, fam: false, inhNone: false })) : null;
+    var b = (!debtAsGift && Ds > 0) ? calc(Object.assign({}, I, base, { cause: 'buy', price: Ds, part: Ds, fam: false, inhNone: false })) : null;
     if ((g && g.err) || (b && b.err)) return { err: (g && g.err) || b.err };
     if (debtAsGift && D > 0) f.push('배우자·직계존비속 부담부 증여 — 채무 인수 대가(취득자 소득, 재산 처분 등) 증명이 없으면 채무분도 증여로 봄(§7⑫ 단서 → §7⑪) · 증명하면 「대가 증명」을 켜서 채무분 유상으로');
-    if (!debtAsGift && D > 0) f.push('채무부담액 = 취득일이 속하는 달 말일부터 3개월 안 인수를 입증한 채무(저당권·금융채무·임대보증금 등, 영 §14의4②) · 유상분 세율 판정 가액 = 전체 시가인정액으로 둠(4번 전략 house-burden 과 같음) [확인 필요]');
+    if (!debtAsGift && D > 0) f.push('채무부담액 = 취득일이 속하는 달 말일부터 3개월 안 인수를 입증한 채무(저당권·금융채무·임대보증금 등, 영 §14의4②) · 유상분 세율 판정 가액 = 채무부담액(§11①8 취득당시가액, §10의2⑥ · 전체 주택 가액 환산은 지분 취득만)');
     var tot = (g ? g.total : 0) + (b ? b.total : 0), S = [], pr = function (k, fm) { return [['무상분', g ? fm(g[k]) : '—'], ['유상분', b ? fm(b[k]) : '—']]; }, id = function (v) { return v; };
     var add = function (i2, n, v, law, s2, pair) { S.push({ id: i2, n: n, v: v, law: law || '', s: s2 || '', pair: pair || null }); };
     add('split', '과세표준 나누기', Vs, '§7⑫, §10의2⑥, 영 §14의4', debtAsGift ? '채무분도 증여(§7⑪)' : '시가인정액 − 채무부담액 / 채무부담액', [['무상분', giftPart], ['유상분', b ? Ds : 0]]);
@@ -4826,7 +4865,18 @@ var ACQ = (function () {
     ].map(function (a) { return a.length === 2 ? { sec: a[1] } : { k: a[0], n: a[1], law: a[2], v: a[3], fmt: a[4] }; });
   }
 
-  return { R: R, P: P, calc: calc, xlTable: xlTable, burden: burden, penalty: penalty, selfCheck: selfCheck, HXN: HXN, houseRate: houseRate, split: split, pct: pct, addY: addY, monthEndPlus: monthEndPlus, addDays: addDays, sumRate: sumRate, won0: won0 };
+  
+  
+  
+  function tradeBase(o) {
+    o = o || {}; var n = function (k) { return Math.max(0, Math.round(+o[k] || 0)); }, mvIn = n('mvIn');
+    if (o.type === 'dpay') { var dv = n('dpay') + n('payOut'), b1 = Math.max(dv, mvIn);
+      return { base: b1, a: dv, b: mvIn, why: '대물변제 취득당시가액 = 대물변제액 ' + won0(dv) + (dv < mvIn ? ' < 시가인정액 → 시가인정액 ' + won0(mvIn) : ''), law: '영 §18의4①1호가목' }; }
+    var out = Math.max(0, n('mvOut') + n('payOut') + n('debtIn') - n('payIn') - n('debtOut')), b2 = Math.max(mvIn, out);
+    return { base: b2, a: mvIn, b: out, why: '교환 취득당시가액 = MAX(받는 부동산 시가인정액 ' + won0(mvIn) + ', 내주는 부동산 시가인정액 ± 정산금·채무 ' + won0(out) + ') = ' + won0(b2), law: '영 §18의4①1호나목' };
+  }
+
+  return { R: R, P: P, calc: calc, tradeBase: tradeBase, xlTable: xlTable, burden: burden, penalty: penalty, selfCheck: selfCheck, HXN: HXN, houseRate: houseRate, split: split, pct: pct, addY: addY, monthEndPlus: monthEndPlus, addDays: addDays, sumRate: sumRate, won0: won0 };
 })();
 if (typeof module !== 'undefined') module.exports = ACQ;
 
@@ -6410,6 +6460,30 @@ https://github.com/nodeca/pako/blob/main/LICENSE
         if (id === 'bCvA') { var dm = a.bAcqD && a.bAcqD < '1985-01-01'; return { want: 'any', year: dm ? 1985 : pubYear(a.bAcqD), why: dm ? '의제취득일 1985.1.1. 현재 기준시가' : '산 날 현재 고시된 기준시가(소득세법 §99①)' }; }
         if (id === 'bCvS') return { want: 'any', year: pubYear(a.bDate), why: '증여일 현재 고시된 기준시가(소득세법 §99①)' };
         return id === 'gAmt' || id === 'cAmt' ? { want: 'any', year: 0, why: '시가(매매사례, 감정가액)가 없을 때 = 공시가격(상증법 §61 · 시가가 먼저)' } : id === 'iEst' ? { want: 'any', year: 0, add: 1, why: '시가가 없을 때 = 공시가격(상증법 §61) · 재산이 여럿이면 [더하기]' } : id === 'iHouseAmt' ? { want: 'house', year: 0, why: '상속주택 가액' } : null; } },
+    /* 2026-11-20 통합 세금 탭(igx · 손잡이 IGWZ) — 거래 6개 : n 일반 증여 · l 저가양수도 · b 부담부증여 · wa/wb 교환(내 것/상대 것) · v 이혼 · s 증여 후 양도
+       시가 칸(시가 없을 때 = 공시가격) · 주택 공시가격 칸(그 거래일) · 환산 기준시가(산 해, 거래일) · 조정대상지역(산 날, 거래일) — 연도 규칙은 상속·증여세 탭 부담부증여(b*)와 같음 */
+    igx: { h: function () { return window.IGWZ; },
+      _d: { n: 'nDate', l: 'lDate', b: 'bDate', wa: 'wDate', wb: 'wDate', v: 'vDate', s: 'sGDate' },
+      _a: { l: 'lAcqD', b: 'bAcqD', wa: 'waAcqD', wb: 'wbAcqD', v: 'vAcqD' },
+      _w: { n: '증여일', l: '거래일', b: '증여일', wa: '교환일', wb: '교환일', v: '넘기는 날', s: '증여일' },
+      _p: function (id) { var m = /^(wa|wb|[nlbvs])(Val|Std|CvA|CvS|AdjA|AdjS|AdjS2)$/.exec(id); return m ? { t: m[1], f: m[2] } : null; },
+      more: function (id, a) { var P = this._p(id); if (!P || !/^(CvA|CvS|Std)$/.test(P.f) || !/^[lb]$/.test(P.t)) return []; var t = P.t, D = a[this._d[t]], A = a[this._a[t]], L = [], dm = A && A < '1985-01-01';
+        if (P.f !== 'CvA' && A && !dm) L.push({ id: t + 'CvA', year: pubYear(A), lab: '산 해' });
+        if (P.f !== 'CvS' && D) L.push({ id: t + 'CvS', year: pubYear(D), lab: this._w[t] + ' 기준시가' });
+        if (P.f !== 'Std' && D) L.push({ id: t + 'Std', year: pubYear(D), lab: this._w[t] + ' 공시가격(취득세)', house: 1 });
+        return L; },
+      adj: function (id, a) { var P = this._p(id); if (!P) return null;
+        if (P.f === 'AdjA' && this._a[P.t]) return { date: a[this._a[P.t]] || '', lab: '산 날', yes: 'y', no: 'n' };
+        if (P.f === 'AdjS' && P.t === 's') return { date: a.sGDate || '', lab: '증여일', yes: 'y', no: 'n' };
+        if (P.f === 'AdjS2' && P.t === 's') return { date: a.sSDate || '', lab: '파는 날', yes: 'y', no: 'n' };
+        if (P.f === 'AdjS' && this._d[P.t]) return { date: a[this._d[P.t]] || '', lab: this._w[P.t], yes: 'y', no: 'n' };
+        return null; },
+      pick: function (id, a) { var P = this._p(id); if (!P) return null; var t = P.t, D = a[this._d[t]], A = a[this._a[t]];
+        if (P.f === 'Val') return { want: 'any', year: 0, why: '시가(매매사례, 감정가액)가 없을 때 = 공시가격(상증법 §61 · 시가가 먼저)' };
+        if (P.f === 'Std') return { want: 'house', year: pubYear(D), why: '취득세 3억원 중과, 1억원 이하 판정 = ' + this._w[t] + ' 현재 공시가격' };
+        if (P.f === 'CvA' && /^[lb]$/.test(t)) { var dm = A && A < '1985-01-01'; return { want: 'any', year: dm ? 1985 : pubYear(A), why: dm ? '의제취득일 1985.1.1. 현재 기준시가' : '산 날 현재 고시된 기준시가(소득세법 §99①)' }; }
+        if (P.f === 'CvS' && /^[lb]$/.test(t)) return { want: 'any', year: pubYear(D), why: this._w[t] + ' 현재 고시된 기준시가(소득세법 §99①)' };
+        return null; } },
     cgt: { h: function () { return window.YSWZ; },
       more: function (id, a) { if (id === 'cvA' && a.saleD) return [{ id: 'cvS', year: pubYear(a.saleD), lab: '파는 해' }];
         if (id === 'cvS' && a.acqD && a.acqD >= '1985-01-01') return [{ id: 'cvA', year: pubYear(a.acqD), lab: '산 해' }]; return []; },
@@ -6489,11 +6563,13 @@ https://github.com/nodeca/pako/blob/main/LICENSE
   /* 2026-11-20 값 찾는 화면으로 바로 — 홈택스 기준시가 조회 메뉴(tm3lIdx), 지방세 시가표준액 = 서울(PNU 11) 이택스, 그 밖 위택스 · 세금 종류(탭)에 맞는 것만 */
   var HTX_URL = 'https://hometax.go.kr/websquare/websquare.html?w2xPath=/ui/pp/index_pp.xml&tmIdx=47&tm2lIdx=4712090000&tm3lIdx=';
   function goLinks(k, it, a) {
-    var seoul = /^11/.test(String(it.id || '')), L = [], burden = TAB === 'igt' && a && a.mode === 'burden';
-    var nat = TAB === 'igt' || TAB === 'cgt';
+    var seoul = /^11/.test(String(it.id || '')), L = [], burden = (TAB === 'igt' || TAB === 'igx') && a && a.mode === 'burden';
+    var nat = TAB === 'igt' || TAB === 'cgt' || TAB === 'igx';
+    /* 2026-11-20 통합 세금 = 거래에 든 세금만 : 증여 끼면 상속·증여 기준시가, 양도 끼면 양도 기준시가, 취득세는 늘(지방세 시가표준액) */
+    var xg = TAB === 'igx' && a && /^(ngift|low|burden|gsell)$/.test(a.mode), xs = TAB === 'igx' && a && /^(low|burden|swap|divorce|gsell)$/.test(a.mode);
     if (k === 'ot') { if (nat) L.push(['홈택스 오피스텔 및 상업용 건물 기준시가 조회', HTX_URL + '4712090300']); }
-    else { if (TAB === 'igt') L.push(['홈택스 건물 기준시가(상속, 증여) 계산', HTX_URL + '4712090600']); if (TAB === 'cgt' || burden) L.push(['홈택스 건물 기준시가(양도) 계산', HTX_URL + '4712090500']); }
-    if (!nat || burden) L.push(seoul ? ['서울시 이택스 주택외 건물 시가표준액 조회', 'https://etax.seoul.go.kr/jsp/BldnStndAmtLstAction.view?gnb_id=0709&lnb_id=0709&gl_gubun=g'] : ['위택스 건축물 시가표준액 조회', 'https://www.wetax.go.kr/tcp/loi/J030401M01.do']);
+    else { if (TAB === 'igt' || xg) L.push(['홈택스 건물 기준시가(상속, 증여) 계산', HTX_URL + '4712090600']); if (TAB === 'cgt' || burden || xs) L.push(['홈택스 건물 기준시가(양도) 계산', HTX_URL + '4712090500']); }
+    if (!nat || burden || TAB === 'igx') L.push(seoul ? ['서울시 이택스 주택외 건물 시가표준액 조회', 'https://etax.seoul.go.kr/jsp/BldnStndAmtLstAction.view?gnb_id=0709&lnb_id=0709&gl_gubun=g'] : ['위택스 건축물 시가표준액 조회', 'https://www.wetax.go.kr/tcp/loi/J030401M01.do']);
     return '<div class="gsg-r">' + L.map(function (x) { return '<a class="gsg-o" style="text-decoration:none" href="' + x[1] + '" target="_blank" rel="noopener">' + esc(x[0]) + ' (새 창)</a>'; }).join('') + '</div>';
   }
   function open(g) { g.querySelector('.gsg-p').hidden = false; g.querySelector('.gsg-o').hidden = true; }

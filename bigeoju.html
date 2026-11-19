@@ -1533,7 +1533,7 @@ var HTX = (function () {
       var g = I.gift, gAcq = Math.round(+g.acq || 0), gTax = Math.round(+g.tax || 0);
       var yrs = I.acqDate >= '2023-01-01' ? 10 : 5;
       var within = addY(I.saleDate, -yrs) <= I.acqDate;
-      var A = one(I, { label: '이월과세(증여자 취득 기준)', acq: gAcq, acqDate: g.acqDate, exp: I.exp + gTax });
+      var A = one(I, { label: '이월과세(증여자 취득 기준)', acq: gAcq, acqDate: g.acqDate, exp: Math.max(0, I.exp - Math.round(+g.expOut || 0)) + gTax });   
       var why, apply = false;
       if (!within) why = '증여일부터 ' + yrs + '년 지나 양도 — 대상 아님';
       else if (g.dead && (g.rel === 'spouse' || I.saleDate >= '2026-01-01')) why = '양도 당시 증여자 사망 — 배제(' + (g.rel === 'spouse' ? '배우자' : '직계존비속 · 2026.1.1. 이후 양도분(소득세법 부칙 제21221호 §7 · 원문 확인)') + ')';
@@ -3678,9 +3678,11 @@ var HTX = (function () {
     }
   };
   
+  
+  YS.ufTh = function (fmv, listed) { return listed ? 1 : Math.min(300000000, Math.floor(b3M(fmv) * 5 / 100)); };
   YS.ufApply = function (q, I, F, CK, DU) {
     var t = q.type; if (!t) return;
-    var fmv = b3M(q.fmv), th = q.listed ? 1 : Math.min(300000000, Math.floor(fmv * 5 / 100)), why;
+    var fmv = b3M(q.fmv), th = YS.ufTh(fmv, q.listed), why;
     if ((t === 'lowSell' || t === 'highBuy') && !(fmv > 0)) { CK.push('부당행위계산 : 시가 칸 필요'); return; }
     if (t === 'lowSell') {
       var d = fmv - I.sale, hit = d > 0 && d >= th && !q.corpOK;
@@ -4035,7 +4037,7 @@ var HTX = (function () {
     if (I.fd && I.fd.on) o.filing = YS.fdCalc(I.fd, I, r, F, CK, DU);
     if (I.dt && I.dt.on && !(X.ntx && X.ntx.ok)) {
       var q2 = I.dt, gd = q2.giftD || I.acqDate, yrs = gd >= '2023-01-01' ? 10 : 5, within = addY(I.saleDate, -yrs) <= gd;
-      var JD = Object.assign({}, I, { acq: b3M(q2.donorAcq), acqDate: q2.donorAcqD || I.acqDate, exp: b3M(q2.donorExp) || b3M(I.exp), gift: { on: false }, dt: null, others: b3M(q2.donorOther) ? [{ name: '증여자 다른 양도', income: b3M(q2.donorOther), k: 'b', saleDate: I.saleDate }] : [] });
+      var JD = Object.assign({}, I, { acq: b3M(q2.donorAcq), acqDate: q2.donorAcqD || I.acqDate, exp: (q2.donorExp != null && q2.donorExp !== '') ? b3M(q2.donorExp) : b3M(I.exp),    gift: { on: false }, dt: null, others: b3M(q2.donorOther) ? [{ name: '증여자 다른 양도', income: b3M(q2.donorOther), k: 'b', saleDate: I.saleDate }] : [] });
       var od = calc0(JD);
       if (!od.err) {
         var donorTax = od.multi ? (od.multi.nat ? mulDiv(od.multi.nat, od.res.income || 0, (od.res.income || 0) + b3M(q2.donorOther)) : 0) : (od.res.nat || 0) - (od.res.red || 0);

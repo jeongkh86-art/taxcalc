@@ -22,7 +22,7 @@ html.fwait body{visibility:hidden}
 <script>(function(){var d=document.documentElement;d.classList.add('fwait');var k=0,rs,done=function(){if(!k){k=1;d.classList.remove('fwait');if(rs)rs();}};try{window.__fontsP=new Promise(function(r){rs=r;});}catch(e){}setTimeout(done,3000);try{Promise.all([400,700].map(function(w){return document.fonts.load(w+' 16px Freesentation');})).then(done,done);}catch(e){done();}})();</script>
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>세금 계산기</title>
-<meta name="description" content="취득세, 양도세, 종부세, 상속·증여세, 건강보험료, 비거주자 세금, 비상장주식 평가, 사업용자산비율 계산기 — 기기 안에서만 계산">
+<meta name="description" content="취득세, 양도세, 종부세, 상속·증여세, 통합 세금(저가양수도, 부담부증여, 교환, 이혼), 건강보험료, 비거주자 세금, 비상장주식 평가, 사업용자산비율 계산기 — 기기 안에서만 계산">
 <link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">
 <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -47,7 +47,7 @@ nav button.two{white-space:normal;word-break:keep-all;line-height:1.2}
 main{flex:1;display:flex}
 iframe{flex:1;width:100%;border:0;min-height:calc(100dvh - 160px)}
 footer{border-top:1px solid var(--line);padding:12px 14px 16px;font-size:13px;line-height:1.6;color:var(--sub);text-align:center}
-@media (max-width:599px){nav{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:0}nav button{min-width:0;padding:9px 2px 10px;letter-spacing:-.3px}}   /* 2026-11-18 탭 7개(상속·증여세 더함) — 폴드7 접힘 너비 = 4칸 × 2줄(종전 탭 6개 3칸 × 2줄) */
+@media (max-width:599px){nav{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:0}nav button{min-width:0;padding:9px 2px 10px;letter-spacing:-.3px}}   /* 2026-11-20 탭 9개(통합 세금 더함) — 폴드7 접힘 너비 = 3칸 × 3줄(종전 8개 4칸 × 2줄 · 4칸이면 9번째 하나만 셋째 줄) */
 @media (min-width:900px){.top{padding:10px 18px}nav{padding:2px 24px 0}h1{font-size:22px}nav button{flex:0 0 auto;padding:10px 22px 12px;font-size:17px}}
 </style><style id="pubDesign">@media screen{
 :root{--ink:#111827;--sub:#6B7280;--line:#E5E7EB;--acc:#1E3A8A}
@@ -64,7 +64,7 @@ nav button[aria-selected="true"]{color:var(--acc);font-weight:800;border-bottom-
 footer{font-size:15px;color:var(--sub)}
 }</style></head>
 <body>
-<header><div class="top"><h1><button type="button" id="home" title="처음 화면으로 새로고침" aria-label="세금 계산기 — 지금 탭 처음 화면으로 새로고침">세금 계산기<small aria-hidden="true">처음으로</small></button></h1></div><nav role="tablist"><button role="tab" data-src="chwideuk.html" aria-selected="true">취득세</button><button role="tab" data-src="yangdo.html" aria-selected="false">양도세</button><button role="tab" data-src="jongbu.html" aria-selected="false">종부세</button><button role="tab" data-src="sangjeung.html" aria-selected="false">상속·증여세</button><button role="tab" data-src="geonbo.html" aria-selected="false">건강보험료</button><button role="tab" data-src="bigeoju.html" aria-selected="false">비거주자</button><button role="tab" data-src="stock.html" aria-selected="false">법인보고서</button><button role="tab" data-src="stockbiz.html" aria-selected="false" class="two" aria-label="주식평가·사업용비율">주식평가·<wbr>사업용비율</button></nav></header>
+<header><div class="top"><h1><button type="button" id="home" title="처음 화면으로 새로고침" aria-label="세금 계산기 — 지금 탭 처음 화면으로 새로고침">세금 계산기<small aria-hidden="true">처음으로</small></button></h1></div><nav role="tablist"><button role="tab" data-src="chwideuk.html" aria-selected="true">취득세</button><button role="tab" data-src="yangdo.html" aria-selected="false">양도세</button><button role="tab" data-src="jongbu.html" aria-selected="false">종부세</button><button role="tab" data-src="sangjeung.html" aria-selected="false">상속·증여세</button><button role="tab" data-src="tonghap.html" aria-selected="false">통합 세금</button><button role="tab" data-src="geonbo.html" aria-selected="false">건강보험료</button><button role="tab" data-src="bigeoju.html" aria-selected="false">비거주자</button><button role="tab" data-src="stock.html" aria-selected="false">법인보고서</button><button role="tab" data-src="stockbiz.html" aria-selected="false" class="two" aria-label="주식평가·사업용비율">주식평가·<wbr>사업용비율</button></nav></header>
 <main><iframe id="pg" title="계산기"></iframe></main>
 <footer>본 자료 = 일반적 정보 제공 목적, 실제 적용 시 개별 사안별 법률적 검토 및 전문가 자문 필수<br>계산은 이 기기 안에서만 하며 입력값은 어디에도 보내지 않습니다. · 판 2026-11-20</footer>
 <script>

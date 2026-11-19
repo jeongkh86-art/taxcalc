@@ -3236,6 +3236,30 @@ https://github.com/nodeca/pako/blob/main/LICENSE
         if (id === 'bCvA') { var dm = a.bAcqD && a.bAcqD < '1985-01-01'; return { want: 'any', year: dm ? 1985 : pubYear(a.bAcqD), why: dm ? '의제취득일 1985.1.1. 현재 기준시가' : '산 날 현재 고시된 기준시가(소득세법 §99①)' }; }
         if (id === 'bCvS') return { want: 'any', year: pubYear(a.bDate), why: '증여일 현재 고시된 기준시가(소득세법 §99①)' };
         return id === 'gAmt' || id === 'cAmt' ? { want: 'any', year: 0, why: '시가(매매사례, 감정가액)가 없을 때 = 공시가격(상증법 §61 · 시가가 먼저)' } : id === 'iEst' ? { want: 'any', year: 0, add: 1, why: '시가가 없을 때 = 공시가격(상증법 §61) · 재산이 여럿이면 [더하기]' } : id === 'iHouseAmt' ? { want: 'house', year: 0, why: '상속주택 가액' } : null; } },
+    /* 2026-11-20 통합 세금 탭(igx · 손잡이 IGWZ) — 거래 6개 : n 일반 증여 · l 저가양수도 · b 부담부증여 · wa/wb 교환(내 것/상대 것) · v 이혼 · s 증여 후 양도
+       시가 칸(시가 없을 때 = 공시가격) · 주택 공시가격 칸(그 거래일) · 환산 기준시가(산 해, 거래일) · 조정대상지역(산 날, 거래일) — 연도 규칙은 상속·증여세 탭 부담부증여(b*)와 같음 */
+    igx: { h: function () { return window.IGWZ; },
+      _d: { n: 'nDate', l: 'lDate', b: 'bDate', wa: 'wDate', wb: 'wDate', v: 'vDate', s: 'sGDate' },
+      _a: { l: 'lAcqD', b: 'bAcqD', wa: 'waAcqD', wb: 'wbAcqD', v: 'vAcqD' },
+      _w: { n: '증여일', l: '거래일', b: '증여일', wa: '교환일', wb: '교환일', v: '넘기는 날', s: '증여일' },
+      _p: function (id) { var m = /^(wa|wb|[nlbvs])(Val|Std|CvA|CvS|AdjA|AdjS|AdjS2)$/.exec(id); return m ? { t: m[1], f: m[2] } : null; },
+      more: function (id, a) { var P = this._p(id); if (!P || !/^(CvA|CvS|Std)$/.test(P.f) || !/^[lb]$/.test(P.t)) return []; var t = P.t, D = a[this._d[t]], A = a[this._a[t]], L = [], dm = A && A < '1985-01-01';
+        if (P.f !== 'CvA' && A && !dm) L.push({ id: t + 'CvA', year: pubYear(A), lab: '산 해' });
+        if (P.f !== 'CvS' && D) L.push({ id: t + 'CvS', year: pubYear(D), lab: this._w[t] + ' 기준시가' });
+        if (P.f !== 'Std' && D) L.push({ id: t + 'Std', year: pubYear(D), lab: this._w[t] + ' 공시가격(취득세)', house: 1 });
+        return L; },
+      adj: function (id, a) { var P = this._p(id); if (!P) return null;
+        if (P.f === 'AdjA' && this._a[P.t]) return { date: a[this._a[P.t]] || '', lab: '산 날', yes: 'y', no: 'n' };
+        if (P.f === 'AdjS' && P.t === 's') return { date: a.sGDate || '', lab: '증여일', yes: 'y', no: 'n' };
+        if (P.f === 'AdjS2' && P.t === 's') return { date: a.sSDate || '', lab: '파는 날', yes: 'y', no: 'n' };
+        if (P.f === 'AdjS' && this._d[P.t]) return { date: a[this._d[P.t]] || '', lab: this._w[P.t], yes: 'y', no: 'n' };
+        return null; },
+      pick: function (id, a) { var P = this._p(id); if (!P) return null; var t = P.t, D = a[this._d[t]], A = a[this._a[t]];
+        if (P.f === 'Val') return { want: 'any', year: 0, why: '시가(매매사례, 감정가액)가 없을 때 = 공시가격(상증법 §61 · 시가가 먼저)' };
+        if (P.f === 'Std') return { want: 'house', year: pubYear(D), why: '취득세 3억원 중과, 1억원 이하 판정 = ' + this._w[t] + ' 현재 공시가격' };
+        if (P.f === 'CvA' && /^[lb]$/.test(t)) { var dm = A && A < '1985-01-01'; return { want: 'any', year: dm ? 1985 : pubYear(A), why: dm ? '의제취득일 1985.1.1. 현재 기준시가' : '산 날 현재 고시된 기준시가(소득세법 §99①)' }; }
+        if (P.f === 'CvS' && /^[lb]$/.test(t)) return { want: 'any', year: pubYear(D), why: this._w[t] + ' 현재 고시된 기준시가(소득세법 §99①)' };
+        return null; } },
     cgt: { h: function () { return window.YSWZ; },
       more: function (id, a) { if (id === 'cvA' && a.saleD) return [{ id: 'cvS', year: pubYear(a.saleD), lab: '파는 해' }];
         if (id === 'cvS' && a.acqD && a.acqD >= '1985-01-01') return [{ id: 'cvA', year: pubYear(a.acqD), lab: '산 해' }]; return []; },
@@ -3315,11 +3339,13 @@ https://github.com/nodeca/pako/blob/main/LICENSE
   /* 2026-11-20 값 찾는 화면으로 바로 — 홈택스 기준시가 조회 메뉴(tm3lIdx), 지방세 시가표준액 = 서울(PNU 11) 이택스, 그 밖 위택스 · 세금 종류(탭)에 맞는 것만 */
   var HTX_URL = 'https://hometax.go.kr/websquare/websquare.html?w2xPath=/ui/pp/index_pp.xml&tmIdx=47&tm2lIdx=4712090000&tm3lIdx=';
   function goLinks(k, it, a) {
-    var seoul = /^11/.test(String(it.id || '')), L = [], burden = TAB === 'igt' && a && a.mode === 'burden';
-    var nat = TAB === 'igt' || TAB === 'cgt';
+    var seoul = /^11/.test(String(it.id || '')), L = [], burden = (TAB === 'igt' || TAB === 'igx') && a && a.mode === 'burden';
+    var nat = TAB === 'igt' || TAB === 'cgt' || TAB === 'igx';
+    /* 2026-11-20 통합 세금 = 거래에 든 세금만 : 증여 끼면 상속·증여 기준시가, 양도 끼면 양도 기준시가, 취득세는 늘(지방세 시가표준액) */
+    var xg = TAB === 'igx' && a && /^(ngift|low|burden|gsell)$/.test(a.mode), xs = TAB === 'igx' && a && /^(low|burden|swap|divorce|gsell)$/.test(a.mode);
     if (k === 'ot') { if (nat) L.push(['홈택스 오피스텔 및 상업용 건물 기준시가 조회', HTX_URL + '4712090300']); }
-    else { if (TAB === 'igt') L.push(['홈택스 건물 기준시가(상속, 증여) 계산', HTX_URL + '4712090600']); if (TAB === 'cgt' || burden) L.push(['홈택스 건물 기준시가(양도) 계산', HTX_URL + '4712090500']); }
-    if (!nat || burden) L.push(seoul ? ['서울시 이택스 주택외 건물 시가표준액 조회', 'https://etax.seoul.go.kr/jsp/BldnStndAmtLstAction.view?gnb_id=0709&lnb_id=0709&gl_gubun=g'] : ['위택스 건축물 시가표준액 조회', 'https://www.wetax.go.kr/tcp/loi/J030401M01.do']);
+    else { if (TAB === 'igt' || xg) L.push(['홈택스 건물 기준시가(상속, 증여) 계산', HTX_URL + '4712090600']); if (TAB === 'cgt' || burden || xs) L.push(['홈택스 건물 기준시가(양도) 계산', HTX_URL + '4712090500']); }
+    if (!nat || burden || TAB === 'igx') L.push(seoul ? ['서울시 이택스 주택외 건물 시가표준액 조회', 'https://etax.seoul.go.kr/jsp/BldnStndAmtLstAction.view?gnb_id=0709&lnb_id=0709&gl_gubun=g'] : ['위택스 건축물 시가표준액 조회', 'https://www.wetax.go.kr/tcp/loi/J030401M01.do']);
     return '<div class="gsg-r">' + L.map(function (x) { return '<a class="gsg-o" style="text-decoration:none" href="' + x[1] + '" target="_blank" rel="noopener">' + esc(x[0]) + ' (새 창)</a>'; }).join('') + '</div>';
   }
   function open(g) { g.querySelector('.gsg-p').hidden = false; g.querySelector('.gsg-o').hidden = true; }

@@ -3136,16 +3136,21 @@ var ACQ = (function () {
             else why.push('조정대상지역 밖 ' + cnt + '주택 → 표준세율');
           }
         }
+      } else if (c === 'gift' && I.divSplit) {
+        
+        sp15 = true; why.push('이혼 재산분할 특례 3.5% − 2% = 1.5%, §15①6호' + (adj && I.std >= R.giftHeavy ? ' · 조정대상지역 3억원 이상이어도 무상 중과 제외(영 §28의6②2호)' : ''));
       } else if (c === 'gift') {
         if (adj && I.std >= R.giftHeavy && !(I.donorOne && !corp)) { mode = 'h12'; why.push('조정대상지역 시가표준액 3억원 이상 주택 무상취득 12%, §13의2②, 영 §28의6①'); }
         else if (adj && I.std >= R.giftHeavy) why.push('조정대상지역 3억원 이상이지만 1세대 1주택자로부터 배우자·직계존비속 증여 → 중과 제외(영 §28의6②)');
         else if (adj) why.push('조정대상지역이지만 시가표준액 3억원 미만 → 3.5%');
       } else if (c === 'inh' && I.inhNone) { sp15 = true; why.push('무주택 가구 1주택 상속 특례 2.8% − 2% = 0.8%, §15①2호가목'); }
+      
+      if (corp && c !== 'buy' && mode === 'std' && (I.corpNew || I.metro === 'est' || I.metro === 'both')) { metro = 'est'; why.push('대도시 설립·전입 5년 안 법인 주택 ' + ({ gift: '무상', inh: '상속', 'new': '원시' }[c] || '') + '취득 → 표준세율 × 3 − 4%, §13②'); }
       if (I.lux) { lux = true; why.push('고급주택 + 8%(2% × 4), §13⑤3호' + (mode !== 'std' ? ', §13의2③' : '')); }
     } else {
       var farm = !!I.farm;
       if (c === 'buy') { S = farm ? R.sBuyFarm : R.sBuy; why.push((farm ? '농지 유상 3%, §11①7호가목' : '부동산 유상 4%, §11①7호나목')); }
-      else if (c === 'gift') { S = R.sGift; why.push('무상취득 3.5%, §11①2호'); }
+      else if (c === 'gift') { S = R.sGift; why.push('무상취득 3.5%, §11①2호'); if (I.divSplit) { sp15 = true; why.push('이혼 재산분할 특례 3.5% − 2% = 1.5%, §15①6호'); } }
       else if (c === 'inh') { S = farm ? R.sInhFarm : R.sInh; why.push(farm ? '농지 상속 2.3%, §11①1호가목' : '상속 2.8%, §11①1호나목'); if (farm && I.selfFarm) { sp15 = true; why.push('자경농지 상속 특례 2.3% − 2%, §15①2호나목'); } }
       else { S = R.sNew; why.push('원시취득 2.8%, §11①3호'); }
       if (corp && I.metro) {
@@ -3180,6 +3185,7 @@ var ACQ = (function () {
     else { eRate = hb ? S / 10 : Math.max(S - R.base, 0) / 5; if (metro === 'est' || metro === 'both') eRate *= R.metroMul; }
     var nongEx = '';
     if (house && I.area <= R.nongArea) nongEx = '전용 ' + I.area + '㎡ — 국민주택규모(85㎡) 이하 주택 비과세(농특세법 §4 11호, 영 §4⑤)';
+    else if (sp15 && I.divSplit) nongEx = '§15①6호 재산분할 — 농특세 = 표준세율 2%로 계산한 취득세(2% − 중과기준세율 2% = 0)의 10%(농특세법 §5①6호 문언) → 0';
     else if (sp15) nongEx = '§15①2호 특례 취득 비과세(농특세법 §4 10의4호)';
     var nRate = nongEx ? 0 : acqRate(R.nongStd, R.nongStd) / 10;
 
@@ -3316,7 +3322,7 @@ var ACQ = (function () {
     add('std', '표준세율', pct(o.S), x.house && x.c === 'buy' ? '§11①8호' : x.c === 'inh' ? '§11①1호' : x.c === 'gift' ? '§11①2호' : x.c === 'new' ? '§11①3호' : '§11①7호');
     var hv = o.mode === 'h8' ? '8% 중과' : o.mode === 'h12' ? '12% 중과' : '중과 아님';
     if (x.house && (x.c === 'buy' || x.c === 'gift')) add('heavy', '주택 중과 판정', hv, x.c === 'gift' ? '§13의2②, 영 §28의6' : '§13의2①, 영 §28의2·§28의5', o.t2 ? '일시적 2주택' : '');
-    if (o.sp15) add('sp15', '세율 특례(− 2%)', pct(o.rate), '§15①2호');
+    if (o.sp15) add('sp15', '세율 특례(− 2%)', pct(o.rate), I.divSplit ? '§15①6호' : '§15①2호');
     if (o.lux) add('lux', '고급주택 + 8%', '중과', '§13⑤3호' + (o.mode !== 'std' ? ', §13의2③' : ''));
     if (o.metro) add('metro', '과밀억제권역 법인 중과', { hq: '§13① + 4%', est: '§13② × 3 − 4%', both: '§13⑥ × 3' }[o.metro], '§13①②⑥, §16⑤');
     add('rate', '적용 세율(취득세)', pct(o.rate), '', '합계 ' + pct(o.sumRate) + ' = 취득세 ' + pct(o.rate) + ' + 지방교육세 ' + pct(o.eRate) + ' + 농특세 ' + pct(o.nRate));
@@ -3344,10 +3350,10 @@ var ACQ = (function () {
     var base = { kind: I.kind || 'house', owner: I.owner || 'person', price: V, share: 100, burden: true };
     var giftPart = debtAsGift ? Vs : Vs - Ds;
     var g = giftPart > 0 ? calc(Object.assign({}, I, base, { cause: 'gift', part: giftPart, fam: false, relief: '' })) : null;
-    var b = (!debtAsGift && Ds > 0) ? calc(Object.assign({}, I, base, { cause: 'buy', part: Ds, fam: false, inhNone: false })) : null;
+    var b = (!debtAsGift && Ds > 0) ? calc(Object.assign({}, I, base, { cause: 'buy', price: Ds, part: Ds, fam: false, inhNone: false })) : null;
     if ((g && g.err) || (b && b.err)) return { err: (g && g.err) || b.err };
     if (debtAsGift && D > 0) f.push('배우자·직계존비속 부담부 증여 — 채무 인수 대가(취득자 소득, 재산 처분 등) 증명이 없으면 채무분도 증여로 봄(§7⑫ 단서 → §7⑪) · 증명하면 「대가 증명」을 켜서 채무분 유상으로');
-    if (!debtAsGift && D > 0) f.push('채무부담액 = 취득일이 속하는 달 말일부터 3개월 안 인수를 입증한 채무(저당권·금융채무·임대보증금 등, 영 §14의4②) · 유상분 세율 판정 가액 = 전체 시가인정액으로 둠(4번 전략 house-burden 과 같음) [확인 필요]');
+    if (!debtAsGift && D > 0) f.push('채무부담액 = 취득일이 속하는 달 말일부터 3개월 안 인수를 입증한 채무(저당권·금융채무·임대보증금 등, 영 §14의4②) · 유상분 세율 판정 가액 = 채무부담액(§11①8 취득당시가액, §10의2⑥ · 전체 주택 가액 환산은 지분 취득만)');
     var tot = (g ? g.total : 0) + (b ? b.total : 0), S = [], pr = function (k, fm) { return [['무상분', g ? fm(g[k]) : '—'], ['유상분', b ? fm(b[k]) : '—']]; }, id = function (v) { return v; };
     var add = function (i2, n, v, law, s2, pair) { S.push({ id: i2, n: n, v: v, law: law || '', s: s2 || '', pair: pair || null }); };
     add('split', '과세표준 나누기', Vs, '§7⑫, §10의2⑥, 영 §14의4', debtAsGift ? '채무분도 증여(§7⑪)' : '시가인정액 − 채무부담액 / 채무부담액', [['무상분', giftPart], ['유상분', b ? Ds : 0]]);
@@ -3452,7 +3458,18 @@ var ACQ = (function () {
     ].map(function (a) { return a.length === 2 ? { sec: a[1] } : { k: a[0], n: a[1], law: a[2], v: a[3], fmt: a[4] }; });
   }
 
-  return { R: R, P: P, calc: calc, xlTable: xlTable, burden: burden, penalty: penalty, selfCheck: selfCheck, HXN: HXN, houseRate: houseRate, split: split, pct: pct, addY: addY, monthEndPlus: monthEndPlus, addDays: addDays, sumRate: sumRate, won0: won0 };
+  
+  
+  
+  function tradeBase(o) {
+    o = o || {}; var n = function (k) { return Math.max(0, Math.round(+o[k] || 0)); }, mvIn = n('mvIn');
+    if (o.type === 'dpay') { var dv = n('dpay') + n('payOut'), b1 = Math.max(dv, mvIn);
+      return { base: b1, a: dv, b: mvIn, why: '대물변제 취득당시가액 = 대물변제액 ' + won0(dv) + (dv < mvIn ? ' < 시가인정액 → 시가인정액 ' + won0(mvIn) : ''), law: '영 §18의4①1호가목' }; }
+    var out = Math.max(0, n('mvOut') + n('payOut') + n('debtIn') - n('payIn') - n('debtOut')), b2 = Math.max(mvIn, out);
+    return { base: b2, a: mvIn, b: out, why: '교환 취득당시가액 = MAX(받는 부동산 시가인정액 ' + won0(mvIn) + ', 내주는 부동산 시가인정액 ± 정산금·채무 ' + won0(out) + ') = ' + won0(b2), law: '영 §18의4①1호나목' };
+  }
+
+  return { R: R, P: P, calc: calc, tradeBase: tradeBase, xlTable: xlTable, burden: burden, penalty: penalty, selfCheck: selfCheck, HXN: HXN, houseRate: houseRate, split: split, pct: pct, addY: addY, monthEndPlus: monthEndPlus, addDays: addDays, sumRate: sumRate, won0: won0 };
 })();
 if (typeof module !== 'undefined') module.exports = ACQ;
 

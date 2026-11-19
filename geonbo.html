@@ -380,6 +380,9 @@ body .y4box .y4e{color:var(--pd-acc)!important}
     <div id="cmpOpts" class="row hide">
       <div class="fld"><label>직장가입자가 되는 경우</label>
         <select id="cmpKind"><option value="corp">법인 등에서 급여 받음(대표이사 포함)</option><option value="sole">개인사업자 대표 — 근로자 1명 이상</option></select></div>
+      <div class="fld" id="cmpRegFld"><label>지역가입자 쪽 가정</label>
+        <select id="cmpReg"><option value="biz">개인사업이었다면 — 급여만큼 사업소득으로 남음</option><option value="quit">퇴직 — 급여 없음</option></select>
+        <span class="dfl">대표 급여는 개인사업 필요경비가 안 됨 → 같은 돈이 사업소득으로 남음(소득세법 §27 · 시행령 §41①3호)</span></div>
     </div>
     <div id="empOpts" class="row hide">
       <div class="fld" id="wageFld"><label>보수월액(월 급여 · 만원)</label><input id="wageM" type="number" value="500"></div>
@@ -768,15 +771,15 @@ if (typeof module !== 'undefined') module.exports = GBR;
     $('optRow').classList.toggle('hide', m !== 'dep');
     $('cmpOpts').classList.toggle('hide', m !== 'cmp');
     $('empOpts').classList.toggle('hide', m !== 'emp' && m !== 'cmp');
-    $('wageFld').classList.toggle('hide', sole); $('topFld').classList.toggle('hide', !sole);
+    $('wageFld').classList.toggle('hide', sole); $('topFld').classList.toggle('hide', !sole); $('cmpRegFld').classList.toggle('hide', sole);
     var two = m !== 'emp' && mar;
     $('p2box').classList.toggle('hide', !two); $('p2prop').classList.toggle('hide', !two);
-    $('p1title').textContent = m === 'emp' ? '직장가입자 본인 — 보수 외 소득' : m === 'reg' ? '세대주' : m === 'cmp' ? (sole ? '대표 본인 — 사업자등록 사업소득 = 보수' : '본인 — 위 급여 뺀 다른 소득') : '대상자 본인';
+    $('p1title').textContent = m === 'emp' ? '직장가입자 본인 — 보수 외 소득' : m === 'reg' ? '세대주' : m === 'cmp' ? (sole ? '대표 본인 — 사업자등록 사업소득 = 보수' : '본인 — 위 급여 뺀 다른 소득(지역 쪽 급여 처리 = 위 「지역가입자 쪽 가정」)') : '대상자 본인';
     draw('a'); draw('b');
   }
   $('penSOn').onchange = function () { rates('a'); rates('b'); run(); };
   ['supOK', 'cutPct'].forEach(function (id) { $(id).addEventListener('change', run); });
-  $('mode').onchange = layout; $('married').onchange = layout; $('cmpKind').onchange = function () { layout(); run(); };
+  $('mode').onchange = layout; $('married').onchange = layout; $('cmpKind').onchange = function () { layout(); run(); }; $('cmpReg').onchange = run;
   Array.prototype.forEach.call($('tabs').children, function (b) { b.onclick = function () { $('mode').value = b.dataset.m; layout(); run(); }; });
 
   $('fillProp').onclick = function () {
@@ -803,40 +806,55 @@ if (typeof module !== 'undefined') module.exports = GBR;
   }
 
   
+  
+  
+  
+  function T10(x) { return Math.floor(x / 10) * 10; }
+  function soleSelf(e) { return e.wagePrem + T10(e.wagePrem * GBR.R.ltcRatio) + e.extraPrem + e.extraLtc; }
   function cmpCalc(a, b, opt) {
-    var sole = $('cmpKind').value === 'sole', job = {}, reg;
+    var sole = $('cmpKind').value === 'sole', job = {}, reg, regA = a, biz = false, ref = null;
     if (sole) {
       var wM = Math.max(a.busMain / 12, +$('topWage').value || 0);
       var rest = Object.assign({}, a, { bus: a.bus - a.busMain });
       var e = GBR.employee(wM, rest);
-      job = { wageM: wM, e: e, self: e.wagePrem + Math.floor(e.wagePrem * GBR.R.ltcRatio) + e.extraPrem + e.extraLtc, comp: 0 };
+      job = { wageM: wM, e: e, self: soleSelf(e), comp: 0 };
     } else {
-      var e2 = GBR.employee($('wageM').value, a), cp = e2.wagePrem - e2.wageSelf;
-      job = { wageM: +$('wageM').value || 0, e: e2, self: e2.selfMonth, comp: cp + Math.floor(cp * GBR.R.ltcRatio) };
+      var wm = +$('wageM').value || 0, e2 = GBR.employee(wm, a), cp = e2.wagePrem - e2.wageSelf;
+      job = { wageM: wm, e: e2, self: e2.selfMonth, comp: cp + T10(cp * GBR.R.ltcRatio) };
+      biz = $('cmpReg').value !== 'quit';
+      if (biz && wm > 0) regA = Object.assign({}, a, { bus: a.bus + wm * 12, busMain: a.busMain + wm * 12, reg: true });
+      var e3 = GBR.employee(wm, a);
+      ref = { wageM: wm, e: e3, self: soleSelf(e3) };
     }
     job.sp = 0; job.spOK = null;
     if (opt.married) {
       var d = GBR.dependent(b, null, { married: false });
       job.spOK = d.aOK; job.spWhy = d.A.why; job.sp = d.aOK ? 0 : GBR.regional([b], hh()).month;
     }
-    reg = GBR.regional(opt.married ? [a, b] : [a], hh());
+    reg = GBR.regional(opt.married ? [regA, b] : [regA], hh());
     job.house = job.self + job.sp;
-    return { sole: sole, job: job, reg: reg };
+    if (ref) ref.house = ref.self + job.sp;
+    return { sole: sole, job: job, reg: reg, biz: biz, ref: ref };
   }
   function cmpCard(c, opt) {
     var J = c.job, Rg = c.reg, jw = J.house <= Rg.month;
     var h = '<div class="card"><h3>직장가입자 vs 지역가입자' + (opt.married ? ' (부부 세대)' : '') + '</h3><div class="vs">';
     h += '<div' + (jw ? ' class="win"' : '') + '><div class="lab">직장가입자 — 세대 월 부담</div><div class="amt">' + won(J.house) + '</div><small>연 ' + won(J.house * 12) + (J.comp ? '<br>회사 부담 별도 월 ' + won(J.comp) : '') + '</small></div>';
-    h += '<div' + (!jw ? ' class="win"' : '') + '><div class="lab">지역가입자 — 세대 월 부담</div><div class="amt">' + won(Rg.month) + '</div><small>연 ' + won(Rg.year) + '</small></div></div>';
+    h += '<div' + (!jw ? ' class="win"' : '') + '><div class="lab">지역가입자 — 세대 월 부담' + (c.sole ? '' : c.biz ? ' (개인사업이었다면)' : ' (퇴직, 급여 없음)') + '</div><div class="amt">' + won(Rg.month) + '</div><small>연 ' + won(Rg.year) + '</small></div></div>';
     h += '<div class="verdict ' + (jw ? 'ok' : 'ng') + '">' + (jw ? '직장가입자가 월 ' + won(Rg.month - J.house) + ' 적음' : '지역가입자가 월 ' + won(J.house - Rg.month) + ' 적음') + '</div>';
     h += '<table><tr><th>항목</th><th>직장</th><th>지역</th></tr>';
-    h += '<tr><td>보수 보험료(본인, 장기요양 포함)</td><td>' + won(c.sole ? J.e.wagePrem + Math.floor(J.e.wagePrem * GBR.R.ltcRatio) : J.e.wageSelf + J.e.wageLtcSelf) + '<br><small>보수월액 ' + man(J.wageM) + (c.sole ? ', 대표 전액 부담' : ', 본인 50%') + '</small></td><td>—</td></tr>';
+    h += '<tr><td>보수 보험료(본인, 장기요양 포함)</td><td>' + won(c.sole ? J.e.wagePrem + T10(J.e.wagePrem * GBR.R.ltcRatio) : J.e.wageSelf + J.e.wageLtcSelf) + '<br><small>보수월액 ' + man(J.wageM) + (c.sole ? ', 대표 전액 부담' : ', 본인 50%') + '</small></td><td>—</td></tr>';
     h += '<tr><td>보수 외 소득 보험료</td><td>' + won(J.e.extraPrem + J.e.extraLtc) + '<br><small>보수 외 ' + man(J.e.extraTotal) + (J.e.extraPrem ? '' : ' ≤ 2,000만원') + '</small></td><td>—</td></tr>';
     h += '<tr><td>소득분 + 재산분(장기요양 포함)</td><td>재산 부과 없음</td><td>' + won(Rg.month) + '<br><small>소득 ' + won(Rg.incPrem) + ', 재산 ' + won(Rg.propPrem) + '</small></td></tr>';
     if (opt.married) h += '<tr><td>배우자</td><td>' + (J.spOK ? '피부양자 0원' : '탈락 → 지역 ' + won(J.sp)) + '</td><td>세대 합산</td></tr>';
     h += '<tr class="tot"><td>세대 월 합계</td><td>' + won(J.house) + '</td><td>' + won(Rg.month) + '</td></tr></table><ul class="rs">';
     if (c.sole) h += '<li>개인사업자 대표 : 근로자 1명 이상이면 직장가입자 · 보수월액 = 사업소득 ' + man(c.job.wageM * 12) + ' ÷ 12(최고 근로자 보수월액 하한, 시행령 §38) · 보험료 전액 대표 부담</li>';
-    else h += '<li>직장 쪽 = 위 급여(보수월액)를 받는 경우 · 지역 쪽 = 그 급여 없이 나머지 소득, 재산만 있는 경우</li><li>회사 부담분(월 ' + won(J.comp) + ')은 법인 비용 — 세대 부담에 넣지 않음</li>';
+    else {
+      if (c.ref) h += '<li>참고 : 같은 돈을 직원 있는 개인사업으로 벌면(대표도 직장가입, 보수월액 ' + man(c.ref.wageM) + ' = 사업소득 ÷ 12, 시행령 §38③) — 보험료 전액 대표 부담 → 세대 월 ' + won(c.ref.house) + '</li>';
+      h += c.biz ? '<li>직장 쪽 = 법인에서 위 급여를 받는 경우 · 지역 쪽 = 같은 일을 개인사업(직원 없음)으로 해 급여 ' + man(c.job.wageM * 12) + '이 사업소득으로 남는 경우(대표 급여는 필요경비 아님)</li>'
+        : '<li>직장 쪽 = 위 급여(보수월액)를 받는 경우 · 지역 쪽 = 퇴직 등으로 그 급여 없이 나머지 소득, 재산만 있는 경우</li>';
+      h += '<li>회사 부담분(월 ' + won(J.comp) + ')은 법인 비용 — 세대 부담에 넣지 않음</li>';
+    }
     if (opt.married && !J.spOK && J.spWhy && J.spWhy.length) h += '<li>배우자 탈락 이유 : ' + J.spWhy.join(', ') + '</li>';
     h += '<li>직장가입자는 재산에 보험료 없음 · 보수 외 소득은 2,000만원 넘는 부분만</li></ul></div>';
     return h;
@@ -875,7 +893,7 @@ if (typeof module !== 'undefined') module.exports = GBR;
     var m = $('mode').value, a = person('a'), b = person('b');
     var opt = { married: m !== 'emp' && $('married').checked, sib: false, supNo: m === 'dep' && $('supOK').value === 'n', supUnk: m === 'dep' && $('supOK').value === '' };
     var t = GBR.timing($('incYear').value), h = '';
-    window.GBRLAST = { m: m, a: a, b: b, opt: opt, h: hh(), rows: JSON.parse(JSON.stringify(rows)), penS: $('penSOn').checked, prop: { a: $('a_prop').value, b: $('b_prop').value }, dis: { a: $('a_dis').checked, b: $('b_dis').checked }, wageM: $('wageM').value, topWage: $('topWage').value, cmpKind: $('cmpKind').value, incYear: $('incYear').value };   
+    window.GBRLAST = { m: m, a: a, b: b, opt: opt, h: hh(), rows: JSON.parse(JSON.stringify(rows)), penS: $('penSOn').checked, prop: { a: $('a_prop').value, b: $('b_prop').value }, dis: { a: $('a_dis').checked, b: $('b_dis').checked }, wageM: $('wageM').value, topWage: $('topWage').value, cmpKind: $('cmpKind').value, cmpReg: $('cmpReg').value, incYear: $('incYear').value };   
     if (m === 'dep') {
       var d = GBR.dependent(a, b, opt);
       var lost = [];
@@ -1053,6 +1071,9 @@ if (typeof module !== 'undefined') module.exports = GBR;
     { id: 'cmpKind', t: 'b', on: function (a) { return a.mode === 'cmp'; }, q: '어떻게 직장가입자가 돼요?', h: '직장 쪽 보험료 = 보수월액 기준, 재산에는 보험료 없음',
       o: [['corp', '법인 등에서 급여를 받아요(대표이사 포함)'], ['sole', '개인사업자 대표 — 직원 1명 이상']] },
     { id: 'wageM', t: 'm', req: '월 급여(보수월액) = 직장 보험료 계산의 기준이라 0보다 큰 금액이 꼭 필요해요', on: function (a) { return a.mode === 'emp' || (a.mode === 'cmp' && a.cmpKind === 'corp'); }, q: '월 급여(보수월액)는 얼마예요?', h: '비과세 뺀 월 보수, 연봉 ÷ 12' },
+    { id: 'cmpReg', t: 'b', on: function (a) { return a.mode === 'cmp' && a.cmpKind === 'corp'; }, q: '지역가입자 쪽은 어떻게 볼까요?',   
+      h: '대표 급여는 개인사업 필요경비가 안 됨 → 개인사업이었다면 같은 돈이 사업소득으로 남음(직원 있는 개인사업 = 참고 줄로 함께)',
+      o: [['biz', '개인사업이었다면 — 급여만큼 사업소득'], ['quit', '퇴직 — 급여 없음']] },
     { id: 'topWage', t: 'm', on: SOLE, q: '직원 중 가장 높은 월 급여는요?', h: '대표 보수월액 = 사업소득 ÷ 12, 이보다 낮으면 이 금액(시행령 §38③)' },
     incQ('a') ].concat(INC.map(function (x) { return amtQ('a', x[0]); }), rentQs('a'), [divSrcQ('a'),
     { id: 'aDis', t: 'b', on: function (a) { return a.mode === 'dep' && BUS(a.aInc); }, q: function (a) { return (TWO(a) ? '본인이 ' : '') + '등록 장애인, 상이등급 국가유공자, 보훈보상대상자예요?'; },
@@ -1086,6 +1107,7 @@ if (typeof module !== 'undefined') module.exports = GBR;
     $('supOK').value = a.sup === 'y' ? 'y' : a.sup === 'n' ? 'n' : '';
     if (a.sup === 'u') D.push('부양요건 모름 → 「탈락 가능」으로 보고 채웠을 때 결과를 함께 표시');
     $('cmpKind').value = a.cmpKind || 'corp';
+    $('cmpReg').value = a.cmpReg === 'quit' ? 'quit' : 'biz';
     if (a.wageM != null && a.wageM !== '') $('wageM').value = a.wageM;
     if (a.topWage != null && a.topWage !== '') $('topWage').value = a.topWage;
     ['a', 'b'].forEach(function (k) {
@@ -1659,11 +1681,11 @@ if (typeof module !== 'undefined') module.exports = GBR;
     b.F('PROPOK', '재산요건', 'IF({PROPN}<={$DEPP1},"예",IF({PROPN}<={$DEPP2},IF({TOT}<={$DEPINC2},"예","아니요"),"아니요"))', null, { fmt: 't', law: '별표 1의2 2호' });
   }
   
-  function regBlock(M, X, G, id, label, who, h, r) {
+  function regBlock(M, X, G, id, label, who, h, r, addFull) {
     M.block(id, label, function (b) {
       b.sec('세대 소득, 재산 (만원 · 세대원 합산)');
       var sum = function (k) { return who.map(function (w) { return w[1] ? 'IF(' + w[1] + ',{' + w[0] + ':' + k + '},0)' : '{' + w[0] + ':' + k + '}'; }).join('+'); };
-      b.F('FULL', '100% 반영 소득 합', sum('FULL'), null, { fmt: 'm' });
+      b.F('FULL', '100% 반영 소득 합' + (addFull ? '(+ 급여만큼 사업소득)' : ''), sum('FULL') + (addFull ? '+' + addFull : ''), null, { fmt: 'm' });
       b.F('HALF', '50% 반영 소득 합', sum('HALF'), null, { fmt: 'm' });
       b.F('PROP', '재산 과세표준 합', sum('PROPN'), r.prop, { fmt: 'm' });
       var own = h.ownHouse === undefined || h.ownHouse === null ? '모름' : h.ownHouse ? '예' : '아니요';
@@ -1765,15 +1787,24 @@ if (typeof module !== 'undefined') module.exports = GBR;
       M.sum('YEAR', '  연', '{E:SELF}*12', e.selfMonth * 12);
       M.sum('COMP', '  회사 부담 보수월액보험료(장기요양 별도)', '{E:WP}-{E:WS}', e.wagePrem - e.wageSelf);
     } else {
-      var sole = L.cmpKind === 'sole', job, reg, ee, spOK = null, spReg = null;
+      
+      var T10 = function (x) { return Math.floor(x / 10) * 10; };
+      var sole = L.cmpKind === 'sole', job, reg, ee, er = null, spOK = null, spReg = null, biz = !sole && L.cmpReg !== 'quit', wmc = num(L.wageM), regA = a;
       if (sole) {
         var wM = Math.max(a.busMain / 12, num(L.topWage)), rest = Object.assign({}, a, { bus: a.bus - a.busMain });
-        ee = G.employee(wM, rest); job = ee.wagePrem + Math.floor(ee.wagePrem * G.R.ltcRatio) + ee.extraPrem + ee.extraLtc;
-      } else { ee = G.employee(L.wageM, a); job = ee.selfMonth; }
+        ee = G.employee(wM, rest); job = ee.wagePrem + T10(ee.wagePrem * G.R.ltcRatio) + ee.extraPrem + ee.extraLtc;
+      } else {
+        ee = G.employee(L.wageM, a); job = ee.selfMonth; er = G.employee(L.wageM, a);
+        if (biz && wmc > 0) regA = Object.assign({}, a, { bus: a.bus + wmc * 12, busMain: a.busMain + wmc * 12, reg: true });
+      }
       M.block('W', '직장가입자가 되는 경우', function (k) {
         k.CN('KIND', '직장가입자 유형', sole ? '개인사업자 대표(근로자 1명 이상)' : '법인 등에서 급여 받음', { fmt: 't', law: '시행령 §38' });
         if (sole) { k.IN('TOPW', '사업장 최고 근로자 보수월액(만원)', num(L.topWage), { fmt: 'm', law: '시행령 §38③' }); k.F('WAGEM', '대표 보수월액(만원) = 사업소득 ÷ 12, 최고 근로자 하한', 'MAX({A:BUSMAIN}/12,{TOPW})', wM, { fmt: 'm', law: '시행령 §38③' }); }
-        else k.IN('WAGEM', '보수월액(월 급여 · 만원)', num(L.wageM), { fmt: 'm' });
+        else {
+          k.IN('WAGEM', '보수월액(월 급여 · 만원)', num(L.wageM), { fmt: 'm' });
+          k.CN('REGK', '지역가입자 쪽 가정', biz ? '개인사업이었다면(급여만큼 사업소득)' : '퇴직(급여 없음)', { fmt: 't', law: '소득세법 §27, 시행령 §41①3호', d: '대표 급여는 개인사업 필요경비가 안 됨 → 같은 돈이 사업소득으로 남음' });
+          k.F('WBUS', '  지역 쪽에 더하는 사업소득(만원 · 연)', biz ? 'MAX(0,{WAGEM})*12' : '0', biz ? wmc * 12 : 0, { fmt: 'm' });
+        }
       });
       empBlock(M, X, G, 'E', '직장가입자 본인 보험료', 'A', '{W:WAGEM}', ee, sole);
       if (two) {
@@ -1784,13 +1815,15 @@ if (typeof module !== 'undefined') module.exports = GBR;
         });
         regBlock(M, X, G, 'RB', '배우자 탈락 시 지역 보험료', [['B', null]], h, spReg);
       }
-      reg = G.regional(two ? [a, b] : [a], h);
-      regBlock(M, X, G, 'R', '지역가입자일 때' + (two ? '(부부 세대)' : ''), [['A', null]].concat(two ? [['B', null]] : []), h, reg);
-      var jT = sole ? '{E:WP}+INT({E:WP}*{$LTC})+{E:EP}+{E:EL}' : '{E:SELF}';
+      reg = G.regional(two ? [regA, b] : [regA], h);
+      regBlock(M, X, G, 'R', '지역가입자일 때' + (sole ? '' : biz ? '(개인사업이었다면)' : '(퇴직, 급여 없음)') + (two ? '(부부 세대)' : ''), [['A', null]].concat(two ? [['B', null]] : []), h, reg, sole ? null : '{W:WBUS}');
+      var jT = sole ? '{E:WP}+INT({E:WP}*{$LTC}/10)*10+{E:EP}+{E:EL}' : '{E:SELF}';
+      if (!sole) empBlock(M, X, G, 'ES', '참고 : 개인사업 + 직원 있음(대표도 직장가입, 보수월액 = 같은 급여, 시행령 §38③)', 'A', '{W:WAGEM}', er, false);
       M.sum('JOB', '직장가입자 — 세대 월 부담', jT + (two ? '+IF({P:BOK}="예",0,{RB:MONTH})' : ''), job + (two && !spOK ? spReg.month : 0), { big: 1 });
       M.sum('REG', '지역가입자 — 세대 월 부담', '{R:MONTH}', reg.month, { big: 1 });
       M.sum('DIFF', '  차이(지역 − 직장)', '{T:REG}-{T:JOB}', reg.month - (job + (two && !spOK ? spReg.month : 0)));
-      if (!sole) M.sum('COMP', '  회사 부담(보수월액 + 장기요양)', '({E:WP}-{E:WS})+INT(({E:WP}-{E:WS})*{$LTC})', null);
+      if (!sole) M.sum('COMP', '  회사 부담(보수월액 + 장기요양)', '({E:WP}-{E:WS})+INT(({E:WP}-{E:WS})*{$LTC}/10)*10', (ee.wagePrem - ee.wageSelf) + T10((ee.wagePrem - ee.wageSelf) * G.R.ltcRatio));
+      if (!sole) M.sum('REF', '참고 : 개인사업 + 직원 있음 — 세대 월 부담(보험료 전액 대표)', '{ES:WP}+INT({ES:WP}*{$LTC}/10)*10+{ES:EP}+{ES:EL}' + (two ? '+IF({P:BOK}="예",0,{RB:MONTH})' : ''), er.wagePrem + T10(er.wagePrem * G.R.ltcRatio) + er.extraPrem + er.extraLtc + (two && !spOK ? spReg.month : 0));
     }
     M.info.via = ctx.via || '';
     M.info.why.unshift(MODEN[m] + (two ? ', 부부' : ''));
