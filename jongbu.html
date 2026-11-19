@@ -3380,7 +3380,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
         else if (k === 'house') V = V.filter(function (x) { return /^H\|/.test(x.key); });
         else if (k === 'land' || k === 'landbld') V = V.filter(function (x) { return x.kind === 'land'; });
         else if (k === 'ot') { V = []; N.length = 0; }
-        if (k === 'apt' && A.n === 0) N.push('이 주소에 ' + y + '년 공동주택가격이 없어요 — 「무슨 부동산?」을 다시 골라 주세요');
+        if (k === 'apt' && A.n === 0) N.push(h ? y + '년 ' + (d ? d + '동 ' : '') + h + '호 공동주택가격을 못 찾았어요 — 동, 호 번호를 확인해 주세요(예 28, 1207) · 주상복합의 오피스텔, 상가 호실이면 위 「무슨 부동산?」에서 「오피스텔, 구분상가」를 골라 주세요' : '공동주택(아파트, 연립, 다세대)이에요 — 동, 호를 넣고 다시 [찾기]');
         if (k === 'house' && !Hh.rows.length) N.push('이 주소에 ' + y + '년 개별주택가격이 없어요 — 「무슨 부동산?」을 다시 골라 주세요');
         if (k !== 'apt') N = N.filter(function (t) { return !/^공동주택\(|공동주택가격을 못 찾았어요/.test(t) || k === ''; });
       }
