@@ -859,7 +859,7 @@ html.fwait body{visibility:hidden}
         '<td>' + (r.err.length ? '—' : wonC(r.ref) + '<small class="y4d' + (r.d > 0 ? ' up' : r.d < 0 ? ' dn' : '') + '">' + (r.d === 0 ? '차이 0' : (r.d > 0 ? '+' : '−') + won(Math.abs(r.d))) + '</small>') + '</td></tr>';
     });
     h += '</tbody></table>';
-    h += '<p class="y4n">[기본값으로 둔 것] 양도가액 연 ' + gp + '%(2026 = 입력 양도가액)' + (dfl ? ' 기본값' : '') + ' · 거주 체크 처음 = ' + (o.live ? '지금 거주 중(거주기간 있음) → 다 켬' : '거주기간 0 → 다 끔') + ' · 다른 주택 수, 조정대상지역, 취득일, 특례 등 나머지 = 4년 내내 지금과 같음 · 양도일 = 같은 월일(보유, 거주기간 = 그 날짜로 엔진이 다시 셈)' +
+    h += '<p class="y4n">' + (dfl ? '' : '<b class="y4as">가정 : 양도가액 연 ' + gp + '%(기본 3%에서 바꿈)</b><br>') + '[기본값으로 둔 것] ' + (dfl ? '양도가액 연 3% 기본값(2026 = 입력 양도가액) · ' : '') + '거주 체크 처음 = ' + (o.live ? '지금 거주 중(거주기간 있음) → 다 켬' : '거주기간 0 → 다 끔') + ' · 다른 주택 수, 조정대상지역, 취득일, 특례 등 나머지 = 4년 내내 지금과 같음 · 양도일 = 같은 월일(보유, 거주기간 = 그 날짜로 엔진이 다시 셈)' +
       (co ? ' · 공유자 거주 체크 = 본인과 같음(입력 거주기간 0 인 공유자는 늘리지 않음)' : '') + '<br>개편안 = 2026 세제개편안 정부안(국회 미통과 · 엔진 reform26) · 같은 해 다른 양도 합산은 안 넣음</p>';
     return h;
   }
@@ -881,7 +881,7 @@ html.fwait body{visibility:hidden}
       '.y4box .y4t td{border-bottom:1px solid var(--rule,#E5E1DA);padding:7px 4px;text-align:right;vertical-align:top;white-space:nowrap;font-variant-numeric:tabular-nums}.y4box .y4t td:first-child{text-align:left;white-space:normal}' +
       '.y4box .y4t small{display:block;color:var(--ink3,#7A848F);font-size:13px;font-weight:400}.y4box .y4c{display:inline-flex;align-items:center;gap:3px;margin-left:8px;font-size:14px;color:var(--ink2,#4E5968)}.y4box .y4c input{width:18px;height:18px;margin:0}' +
       '.y4box .y4t small.y4d{font-size:14px;font-weight:700;color:var(--ink,#191F28)}.y4box .y4t tr.y4now td{background:#FFF8F2}.y4box .y4t small.y4same{color:#C2410C;font-weight:700}' +
-      '.y4box .y4d.up{color:var(--ver,#E4572E)}.y4box .y4d.dn{color:#1F7A4D}.y4box .y4lg{font-size:12px;letter-spacing:-.3px}.y4box .y4t small.y4d{white-space:normal;overflow-wrap:anywhere}.y4box .y4e{color:var(--ver,#E4572E);font-size:13px}.y4box .y4n{color:var(--ink3,#7A848F);font-size:13px;margin:8px 0 0;line-height:1.45}';
+      '.y4box .y4d.up{color:var(--ver,#E4572E)}.y4box .y4d.dn{color:#1F7A4D}.y4box .y4lg{font-size:12px;letter-spacing:-.3px}.y4box .y4t small.y4d{white-space:normal;overflow-wrap:anywhere}.y4box .y4e{color:var(--ver,#E4572E);font-size:13px}.y4box .y4as{color:#C2410C}.y4box .y4n{color:var(--ink3,#7A848F);font-size:13px;margin:8px 0 0;line-height:1.45}';
     document.head.appendChild(cs);
   }
   window.Y4 = { YEARS: YEARS, slot: slot, compute: compute, inputAt: inputAt, resAt: resAt, xlData: xlData, state: st, redraw: redraw };
