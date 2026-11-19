@@ -7144,12 +7144,12 @@ https://github.com/nodeca/pako/blob/main/LICENSE
   var CSS = '#pkWz .gsg{margin-top:10px}#pkWz .gsg-o{display:flex;align-items:center;gap:6px;min-height:44px;padding:8px 12px;border:1px solid var(--pd-acc,#1E3A8A);border-radius:6px;background:#fff;color:var(--pd-acc,#1E3A8A);font:inherit;font-size:16px;font-weight:700;cursor:pointer;width:100%;justify-content:center}' +
     '#pkWz .gsg-p{margin-top:8px;border:1px solid var(--pd-line,#E5E7EB);border-radius:8px;padding:12px;background:var(--pd-surface2,#F5F7FA);font-size:16px}' +
     '#pkWz .gsg-p .gsg-r{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px}#pkWz .gsg-p input,#pkWz .gsg-p select{min-height:44px;font:inherit;font-size:16px;border:1px solid var(--pd-line2,#D1D5DB);border-radius:6px;padding:6px 10px;background:#fff;color:#111827;box-sizing:border-box}' +
-    '#pkWz .gsg-p .gsg-a{flex:1 1 200px;min-width:0}#pkWz .gsg-p .gsg-dh{width:96px}#pkWz .gsg-p button{min-height:44px;font:inherit;font-size:16px;border-radius:6px;padding:6px 14px;cursor:pointer;border:1px solid var(--pd-acc,#1E3A8A);background:var(--pd-acc,#1E3A8A);color:#fff;font-weight:700}' +
+    '#pkWz .gsg-p .gsg-a{flex:1 1 200px;min-width:0}#pkWz .gsg-p .gsg-k{flex:1 1 100%;width:100%}#pkWz .gsg-p .gsg-dh{width:96px}#pkWz .gsg-p button{min-height:44px;font:inherit;font-size:16px;border-radius:6px;padding:6px 14px;cursor:pointer;border:1px solid var(--pd-acc,#1E3A8A);background:var(--pd-acc,#1E3A8A);color:#fff;font-weight:700}' +
     '#pkWz .gsg-p button.gsg-2{background:#fff;color:var(--pd-acc,#1E3A8A)}#pkWz .gsg-n{font-size:15px;color:var(--pd-ink3,#6B7280);margin:6px 0 0;line-height:1.5}#pkWz .gsg-e{color:#B91C1C;font-size:15px;margin-top:6px}' +
     '#pkWz .gsg-v{border-top:1px solid var(--pd-line,#E5E7EB);padding:10px 0 4px;margin-top:8px}#pkWz .gsg-v b{display:block;font-size:16px;color:#111827}#pkWz .gsg-v .gsg-big{font-size:20px;font-weight:800;color:var(--pd-acc,#1E3A8A);margin:2px 0 6px;font-variant-numeric:tabular-nums}' +
     '#pkWz .gsg-ok{color:var(--pd-acc,#1E3A8A);font-weight:700;font-size:15px;margin-top:6px}#pkWz .gsg-list{display:flex;flex-direction:column;gap:6px;margin:6px 0}#pkWz .gsg-list button{text-align:left;background:#fff;color:#111827;border-color:var(--pd-line2,#D1D5DB);font-weight:500}#pkWz .gsg [hidden]{display:none!important}#pkWz .gsg-m{font-size:16px;color:#111827;margin:0 0 6px;font-variant-numeric:tabular-nums}';
   var st = document.createElement('style'); st.id = 'gsgCss'; st.textContent = CSS; document.head.appendChild(st);
-  var MEM = { addr: '', item: null, dong: '', ho: '' };   /* 같은 집을 두 해(산 해, 파는 해) 찾을 때 다시 안 치게 — 이 화면에만(저장 안 함) */
+  var MEM = { addr: '', item: null, dong: '', ho: '', kind: '' };   /* 같은 집을 두 해(산 해, 파는 해) 찾을 때 다시 안 치게 — 이 화면에만(저장 안 함) */
   function esc(t) { return String(t == null ? '' : t).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
   function yearOpts(sel) { var h = ''; for (var y = NOW; y >= 1990; y--) h += '<option value="' + y + '"' + (y === sel ? ' selected' : '') + '>' + y + '년</option>'; return h; }
   function curStep() { var H = CFG.h(); if (!H || !H.W) return null; var W = H.W; if (W.done) return null; var id = W.cur, p = CFG.pick(id, W.a || {}); return p ? { id: id, p: p } : null; }
@@ -7163,12 +7163,39 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     var y0 = S.p.year && S.p.year >= 1990 ? S.p.year : (S.p.year ? 0 : NOW);
     g.innerHTML = '<button type="button" class="gsg-o" data-gsg="open">주소로 공시가격 찾기</button>' +
       '<div class="gsg-p" hidden><div class="gsg-r"><input class="gsg-a" type="text" enterkeyhint="search" placeholder="도로명 또는 지번 주소" value="' + esc(MEM.addr) + '"></div>' +
+      (S.p.want === 'land' ? '' : '<div class="gsg-r"><select class="gsg-k" aria-label="무슨 부동산">' + KINDS.map(function (k) { return '<option value="' + k[0] + '"' + (k[0] === MEM.kind ? ' selected' : '') + '>' + k[1] + '</option>'; }).join('') + '</select></div>') +
       '<div class="gsg-r"><input class="gsg-dh gsg-d" type="text" inputmode="numeric" placeholder="동" value="' + esc(MEM.dong) + '"><input class="gsg-dh gsg-h" type="text" inputmode="numeric" placeholder="호" value="' + esc(MEM.ho) + '">' +
       '<select class="gsg-y" aria-label="기준 연도">' + yearOpts(y0 || NOW) + '</select><button type="button" data-gsg="find">찾기</button></div>' +
       '<div class="gsg-n">아파트, 연립, 다세대 = 동, 호까지 · ' + esc(S.p.why) + (S.p.year === 1985 ? ' · 브이월드 자료는 1990년부터라 1985년 값은 직접 넣어 주세요(지금 고른 해 = 참고)' : '') + '</div>' +
       '<div class="gsg-n">주소는 국토교통부 브이월드로만 보내고 이 사이트는 저장하지 않아요</div><div class="gsg-out"></div></div>';
     wi.insertAdjacentElement('afterend', g);
     if (MEM.item && S.p.year) { open(g); find(g, S); }
+  }
+  /* 2026-11-20 「무슨 부동산?」 고르는 칸 + 주소로 짐작 — 오피스텔이 땅값으로 나오던 것 막음 */
+  var KINDS = [['', '무슨 부동산? (주소로 짐작)'], ['apt', '아파트, 연립, 다세대'], ['house', '단독, 다가구'], ['land', '토지'], ['landbld', '토지와 건물(상가건물, 사무실)'], ['ot', '오피스텔, 구분상가']];
+  function kindName(k) { var x = KINDS.filter(function (z) { return z[0] === k; })[0]; return x ? x[1] : ''; }
+  function detect(it, y) {
+    var pnu = it.id, bld = (it.address && it.address.bldnm) || '';
+    var c = function (p) { return p.catch(function () { return { rows: [], n: 0 }; }); };
+    return Promise.all([c(ned('getApartHousingPriceAttr', { pnu: pnu, stdrYear: y, numOfRows: 1 })), c(ned('getIndvdHousingPriceAttr', { pnu: pnu, stdrYear: y })), c(ned('getBuildingUse', { pnu: pnu })), c(ned('getLandCharacteristics', { pnu: pnu, stdrYear: y }))]).then(function (R) {
+      if (R[0].n > 0) return 'apt';
+      if (R[1].rows.length) return 'house';
+      var B = R[2].rows;
+      if (B.length) {
+        var nm = B.map(function (r) { return (r.mainPrposCodeNm || '') + '|' + (r.detailPrposCodeNm || '') + '|' + (r.detailPrposCode || ''); }).join(' ');
+        if (/공동주택/.test(nm)) return 'apt';
+        if (/단독주택/.test(nm)) return 'house';
+        if (/오피스텔|14202/.test(nm) || B.some(function (r) { return r.regstrSeCode === '2'; })) return 'ot';
+        return 'landbld';
+      }
+      var ch = R[3].rows.length ? latest(R[3].rows) : null, use = ch ? (ch.ladUseSittnNm || '') : '', jm = ch ? (ch.lndcgrCodeNm || '') : '';
+      if (!ch) return bld ? 'ot' : 'land';
+      if (/나지|전|답|임야|과수|목장|잡종/.test(use) || (jm && jm !== '대')) return 'land';
+      if (/아파트|연립|다세대/.test(use)) return 'apt';
+      if (/단독|다가구/.test(use)) return 'house';
+      if (bld && /업무|상업|주상/.test(use)) return 'ot';
+      return 'landbld';
+    });
   }
   function open(g) { g.querySelector('.gsg-p').hidden = false; g.querySelector('.gsg-o').hidden = true; }
   function out(g, h) { g.querySelector('.gsg-out').innerHTML = h; }
@@ -7190,7 +7217,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     }).catch(function (e) { out(g, '<div class="gsg-e">불러오기 실패 — ' + esc(e.message) + ' · 잠시 뒤 다시 [찾기]</div>'); });
   }
   /* 한 해 값 모으기 → V(넣을 값, key = 다른 해와 짝 맞추기) · N(안내) */
-  function yearVals(it, y, d, h, want) {
+  function yearVals(it, y, d, h, want, k) {
     var pnu = it.id;
     var apt = ned('getApartHousingPriceAttr', Object.assign({ pnu: pnu, stdrYear: y, numOfRows: h ? 20 : 1 }, d ? { dongNm: d } : {}, h ? { hoNm: h } : {}));
     var hou = ned('getIndvdHousingPriceAttr', { pnu: pnu, stdrYear: y });
@@ -7207,13 +7234,19 @@ https://github.com/nodeca/pako/blob/main/LICENSE
       }
       if (Hh.rows.length) { var hs = {}; Hh.rows.forEach(function (r) { var k = (r.bildRegstrEsntlNo || '') + '|' + (r.dongCode || ''); if (!hs[k] || String(r.lastUpdtDt) > String(hs[k].lastUpdtDt)) hs[k] = r; });
         Object.keys(hs).forEach(function (k, i, arr) { var r = hs[k]; V.push({ kind: 'house', key: 'H|' + k, v: +r.housePc, t: y + '년 개별주택가격(땅 + 건물)' + (arr.length > 1 ? ' · ' + (i + 1) + '번째 집 · 건물 연면적 ' + r.buldAllTotAr + '㎡' : '') }); }); }
-      /* 2026-11-20 오피스텔 = 건물 이름이 있거나 동·호를 넣었는데 주택가격이 없으면(오피스텔, 상가 등) 필지 전체 공시지가를 그 집 값으로 내지 않음 */
-      var bld = (it.address && it.address.bldnm) || '', unit = want !== 'land' && !Hh.rows.length && !(A.n > 0) && (bld || d || h);
-      if (unit) N.push((bld ? '「' + bld + '」' : '이 건물') + ' = 공동주택가격, 개별주택가격이 없어요(오피스텔, 상가 등) — 공시지가 × 필지 전체 면적은 건물 전체의 땅값이라 한 호실 값이 아니에요. 호실 값은 직접 넣어 주세요 : 상속·증여, 양도 = 국세청 오피스텔·상업용건물 기준시가(홈택스, 상증법 §61①3호) · 취득세, 재산세 = 시가표준액(위택스)');
-      if (Ld && Ld.rows.length && A.n === 0 && !unit) {
+      if (Ld && Ld.rows.length && A.n === 0 && (want === 'land' || k === 'land' || k === 'landbld' || !k)) {
         var lr = latest(Ld.rows), up = +lr.pblntfPclnd, ar = Ch && Ch.rows.length ? +latest(Ch.rows).lndpclAr : 0;
-        if (ar > 0) V.push({ kind: 'land', key: 'L', v: Math.floor(up * ar), t: y + '년 개별공시지가 ' + wonT(up) + '/㎡ × 면적 ' + ar.toLocaleString('ko-KR') + '㎡' + (lr.pblntfDe ? ' · 공시일 ' + lr.pblntfDe : '') + (Hh.rows.length ? ' · 땅만일 때' : '') });
+        if (ar > 0) V.push({ kind: 'land', key: 'L', v: Math.floor(up * ar), t: y + '년 개별공시지가 ' + wonT(up) + '/㎡ × 면적 ' + ar.toLocaleString('ko-KR') + '㎡' + (lr.pblntfDe ? ' · 공시일 ' + lr.pblntfDe : '') + (Hh.rows.length ? ' · 땅만일 때' : '') + (k === 'landbld' && want !== 'land' ? ' · 땅 부분만(건물 기준시가는 직접 더해 넣기)' : '') });
         else N.push(y + '년 개별공시지가 ' + wonT(up) + '/㎡ — 면적을 못 읽어 합계는 직접(공시지가 × 면적)');
+      }
+      if (want !== 'land' && k) {
+        if (k === 'apt') V = V.filter(function (x) { return /^A\|/.test(x.key); });
+        else if (k === 'house') V = V.filter(function (x) { return /^H\|/.test(x.key); });
+        else if (k === 'land' || k === 'landbld') V = V.filter(function (x) { return x.kind === 'land'; });
+        else if (k === 'ot') { V = []; N.length = 0; }
+        if (k === 'apt' && A.n === 0) N.push('이 주소에 ' + y + '년 공동주택가격이 없어요 — 「무슨 부동산?」을 다시 골라 주세요');
+        if (k === 'house' && !Hh.rows.length) N.push('이 주소에 ' + y + '년 개별주택가격이 없어요 — 「무슨 부동산?」을 다시 골라 주세요');
+        if (k !== 'apt') N = N.filter(function (t) { return !/^공동주택\(|공동주택가격을 못 찾았어요/.test(t) || k === ''; });
       }
       if (want === 'house') V = V.filter(function (x) { return x.kind === 'house'; });
       if (want === 'land') V = V.filter(function (x) { return x.kind === 'land'; });
@@ -7230,12 +7263,17 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     var M = (CFG.more ? CFG.more(S.id, a) : []).filter(function (m) { return m.year >= 1990 && m.year <= NOW; });
     var yrs = {}; M.forEach(function (m) { if (m.year !== y) yrs[m.year] = 1; });
     var Y = Object.keys(yrs).map(Number);
-    return Promise.all([yearVals(it, y, d, h, want)].concat(Y.map(function (yy) { return yearVals(it, yy, d, h, 'any').catch(function () { return { V: [], N: [] }; }); }))).then(function (RR) {
+    var ks = g.querySelector('.gsg-k'), pick = ks ? ks.value : '';
+    return (want === 'land' ? Promise.resolve('land') : pick ? Promise.resolve(pick) : detect(it, y)).then(function (k) {
+    if (ks && !pick) ks.value = k;
+    var KN = want === 'land' ? '' : '<div class="gsg-n">' + (pick ? '고른 것' : '주소로 짐작') + ' : <b style="display:inline">' + esc(kindName(k)) + '</b>' + (pick ? '' : ' — 틀리면 위 칸에서 바꿔 주세요') + '</div>';
+    var OT = k === 'ot' && want !== 'land' ? '<div class="gsg-e">오피스텔, 구분상가 호실 값 = 국세청이 호실마다 땅과 건물을 한꺼번에 고시하는 기준시가라 여기서 못 찾아요(상증법 §61①3호) — 홈택스 「기준시가 조회」에서 찾아 위 칸에 직접 넣어 주세요 · 취득세, 재산세 = 위택스 시가표준액</div><div class="gsg-r"><a class="gsg-o" style="text-decoration:none" href="https://hometax.go.kr" target="_blank" rel="noopener">홈택스 열기</a></div>' : '';
+    return Promise.all([yearVals(it, y, d, h, want, k)].concat(Y.map(function (yy) { return yearVals(it, yy, d, h, 'any', k).catch(function () { return { V: [], N: [] }; }); }))).then(function (RR) {
       var V = RR[0].V, N = RR[0].N, OY = {}; Y.forEach(function (yy, i) { OY[yy] = RR[i + 1].V; });
       V.forEach(function (x) { x.more = M.map(function (m) { var L = m.year === y ? V : OY[m.year] || []; var z = mate(x, L); if (z && m.house && z.kind !== 'house') z = null; return z ? { id: m.id, lab: m.lab, year: m.year, v: z.v } : null; }).filter(Boolean); });
-      if (!V.length && !N.length) N.push(y + '년 ' + (want === 'land' ? '공시지가' : '공시가격') + ' 자료가 없어요' + (y < 2006 ? ' — 개별주택가격 2005년, 공동주택가격 2006년부터 · 그 전은 국세청 기준시가(홈택스)나 환산 기준시가(소득세법 시행령 §164)를 직접' : ' — 다른 해를 고르거나 직접 넣어 주세요'));
+      if (!V.length && !N.length && k !== 'ot') N.push(y + '년 ' + (want === 'land' ? '공시지가' : '공시가격') + ' 자료가 없어요' + (y < 2006 ? ' — 개별주택가격 2005년, 공동주택가격 2006년부터 · 그 전은 국세청 기준시가(홈택스)나 환산 기준시가(소득세법 시행령 §164)를 직접' : ' — 다른 해를 고르거나 직접 넣어 주세요'));
       g.__V = V;
-      out(g, '<div class="gsg-n">' + esc(ad) + '</div>' + N.map(function (t) { return '<div class="gsg-e">' + esc(t) + '</div>'; }).join('') +
+      out(g, '<div class="gsg-n">' + esc(ad) + '</div>' + KN + OT + N.map(function (t) { return '<div class="gsg-e">' + esc(t) + '</div>'; }).join('') +
         V.map(function (x, i) { var mo = x.more || [];
           return '<div class="gsg-v"><b>' + esc(x.t) + '</b><div class="gsg-big">' + won(x.v) + eokT(x.v) + '</div>' +
             mo.map(function (m) { return '<div class="gsg-m">' + esc(m.lab) + ' (' + m.year + '년) ' + won(m.v) + eokT(m.v) + '</div>'; }).join('') +
@@ -7243,6 +7281,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
             (S.p.add ? '<button type="button" class="gsg-2" data-gsgadd="' + i + '">더하기</button>' : '') + '</div></div>'; }).join('') +
         (V.length ? '<div class="gsg-n">공시가격 = 브이월드 국토교통부 자료 · 부동산공시가격알리미와 같은 값 · 지분이면 전체 값 그대로(지분은 다음 질문)</div>' : '') +
         (M.length && V.length && !V.some(function (x) { return (x.more || []).length; }) ? '<div class="gsg-n">' + esc(M.map(function (m) { return m.lab + '(' + m.year + '년)'; }).join(', ')) + ' 값은 못 찾았어요 — 그 질문에서 직접 넣어 주세요</div>' : ''));
+    });
     });
   }
   function put(g, x, add, all) {
@@ -7262,14 +7301,14 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     var t = e.target.closest && e.target.closest('.gsg [data-gsg],.gsg [data-gsgi],.gsg [data-gsgput],.gsg [data-gsgadd],.gsg [data-gsgall]'); if (!t) return;
     var g = t.closest('.gsg'), S = curStep(); if (!S) return; e.preventDefault();
     if (t.getAttribute('data-gsg') === 'open') { open(g); var a = g.querySelector('.gsg-a'); if (MEM.item) find(g, S); else try { a.focus(); } catch (x) {} return; }
-    if (t.getAttribute('data-gsg') === 'find') { MEM.item = g.querySelector('.gsg-a').value.trim() === MEM.addr ? MEM.item : null; find(g, S); return; }
+    if (t.getAttribute('data-gsg') === 'find') { var same = g.querySelector('.gsg-a').value.trim() === MEM.addr; MEM.item = same ? MEM.item : null; if (!same) { MEM.kind = ''; var kk = g.querySelector('.gsg-k'); if (kk) kk.value = ''; } find(g, S); return; }
     if (t.hasAttribute('data-gsgi')) { find(g, S, g.__L[+t.getAttribute('data-gsgi')]); return; }
     if (t.hasAttribute('data-gsgput')) { put(g, g.__V[+t.getAttribute('data-gsgput')], 0); return; }
     if (t.hasAttribute('data-gsgall')) { put(g, g.__V[+t.getAttribute('data-gsgall')], 0, 1); return; }
     if (t.hasAttribute('data-gsgadd')) { put(g, g.__V[+t.getAttribute('data-gsgadd')], 1); return; }
   }, true);
   document.addEventListener('keydown', function (e) { var t = e.target; if (e.key !== 'Enter' || !t || !t.closest || !t.closest('.gsg-p') || t.closest('.gsj')) return; e.preventDefault(); e.stopPropagation(); var b = t.closest('.gsg').querySelector('[data-gsg="find"]'); if (b) b.click(); }, true);
-  document.addEventListener('change', function (e) { var t = e.target; if (!t || !t.classList || !t.classList.contains('gsg-y')) return; var g = t.closest('.gsg'), S = curStep(); if (S && (MEM.item || g.querySelector('.gsg-a').value.trim())) find(g, S); }, true);
+  document.addEventListener('change', function (e) { var t = e.target; if (t && t.classList && t.classList.contains('gsg-k')) MEM.kind = t.value; if (!t || !t.classList || !(t.classList.contains('gsg-y') || t.classList.contains('gsg-k'))) return; var g = t.closest('.gsg'), S = curStep(); if (S && (MEM.item || g.querySelector('.gsg-a').value.trim())) find(g, S); }, true);
   /* ── 2026-11-19 「주소랑 날짜로 조정대상지역 자동 판정」 — 조정대상지역 질문에 「주소로 판정하기」 · 국토교통부 지정·해제 공고 이력(ADJ) × 그 질문의 날짜 · 판정은 브라우저 안에서(주소 검색만 브이월드) ── */
   var ADJ = null; try { ADJ = typeof ADJD === 'string' ? (ADJD.charAt(0) === '{' ? JSON.parse(ADJD) : null) : ADJD; } catch (e) { ADJ = null; }
   function curAdj() { if (!CFG.adj || !ADJ) return null; var H = CFG.h(); if (!H || !H.W || H.W.done) return null; var id = H.W.cur, p = CFG.adj(id, H.W.a || {}); return p ? { id: id, p: p } : null; }
