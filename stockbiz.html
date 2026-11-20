@@ -117,6 +117,9 @@ html.fwait body{visibility:hidden}
   .vs .lab { font-size:12pt; color:var(--ink3); font-weight:700; }
   .vs .amt { font-size:15pt; font-weight:800; margin-top:2px; }
   .vs .win { border-color:var(--ok); background:var(--okbg); }
+  table.c4 tr.hl td { background:var(--okbg); font-weight:700; }
+  table.c4 td small { font-weight:400; color:var(--ink3); }
+  @media (max-width:600px) { table.c4, table.c4 tbody, table.c4 tr, table.c4 td { display:block; width:100%; box-sizing:border-box; } table.c4 tr:first-child { display:none; } table.c4 tr { border:1px solid var(--rule); border-radius:10px; margin:8px 0; padding:4px 10px; } table.c4 td { display:flex; justify-content:space-between; gap:10px; text-align:right; border:0; border-top:1px dashed #0002; padding:5px 0; } table.c4 td::before { content:attr(data-l); color:var(--ink3); text-align:left; } table.c4 td:first-child { border-top:0; font-weight:700; } }
 </style>
 <style id="pkCss">
 
@@ -456,7 +459,7 @@ body .y4box .y4e{color:var(--pd-acc)!important}
   <div class="eyebrow">세금 계산기 · <span class="ex">주식평가 및 사업용비율</span> · 2026년 기준</div>
   <h1>주식평가 및 사업용비율</h1>
   <ul class="lead"><li>크레탑, 감사보고서, 세무조정계산서 PDF → 비상장주식 1주 평가(상증법 §63), 법인 여러 개 = 서로 가진 주식까지 묶어 평가</li><li>재무상태표 항목별 장부가액 vs 적용가액, 사업용 vs 사업무관자산(상증령 §15⑤2호 가~마목)</li><li>가업상속공제 대상금액 → 평가서, 가업상속공제신고서, 부표1 PDF와 엑셀(수식)</li></ul>
-  <details class="why"><summary>근거, 계산 방법</summary><p class="law" id="lawBox">1주 평가 = 비상장평가 엔진(순손익가치, 순자산가치 가중평균, 순자산 80% 하한, 최대주주 할증) / 사업용자산비율 = 상속개시일 현재 적용가액(상증법 제4장 평가액) 기준, 사업무관자산 = 상증령 §15⑤2호 가목~마목 / 가업상속공제 대상 = 주식가액 × 사업관련 자산가액 ÷ 총자산가액(부표1 ⑦), 한도 = 가업 영위기간별(상증법 §18의2①) / 자료 = 크레탑, 감사보고서, 세무조정계산서(글자 PDF, 스캔본은 OCR 창구에서 글자 PDF로) / 여러 회사 = 보유 주식을 그 회사 평가액으로 넣어 묶어 계산(상호출자, 순환출자 = 1주 값 연립 풀이), 공제는 고른 가업 회사 하나</p></details>
+  <details class="why"><summary>근거, 계산 방법</summary><p class="law" id="lawBox">1주 평가 = 비상장평가 엔진(순손익가치, 순자산가치 가중평균, 순자산 80% 하한, 최대주주 할증) / 사업용자산비율 = 상속개시일 현재 적용가액(상증법 제4장 평가액) 기준, 사업무관자산 = 상증령 §15⑤2호 가목~마목 / 가업상속공제 대상 = 주식가액 × 사업관련 자산가액 ÷ 총자산가액(부표1 ⑦), 한도 = 가업 영위기간별(상증법 §18의2①) / 자료 = 크레탑, 감사보고서, 세무조정계산서(글자 PDF, 스캔본은 읽지 못함) / 여러 회사 = 보유 주식을 그 회사 평가액으로 넣어 묶어 계산(상호출자, 순환출자 = 1주 값 연립 풀이), 공제는 고른 가업 회사 하나</p></details>
 
   
   <div id="pkRoot">
@@ -11957,6 +11960,7 @@ window.__FSPDF={M:"AAEAAAAMAIAAAwBARFNJRwAAAAEACfTYAAAACEdQT1MBV/JlAAnmoAAADjZPU
         var sm = fl.reduce(function (a, b) { return a + b; }, 0); return f === 'SUM' ? sm : (fl.length ? sm / fl.length : 0); }
       if (f === 'QUOTIENT') return Math.trunc(N(X[0]) / N(X[1]));
       if (f === 'ROUND') { var d = Math.pow(10, N(X[1])), a0 = N(X[0]), v1 = +(Math.abs(a0) * d).toPrecision(15); return (a0 < 0 ? -1 : 1) * Math.floor(v1 + 0.5) / d; }
+      if (f === 'ROUNDDOWN') { var d2 = Math.pow(10, N(X[1])), a2 = N(X[0]), v2 = +(Math.abs(a2) * d2).toPrecision(15); return (a2 < 0 ? -1 : 1) * Math.floor(v2) / d2; }   
       if (f === 'AND') return X.every(T);
       if (f === 'OR') return X.some(T);
       if (f === 'COUNTIF') {   
@@ -12488,7 +12492,7 @@ window.__FSPDF={M:"AAEAAAAMAIAAAwBARFNJRwAAAAEACfTYAAAACEdQT1MBV/JlAAnmoAAADjZPU
   var pct = function (r) { return (Math.round(r * 10000) / 100).toFixed(2) + '%'; };
   var won = function (v) { return Math.floor(+v || 0).toLocaleString('ko-KR') + '원'; };
   var cp = function (x) { return JSON.parse(JSON.stringify(x)); };
-  var LET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', SCAN_TIP = '스캔본은 OCR 창구에서 글자 PDF로 바꿔 넣어 주세요';
+  var LET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', SCAN_TIP = '스캔본(글자 없는 그림 PDF)은 읽지 못해요 — 홈택스, 크레탑에서 받은 글자 PDF로 넣어 주세요';
   var SLOTS = [['cretop', '크레탑', '(1개)'], ['dart', '감사보고서', '(여러 해)'], ['tax', '세무조정계산서', '(여러 해, 글자 PDF)']];
   function newCo(i) { return { id: LET[i], name: '', files: { cretop: [], dart: [], tax: [] }, inp: null, docs: [], inv: [], holders54: [], pctHolders: [], tx: null, notes: [], read: false }; }
 
@@ -13091,11 +13095,11 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     (h || q).insertAdjacentElement('afterend', el);
   }
   
-  var EOKRE = /(^|[^\d,.(])(\d{1,3}(?:,\d{3})+|\d+)원(?!\))/g;
+  var EOKRE = /(^|[^\d,.(])(\d{1,3}(?:,\d{3})+|\d+)원/g;   
   function eokTxt(t) { return t.replace(EOKRE, function (m, pre, num) { var v = +num.replace(/,/g, ''); if (!(v >= 1e8)) return m; var e = Math.round(v / 1e6) / 100; return pre + e.toLocaleString('ko-KR', { maximumFractionDigits: 2 }) + '억'; }); }   
   function eokFmt() {
     [].forEach.call(document.querySelectorAll('#pkWz,#wzQs'), function (root) {
-      var tw = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, { acceptNode: function (n) { var p = n.parentElement; if (!p || p.closest('.pk-wa,.pk-wq,.pk-wh,.pk-easy,.pk-wi,.pk-wdf,script,style,input,select,textarea,button')) return NodeFilter.FILTER_REJECT; return /\d원/.test(n.nodeValue) ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_SKIP; } });
+      var tw = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, { acceptNode: function (n) { var p = n.parentElement; if (!p || p.closest('.pk-wa,.pk-wq,.pk-wh,.pk-easy,.pk-wi,.pk-wdf,.pk-won,script,style,input,select,textarea,button')) return NodeFilter.FILTER_REJECT; return /\d원/.test(n.nodeValue) ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_SKIP; } });
       var L = [], n; while ((n = tw.nextNode())) L.push(n);
       L.forEach(function (x) { var t = eokTxt(x.nodeValue); if (t !== x.nodeValue) x.nodeValue = t; });
     });
@@ -13108,6 +13112,6 @@ https://github.com/nodeca/pako/blob/main/LICENSE
 })();
 
 </script>
-<div id="pubFoot" style="margin:28px auto 0;padding:14px 16px 22px;max-width:1100px;font:14px/1.6 Freesentation,-apple-system,BlinkMacSystemFont,'Apple SD Gothic Neo','Malgun Gothic','Noto Sans KR',sans-serif;color:#6B7684;text-align:center;border-top:1px solid #E5E8EB">본 자료 = 일반적 정보 제공 목적, 실제 적용 시 개별 사안별 법률적 검토 및 전문가 자문 필수<br>계산은 이 기기 안에서만 하며 입력값은 어디에도 보내지 않습니다. · 판 2026-11-20</div><script>try{if(window.self!==window.top)document.getElementById("pubFoot").style.display="none";}catch(e){}</script>
+<div id="pubFoot" style="margin:28px auto 0;padding:14px 16px 22px;max-width:1100px;font:14px/1.6 Freesentation,-apple-system,BlinkMacSystemFont,'Apple SD Gothic Neo','Malgun Gothic','Noto Sans KR',sans-serif;color:#6B7684;text-align:center;border-top:1px solid #E5E8EB">본 자료 = 일반적 정보 제공 목적, 실제 적용 시 개별 사안별 법률적 검토 및 전문가 자문 필수<br>계산은 이 기기 안에서만 하며 입력값은 보내지 않습니다(「주소로 찾기」에 넣은 주소만 공시가격, 조정대상지역 확인을 위해 브이월드로 보냄). · 판 2026-11-20</div><script>try{if(window.self!==window.top)document.getElementById("pubFoot").style.display="none";}catch(e){}</script>
 </body>
 </html>

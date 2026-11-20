@@ -6037,20 +6037,24 @@ PKD.KTERMS = {
   }
   function wSplTxt(pv){ var n=0,u=[]; (pv||[]).forEach(function(v,i){ if(v!==''&&v!=null){ n+=+v||0; u.push(WSPL[i][1]); } }); n=Math.round(n*10000)/10000; return u.length?'합계 '+n.toLocaleString('ko-KR')+'만원 '+wEok(n)+' = '+u.join(' + '):''; }
   function wReq(s){ var id=s.id||'';   
-    if(id==='sale') return '양도가액 = 양도차익 계산의 출발점이라 0보다 큰 금액이 꼭 필요해요(만원)';
-    if(id==='acq'||/^c\dAcq$/.test(id)) return '취득가액이 있어야 양도차익을 계산할 수 있어 0보다 큰 금액이 꼭 필요해요(만원) · 상속, 증여받은 경우 = 그때 평가액';
+    if(id==='sale') return '양도가액 = 양도차익 계산의 출발점이라 0보다 큰 금액이 꼭 필요해요';
+    if(id==='acq'||/^c\dAcq$/.test(id)) return '취득가액이 있어야 양도차익을 계산할 수 있어 0보다 큰 금액이 꼭 필요해요 · 상속, 증여받은 경우 = 그때 평가액';
     if(id==='cvA'||id==='cvS') return '환산취득가액 = 양도가액 × 산 해 기준시가 ÷ 파는 해 기준시가라 두 기준시가 모두 0보다 큰 금액이 꼭 필요해요';
-    if(id==='ipVal') return '권리가액(종전 주택 평가액 × 비례율)이 있어야 입주권 양도차익을 나눌 수 있어 0보다 큰 금액이 꼭 필요해요(만원)';
+    if(id==='ipVal') return '권리가액(종전 주택 평가액 × 비례율)이 있어야 입주권 양도차익을 나눌 수 있어 0보다 큰 금액이 꼭 필요해요';
     return ''; }
   function wRead(){ var s=wStep(W.cur), L=[].map.call($('pkWz').querySelectorAll('[data-pkwi]'),function(e){return e.value.trim();});
     if(s.t==='m'&&isEok(s)&&L[0]!==''){ var mm=eokToMan(L[0]); if(isNaN(mm)) return {err:'숫자로 넣어 주세요(억 · 예 1.29)'}; L[0]=String(mm); }   
-    if(s.t==='m'&&wParts(s)){ if(!L.some(function(x){return x!=='';})) return {err:'한 칸 이상 넣어 주세요(만원)'}; if(L.some(function(x){return x!==''&&!(+x>=0);})) return {err:'금액은 0 이상(만원)'}; W.a.acqP=L.slice(); return {v:Math.round(L.reduce(function(t,x){return t+(+x||0);},0)*10000)/10000}; }
-    if(s.t==='d'){ if(!/^\d{4}-\d{2}-\d{2}$/.test(L[0])) return {err:'날짜를 골라 주세요 — 보유기간, 거주기간, 세율 판정에 꼭 필요해요'}; return {v:L[0]}; }
+    if(s.t==='m'&&wParts(s)){ if(!L.some(function(x){return x!=='';})) return {err:'한 칸 이상 넣어 주세요(만원)'}; if(L.some(function(x){return x!==''&&!(+x>=0);})) return {err:'금액은 0 이상(만원)'}; W.a.acqP=L.slice(); var sm=Math.round(L.reduce(function(t,x){return t+(+x||0);},0)*10000)/10000; if(sm>1e10) return {err:'금액이 너무 커요 — 100조원(1,000,000억) 이하로 넣어 주세요'}; return {v:sm}; }
+    if(s.t==='d'){ if(!/^\d{4}-\d{2}-\d{2}$/.test(L[0])) return {err:'날짜를 골라 주세요 — 보유기간, 거주기간, 세율 판정에 꼭 필요해요'};
+      
+      if(s.id==='saleD'&&W.a.acqD&&L[0]<W.a.acqD) return {err:'판 날이 산 날('+W.a.acqD.replace(/-/g,'.')+'.)보다 빨라요 — 날짜를 확인해 주세요'};
+      if(s.id==='acqD'&&W.a.saleD&&W.path.indexOf('saleD')>=0&&L[0]>W.a.saleD) return {err:'산 날이 판 날('+W.a.saleD.replace(/-/g,'.')+'.)보다 늦어요 — 날짜를 확인해 주세요'};
+      return {v:L[0]}; }
     if(s.t==='w'){ var wv=+L[0]; if(L[0]===''||!(wv>0)) return {err:'0보다 큰 숫자를 넣어 주세요('+(s.u||'')+') — 시행령 §164④ 산식에 꼭 필요해요'}; return {v:wv}; }
     if(s.t==='n'){ var nv=+L[0]; if(L[0]===''||!(nv>=0&&nv<=130)||Math.floor(nv)!==nv) return {err:'만 나이를 넣어 주세요 — 별도 세대 판정(만 30세 이상 등)에 꼭 필요해요'}; return {v:nv}; }
     if(s.t==='pN'){ if(L.some(function(x){ return !(+x>0&&+x<100); })) return {err:'지분을 모두 넣어 주세요(0 초과 100 미만 %)'}; var ps=Math.round(L.reduce(function(t,x){ return t+(+x); },0)*1e6)/1e6; if(Math.abs(ps-100)>1e-6) return {err:'지분 합계가 100%가 되게 넣어 주세요(지금 '+ps+'%)'}; return {v:L.map(Number)}; }
     
-    if(s.t==='m'){ var rq=wReq(s); if(L[0]===''){ if(rq) return {err:rq}; if(s.unk) return {v:''}; L[0]='0'; } if(!(+L[0]>=0)) return {err:'금액을 넣어 주세요(만원)'}; if(rq&&!(+L[0]>0)) return {err:rq}; return {v:+L[0]}; }
+    if(s.t==='m'){ var rq=wReq(s); if(L[0]===''){ if(rq) return {err:rq}; if(s.unk) return {v:''}; L[0]='0'; } if(!(+L[0]>=0)) return {err:'금액을 넣어 주세요('+(isEok(s)?'억':'만원')+')'}; if(rq&&!(+L[0]>0)) return {err:rq}; if(+L[0]>1e10) return {err:'금액이 너무 커요 — 100조원(1,000,000억) 이하로 넣어 주세요'}; return {v:+L[0]}; }   
     if(s.t==='ym'){ var y=+(L[0]||0), m=+(L[1]||0); if(!(y>=0)||!(m>=0&&m<=11)) return {err:'년(0 이상), 개월(0~11)을 넣어 주세요'}; return {v:[y,m]}; }
     if(s.t==='p2'){ var a=+L[0], b=+L[1]; if(!(a>0&&a<=100&&b>0&&b<=100)) return {err:'지분(%)을 둘 다 넣어 주세요'}; if(a>b) return {err:'내 지분이 가장 큰 지분보다 클 수 없음 · 내가 가장 크면 [이전] → 「내 지분이 가장 커요」'}; if(a===b) return {err:'지분이 같으면 그 집에 사는 사람 → 최연장자 순으로 주인을 봄(시행령 §155③) · 내가 주인이면 [이전] → 「내 지분이 가장 커요」, 아니면 다른 사람 지분을 조금 크게(예 50.01) 넣기'}; return {v:[a,b]}; }
     return {err:''}; }
@@ -6183,7 +6187,7 @@ PKD.KTERMS = {
     var CO=W.CO, sum=0, bad=CO.filter(function(p){ return !p.o||p.o.err; });
     CO.forEach(function(p){ sum+=coTot(p.o); });
     var so=coTot(W.SOLO), df=sum-so;
-    h+='<div class="pk-wr '+(sum>0?'ng':'ok')+'"><div class="pk-wr0">내실 세금 — 공동명의 '+CO.length+'명 합계(양도소득세 + 지방소득세)</div>'+(sum>0?'<div class="pk-wr1">'+(sum>=1e4?'약 '+wEok(Math.round(sum)/1e4).replace(/^= /,''):won(sum))+'</div><div class="pk-wr3">'+won(sum)+'</div>':'<div class="pk-wr1">낼 세금이 없어요</div>')+
+    h+='<div class="pk-wr '+(sum>0?'ng':'ok')+'"><div class="pk-wr0">내실 세금 — 공동명의 '+CO.length+'명 합계(양도소득세 + 지방소득세)</div>'+(sum>0?'<div class="pk-wr1">'+(sum>=1e4?'약 '+wEok(Math.round(sum)/1e4).replace(/^= /,''):won(sum))+'</div><div class="pk-wr3 pk-won">'+won(sum)+'</div>':'<div class="pk-wr1">낼 세금이 없어요</div>')+
       '<div class="pk-wr2 pk-cosolo">본인 단독이었으면 '+won(so)+(df?' → 공동명의가 '+won(Math.abs(df))+(df<0?' 적음':' 많음'):' → 같음')+'</div>'+(bad.length?'<div class="pk-wr3">계산 못 한 공유자 '+bad.map(function(p){return p.nm;}).join(', ')+' — 입력 확인</div>':'')+'</div>';
     h+='<div class="pk-co">'+CO.map(function(p,j){ var o=p.o, r=o&&o.res||{}, g=o&&o.gift;
       return '<div class="pk-coc'+(W.coSel===j?' on':'')+'" data-pkco="'+j+'"><div class="pk-coh"><b>'+p.nm+'</b><span>지분 '+p.pct+'%</span></div>'+
@@ -6230,7 +6234,7 @@ PKD.KTERMS = {
     if(a.kind==='house'&&r.nt&&a.cnt==='1'&&!r.nt.holdOK) return '보유 2년 미만 → 비과세 안 됨 · '+r.rate.n;
     if(a.kind==='house'&&r.nt&&a.cnt==='1'&&r.nt.resNeed&&!r.nt.resOK) return '살 때 조정대상지역 + 거주 2년 미만 → 비과세 안 됨 · '+r.rate.n;
     var lt=r.lt&&r.lt.pct>0?' · 장기보유특별공제 '+r.lt.pct+'%':'';
-    return (a.kind==='house'&&a.cnt!=='1'?'다주택 양도 → 과세 · ':'과세 · ')+r.rate.n+lt;
+    return (a.kind==='house'&&a.cnt!=='1'?'다주택 양도 → 과세':'과세(비과세, 감면 아님)')+' · 세율 = '+r.rate.n+lt;   
   }
   
   function wStale(){ if(!W.done||!W.o||!W.sig||!SIM()) return false; var s=''; try{ s=JSON.stringify(window.YSUI.input()); }catch(x){ return !!W.stale; } var st=s!==W.sig; if(st!==!!W.stale){ W.stale=st; drawQ(); } return st; }
@@ -6246,7 +6250,7 @@ PKD.KTERMS = {
     var FL=(o.flags||[]).map(String), CVL=W.A.kind==='ipju'?FL.filter(function(x){return /^권리변환일 = /.test(x);})[0]:'';   
     
     h+='<div class="pk-wr '+(free?'ok':'ng')+'"><div class="pk-wr0">내실 세금(양도소득세 + 지방소득세)</div>'+(free?'<div class="pk-wr1">'+(r.loss?'0원 — 낼 세금이 없어요':'0원 — 비과세예요')+'</div>':
-      '<div class="pk-wr1">'+(tot>=1e4?'약 '+wEok(Math.round(tot)/1e4).replace(/^= /,''):won(tot))+'</div><div class="pk-wr3">'+won(tot)+(r.total10!=null&&r.total10!==tot?' · 납부할 세액(10원 미만 버림) '+won(r.total10):'')+'</div>')+
+      '<div class="pk-wr1">'+(tot>=1e4?'약 '+wEok(Math.round(tot)/1e4).replace(/^= /,''):won(tot))+'</div><div class="pk-wr3 pk-won">'+won(tot)+(r.total10!=null&&r.total10!==tot?' · 납부할 세액(10원 미만 버림) '+won(r.total10):'')+'</div>')+
       '<div class="pk-wr2">'+wWhy(o)+'</div>'+(!free&&r.base!=null?'<ul class="pk-wl"><li>양도차익 '+won(r.gain)+(r.lt&&r.lt.amt?', 장기보유특별공제 '+won(r.lt.amt):'')+', 과세표준 '+won(r.base)+'</li>'+(r.rate&&r.rate.n?'<li>세율 : '+wEsc(String(r.rate.n).replace(/<[^>]+>/g,''))+'</li>':'')+'</ul>':'')+(CVL?'<div class="pk-wr3 pk-wcv">'+wEsc(CVL.replace(/<[^>]+>/g,''))+'</div>':'')+(W.SP&&W.SP.length?'<div class="pk-wr3 pk-wsp">특수 사례 반영 : '+W.SP.join(', ')+'</div>':'')+'</div>';
     h+=wY4();   
     var DU=(o.dual||[]).map(String), CK=(W.M.K||[]).concat((o.checks||[]).map(String)).filter(function(x){return !(CVL&&/^권리변환일 = /.test(x));}), all=DU.concat(CK), cut=6;
@@ -6285,7 +6289,7 @@ PKD.KTERMS = {
     $('pkWDet').innerHTML=addEok(h);
   }
   function cardsFrom(out, re){ return [].filter.call(out.querySelectorAll('.card'),function(c){var h=c.querySelector('h3'); return h&&re.test(h.textContent);}); }
-  function addEok(html){ return html.replace(/(\d{1,3}(?:,\d{3})+)원(?![^<]*<\/option)/g,function(m,n){var v=+n.replace(/,/g,''); return m+eok(v);}); }
+  function addEok(html){ return html; }   
   
   var KA=['house','bunyang','ipju','land','nonbiz'];
   var SPX=[
@@ -6417,6 +6421,8 @@ PKD.KTERMS = {
     if(d.pkco!==undefined){ W.coSel=+d.pkco; [].forEach.call(document.querySelectorAll('#pkWz [data-pkco]'),function(b){ b.classList.toggle('on',+b.dataset.pkco===W.coSel); }); if(window.TXMAP) window.TXMAP.wz(W); return; }   
   });
   document.addEventListener('input',function(e){ var t=e.target; if(!t||!t.dataset||t.dataset.pkwi===undefined) return; var s=wStep(W.cur); if(s&&s.t==='m'&&$('pkWe')) $('pkWe').textContent=wParts(s)?wSplTxt([].map.call($('pkWz').querySelectorAll('[data-pkwp]'),function(e){return e.value.trim();})):wEok(isEok(s)?eokToMan(t.value):t.value); if($('pkWer')) $('pkWer').textContent=''; },true);
+  
+  document.addEventListener('beforeinput',function(e){ var t=e.target; if(!t||!t.dataset||t.dataset.pkwi===undefined||!e.data||e.data.indexOf(',')<0) return; var s=wStep(W.cur); if(!s||s.t!=='m'||!isEok(s)) return; e.preventDefault(); var er=document.querySelector('#pkWz .pk-wer'); if(er) er.textContent='억 칸은 쉼표 없이 넣어 주세요 — 소수는 점(.)으로(예 5.5억)'; },true);
   document.addEventListener('keydown',function(e){ var t=e.target; if(e.key!=='Enter'||!t||!t.dataset||t.dataset.pkwi===undefined) return; e.preventDefault(); var b=$('pkWz').querySelector('[data-pkwn]'); if(b) b.click(); },true);
   
   window.PK = { init:function(){
@@ -7101,11 +7107,11 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     (h || q).insertAdjacentElement('afterend', el);
   }
   
-  var EOKRE = /(^|[^\d,.(])(\d{1,3}(?:,\d{3})+|\d+)원(?!\))/g;
+  var EOKRE = /(^|[^\d,.(])(\d{1,3}(?:,\d{3})+|\d+)원/g;   
   function eokTxt(t) { return t.replace(EOKRE, function (m, pre, num) { var v = +num.replace(/,/g, ''); if (!(v >= 1e8)) return m; var e = Math.round(v / 1e6) / 100; return pre + e.toLocaleString('ko-KR', { maximumFractionDigits: 2 }) + '억'; }); }   
   function eokFmt() {
     [].forEach.call(document.querySelectorAll('#pkWz,#wzQs'), function (root) {
-      var tw = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, { acceptNode: function (n) { var p = n.parentElement; if (!p || p.closest('.pk-wa,.pk-wq,.pk-wh,.pk-easy,.pk-wi,.pk-wdf,script,style,input,select,textarea,button')) return NodeFilter.FILTER_REJECT; return /\d원/.test(n.nodeValue) ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_SKIP; } });
+      var tw = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, { acceptNode: function (n) { var p = n.parentElement; if (!p || p.closest('.pk-wa,.pk-wq,.pk-wh,.pk-easy,.pk-wi,.pk-wdf,.pk-won,script,style,input,select,textarea,button')) return NodeFilter.FILTER_REJECT; return /\d원/.test(n.nodeValue) ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_SKIP; } });
       var L = [], n; while ((n = tw.nextNode())) L.push(n);
       L.forEach(function (x) { var t = eokTxt(x.nodeValue); if (t !== x.nodeValue) x.nodeValue = t; });
     });
@@ -7118,7 +7124,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
 })();
 
 </script>
-<div id="pubFoot" style="margin:28px auto 0;padding:14px 16px 22px;max-width:1100px;font:14px/1.6 Freesentation,-apple-system,BlinkMacSystemFont,'Apple SD Gothic Neo','Malgun Gothic','Noto Sans KR',sans-serif;color:#6B7684;text-align:center;border-top:1px solid #E5E8EB">본 자료 = 일반적 정보 제공 목적, 실제 적용 시 개별 사안별 법률적 검토 및 전문가 자문 필수<br>계산은 이 기기 안에서만 하며 입력값은 어디에도 보내지 않습니다. · 판 2026-11-20</div><script>try{if(window.self!==window.top)document.getElementById("pubFoot").style.display="none";}catch(e){}</script>
+<div id="pubFoot" style="margin:28px auto 0;padding:14px 16px 22px;max-width:1100px;font:14px/1.6 Freesentation,-apple-system,BlinkMacSystemFont,'Apple SD Gothic Neo','Malgun Gothic','Noto Sans KR',sans-serif;color:#6B7684;text-align:center;border-top:1px solid #E5E8EB">본 자료 = 일반적 정보 제공 목적, 실제 적용 시 개별 사안별 법률적 검토 및 전문가 자문 필수<br>계산은 이 기기 안에서만 하며 입력값은 보내지 않습니다(「주소로 찾기」에 넣은 주소만 공시가격, 조정대상지역 확인을 위해 브이월드로 보냄). · 판 2026-11-20</div><script>try{if(window.self!==window.top)document.getElementById("pubFoot").style.display="none";}catch(e){}</script>
 <script id="gsgJs">(function () {
   'use strict';
   var TAB = "cgt", KEY = "66360EF1-780E-4AB9-A5AA-A119D3364B46";
@@ -7163,7 +7169,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
         return L; },
       adj: function (id, a) { var P = this._p(id); if (!P) return null;
         /* 2026-11-20 지적 「증여일을 오늘로 할게요 누르면 판정이 안 됨」 — 「오늘로 할게요」 답 = '' 라 날짜 없음으로 보던 것 → 답이 '' 면 오늘(엔진 IGX6 today() 와 같은 날) */
-        var dt = function (k) { return a[k] === '' ? TODAY : (a[k] || ''); }, tl = function (k, l) { return a[k] === '' ? l + '(오늘)' : l; };
+        var dt = function (k) { return a[k] === '' ? TODAY : (a[k] || ''); }, tl = function (k, l) { return a[k] === '' ? l + ' 오늘' : l; };   /* 2026-11-20 손체크 P11 — 「증여일(오늘)(2026.11.20.)」 괄호 겹침 → 「증여일 오늘(2026.11.20.)」 */
         if (P.f === 'AdjA' && this._a[P.t]) return { date: a[this._a[P.t]] || '', lab: '산 날', yes: 'y', no: 'n' };
         if (P.f === 'AdjS' && P.t === 's') return { date: a.sGDate || '', lab: '증여일', yes: 'y', no: 'n' };
         if (P.f === 'AdjS2' && P.t === 's') return { date: dt('sSDate'), lab: tl('sSDate', '파는 날'), yes: 'y', no: 'n' };
