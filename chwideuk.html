@@ -360,7 +360,7 @@ body .y4box .y4e{color:var(--pd-acc)!important}
     <li>과세표준(시가인정액, 1억원 이하 선택, 배우자·직계존비속 매매, 특수관계 저가), 신고 기한, 가산세</li>
   </ul>
   <details class="why"><summary>근거, 기준 자료</summary><p class="law">
-   · 기준 : 국세청·행정안전부 「2026 주택과 세금」(이하 「책」) 제1편 제1장 p.22~60, 법제처 현행 조문 원문(2026-11-16 조회 · 지방세법 2026.7.1. 시행판, 시행령 2026.10.1. 시행판, 지방세기본법 2026.10.2. 시행판)<br>
+   · 기준 : 국세청·행정안전부 「2026 주택과 세금」 제1편 제1장 p.22~60, 법제처 현행 조문 원문(2026-11-16 조회 · 지방세법 2026.7.1. 시행판, 시행령 2026.10.1. 시행판, 지방세기본법 2026.10.2. 시행판)<br>
    · 계산 순서 : 과세표준(§10~§10의7) → 주택 수(§13의3, 영 §28의4) → 표준세율(§11①) → 중과(§13의2, §13①②⑤) → 특례(§15①) → 산출세액 → 감면(지특법) → 지방교육세(§151①1호) · 농어촌특별세(농특세법 §5①) → 납부할 세액 → 신고·납부 기한(§20①) → 가산세(§21, 지방세기본법 §53~55)<br>
    · 과세표준 : 유상 = 사실상취득가격(§10의3①) · 특수관계 저가 = 시가인정액 결정 가능(§10의3②, 영 §18의2 차액 3억원 또는 5%) · 무상 = 시가인정액(§10의2①, 영 §14 평가기간 취득일 전 6개월~후 3개월) · 시가표준액 1억원 이하 = 납세자 선택(§10의2②2호, 영 §14의2) · 상속 = 시가표준액(§10의2②1호) · 부담부증여 = 채무부담액 유상 + 나머지 무상(§10의2⑥, 영 §14의4) · 원시 = 사실상취득가격(§10의4)<br>
    · 배우자·직계존비속 취득 = 증여로 봄, 대가 지급 증명 시 유상(§7⑪) · 부담부 증여 채무분 = 유상, 배우자·직계존비속은 §7⑪(§7⑫)<br>
@@ -382,7 +382,7 @@ body .y4box .y4e{color:var(--pd-acc)!important}
   <div class="howto" id="exBox">
     <div class="fld"><label>사례 불러오기(「2026 주택과 세금」 취득세 사례 · 법령 예시 · 고르면 전체 입력 보기로 엶)</label>
       <select id="exSel"></select>
-      <span class="dfl">책에 없는 값(취득일, 면적 등)은 책 조건에 맞춰 넣은 값 · 법령 예시 = 조문 숫자로 만든 시험 사례</span></div>
+      <span class="dfl">사례에 없는 값(취득일, 면적 등)은 사례 조건에 맞춰 넣은 값 · 법령 예시 = 조문 숫자로 만든 시험 사례</span></div>
   </div>
 
   <section class="sec">
@@ -435,7 +435,7 @@ body .y4box .y4e{color:var(--pd-acc)!important}
   <section class="sec" id="secCnt">
     <h2>③ 주택 수, 지역<small>취득일 현재 · 1세대 기준</small></h2>
     <label class="chk" id="adjBox"><input id="adj" type="checkbox"> 취득 주택이 조정대상지역(주택법 §63의2)</label>
-    <span class="dfl" id="adjNote">· 2025.10.16. 현재 37곳 : 서울 전 지역, 경기 과천·광명·성남 분당·수정·중원·수원 영통·장안·팔달·안양 동안·용인 수지·의왕·하남(책 p.308) · 그 뒤 지정·해제는 국토교통부 공고 확인</span>
+    <span class="dfl" id="adjNote">· 2025.10.16. 현재 37곳 : 서울 전 지역, 경기 과천·광명·성남 분당·수정·중원·수원 영통·장안·팔달·안양 동안·용인 수지·의왕·하남(「2026 주택과 세금」 p.308) · 그 뒤 지정·해제는 국토교통부 공고 확인</span>
     <label class="chk" id="preBox"><input id="preAdj" type="checkbox"> 조정대상지역 지정고시일 전에 매매(분양)계약 + 계약금 지급 증빙 — 지정 전 취득으로 봄(§13의2④)</label>
     <div id="cntBox">
       <div class="sub">이번 주택 말고 1세대가 가진 것</div>
@@ -445,7 +445,7 @@ body .y4box .y4e{color:var(--pd-acc)!important}
         <div class="fld"><label>주택분양권</label><input id="nB" type="number" inputmode="numeric" value="0"></div>
         <div class="fld"><label>주거용 오피스텔</label><input id="nO" type="number" inputmode="numeric" value="0"></div>
       </div>
-      <span class="dfl">· 입주권·분양권·오피스텔 = 2020.8.12. 이후 취득분(오피스텔은 주택분 재산세 과세분)만(§13의3, 책 p.39~43) · 분양권으로 받는 주택은 분양권 취득일(분양계약일) 현재 주택 수(영 §28의4①)</span>
+      <span class="dfl">· 입주권·분양권·오피스텔 = 2020.8.12. 이후 취득분(오피스텔은 주택분 재산세 과세분)만(§13의3, 「2026 주택과 세금」 p.39~43) · 분양권으로 받는 주택은 분양권 취득일(분양계약일) 현재 주택 수(영 §28의4①)</span>
       <div id="hxBox">
       <div class="sub">그중 주택 수에서 빼는 것(영 §28의4⑥)</div>
       <div class="row cnt">
@@ -490,7 +490,7 @@ body .y4box .y4e{color:var(--pd-acc)!important}
   <section class="sec" id="secGift">
     <h2>증여 판정, 부담부증여<small>§13의2②, 영 §28의6, §7⑫</small></h2>
     <label class="chk" id="donorBox"><input id="donorOne" type="checkbox"> 증여자 세대가 1세대 1주택 + 받는 사람이 배우자, 직계존비속 — 무상 중과 제외(영 §28의6②1호)</label>
-    <p class="law tip" id="giftTip">증여하는 세대 기준 1세대 1주택(받는 사람 주택 수 무관), 증여자 주택 수에 오피스텔·입주권·분양권 넣음, 1억원 이하 등 유상 중과 제외 주택도 무상 중과 판정에서는 주택 수에 넣음, 사실혼 배우자 제외, 이혼 재산분할(§15①6호)도 중과 제외 (영 §28의6, 책 p.48~49)</p>
+    <p class="law tip" id="giftTip">증여하는 세대 기준 1세대 1주택(받는 사람 주택 수 무관), 증여자 주택 수에 오피스텔·입주권·분양권 넣음, 1억원 이하 등 유상 중과 제외 주택도 무상 중과 판정에서는 주택 수에 넣음, 사실혼 배우자 제외, 이혼 재산분할(§15①6호)도 중과 제외 (영 §28의6, 「2026 주택과 세금」 p.48~49)</p>
     <div id="burdenBox">
       <div class="sub">부담부증여 — 채무분 유상(§7⑫)</div>
       <label class="chk"><input id="bFam" type="checkbox" checked> 배우자·직계존비속에게서 받음 — 채무분도 증여로 봄(§7⑫ 단서 → §7⑪)</label>
@@ -512,10 +512,10 @@ body .y4box .y4e{color:var(--pd-acc)!important}
   <section class="sec" id="secSp">
     <h2>④ 특례, 중과</h2>
     <label class="chk" id="inhBox"><input id="inhNone" type="checkbox"> 무주택 가구가 주택 1채 상속 — 2.8% − 2% = 0.8%(§15①2호가목)</label>
-    <p class="law tip" id="inhTip">상속인과 세대별 주민등록표에 함께 있는 가족(배우자, 미혼 30세 미만 직계비속은 주소 달라도 같은 가구) 모두 피상속인 사망일 현재 무주택, 공동상속이면 지분 가장 큰 상속인(같으면 거주자, 그다음 연장자)을 소유자로 봄 (영 §29, 책 p.30)</p>
+    <p class="law tip" id="inhTip">상속인과 세대별 주민등록표에 함께 있는 가족(배우자, 미혼 30세 미만 직계비속은 주소 달라도 같은 가구) 모두 피상속인 사망일 현재 무주택, 공동상속이면 지분 가장 큰 상속인(같으면 거주자, 그다음 연장자)을 소유자로 봄 (영 §29, 「2026 주택과 세금」 p.30)</p>
     <label class="chk" id="selfBox"><input id="selfFarm" type="checkbox"> 자경농민 감면 대상 농지(지특법 §6①) 상속 — 2.3% − 2% = 0.3%, 농어촌특별세 비과세(§15①2호나목)</label>
     <label class="chk" id="luxBox"><input id="lux" type="checkbox"> 고급주택(§13⑤3호) — 세율에 8% 더함</label>
-    <p class="law tip" id="luxTip">취득 당시 시가표준액 9억원 초과(④는 가액 무관) + ① 연면적(주차장 제외) 331㎡ 초과 ② 대지 662㎡ 초과 ③ 엘리베이터(200kg 이하 제외, 공동주택 제외) ④ 에스컬레이터 또는 67㎡ 이상 수영장(공동주택 제외) ⑤ 공동주택 전용 245㎡(복층 274㎡) 초과 중 하나 (책 p.49)</p>
+    <p class="law tip" id="luxTip">취득 당시 시가표준액 9억원 초과(④는 가액 무관) + ① 연면적(주차장 제외) 331㎡ 초과 ② 대지 662㎡ 초과 ③ 엘리베이터(200kg 이하 제외, 공동주택 제외) ④ 에스컬레이터 또는 67㎡ 이상 수영장(공동주택 제외) ⑤ 공동주택 전용 245㎡(복층 274㎡) 초과 중 하나 (「2026 주택과 세금」 p.49)</p>
     <label class="chk" id="corpBox"><input id="corpNew" type="checkbox"> 대도시(수도권 과밀억제권역, 산업단지 제외)에서 설립 5년 안 된 법인 — 중과 제외 주택이라도 12%</label>
     <div class="row" id="metroFld">
       <div class="fld"><label>과밀억제권역 중과(법인 · 주택 외)</label><select id="metro">
@@ -562,7 +562,7 @@ body .y4box .y4e{color:var(--pd-acc)!important}
   <div id="out"></div>
   <div id="outXl" class="xlbox hide"><button type="button" class="xlb" data-acqxl="out">엑셀 받기 (수식)</button><div class="acq-xlm xlm"></div></div>
 
-  <details class="why" id="spDet"><summary>⑦ 주상복합 안분(영 §19, 책 p.28)</summary>
+  <details class="why" id="spDet"><summary>⑦ 주상복합 안분(영 §19, 「2026 주택과 세금」 p.28)</summary>
     <div class="box">
       <span class="dfl">건물 시가표준액 + 부속토지 가격 전체로 비율을 내 취득가격을 나눔, 나눈 주택분은 「주택 매매」 가액에, 상가분은 「주택 외」 4%로 각각 계산</span>
       <table class="split" style="margin-top:8px"><tr><th>만원</th><th>주택</th><th>상가 등</th></tr>
@@ -756,7 +756,7 @@ var ACQ = (function () {
         if (I.ex) exr = exCheck(I);
         var exOK = exr && exr.ok;
         if (corp) {
-          if (exOK && !I.corpNew) why.push('법인이지만 중과 제외 주택 → 표준세율(영 §28의2, 책 p.47)');
+          if (exOK && !I.corpNew) why.push('법인이지만 중과 제외 주택 → 표준세율(영 §28의2, 「2026 주택과 세금」 p.47)');
           else { mode = 'h12'; why.push('법인 주택 유상취득 12%(4% + 2% × 4), §13의2①1호' + (exOK && I.corpNew ? ', 중과 제외 주택이지만 대도시 신설 5년 안 법인 → 높은 세율(§13②, §16⑤)' : '')); }
         } else if (firstOK) {
           why.push('생애최초 감면 대상 → 중과세율 적용 안 함(지특법 §36의3① 괄호)');
@@ -837,8 +837,19 @@ var ACQ = (function () {
       if (I.price > R.reliefMax) { ok = false; rw.push('취득당시가액 12억원 초과'); }
       if (I.relief === 'first') {
         if (I.date > R.firstEnd) { ok = false; rw.push('2028.12.31. 뒤 취득'); }
-        var cut = I.small ? R.firstSmall : R.firstCut;
-        red = { n: '생애최초 주택 구입 감면(지특법 §36의3①' + (I.small ? '1호' : '2호') + ')', cut: cut };
+        var cut0 = I.small ? R.firstSmall : R.firstCut, cut = cut0, jn = '';
+        
+        
+        if (I.share < 100) {
+          if (I.coRelief !== '' && I.coRelief != null && isFinite(+I.coRelief)) { cut = Math.max(0, cut0 - Math.max(0, Math.round(+I.coRelief))); jn = '총 한도 ' + won0(cut0) + ' − 다른 공동 취득자 감면 ' + won0(Math.max(0, Math.round(+I.coRelief))); }
+          else if (I.coFirst === 'n') jn = '다른 공동 취득자 감면 없음 → 총 한도 ' + won0(cut0) + ' 그대로';
+          else {
+            cut = Math.floor(cut0 * I.share / 100); jn = '총 한도 ' + won0(cut0) + ' × 지분 ' + I.share + '%';
+            if (I.coFirst !== 'y') bx.defaults.push('공동 취득 — 다른 공동 취득자도 생애최초 감면을 받는지 칸 비움 → 받는 것으로 보고 총 한도 ' + won0(cut0) + '(지특법 §36의3②)를 지분 비율로 나눔 = ' + won0(cut));
+          }
+        }
+        red = { n: '생애최초 주택 구입 감면(지특법 §36의3①' + (I.small ? '1호' : '2호') + (jn ? ', ②' : '') + ')', cut: cut };
+        if (jn) { red.cut0 = cut0; red.joint = jn; }   
       } else {
         var b = I.birthD || '';
         if (!b) { ok = false; rw.push('출산일 없음'); }
@@ -874,6 +885,10 @@ var ACQ = (function () {
     
     out.baseSrc = baseSrc; out.lowStd = lowStd; out.cntX = cntX; out.famGift = !!I.famGift;
     out.dual = bx.dual; out.defaults = bx.defaults;
+    if (sp15 && I.divSplit && !(house && I.area <= R.nongArea)) {   
+      var nAlt = mulDiv(base, R.nongStd / 10, 100 * P);   
+      out.nongAlt = nAlt; out.dual.push('재산분할 농어촌특별세 : 0원(농특세법 §5①6호 문언 · 표준세율 2%로 계산한 취득세가 §15① 특례 뒤 0) = 합계 ' + won0(total) + ' / 과세로 볼 때(§4 10의4호 비과세는 지방세법 §15①1~3호만 · 6호 재산분할은 빠짐) ' + won0(nAlt) + ' = 합계 ' + won0(total + nAlt) + ' · 예규, 심판례, 판례 못 찾음');
+    }
     if (red && red.ok && red.amt > 0 && edu > 0) {   
       var eduR = edu - mulDiv(edu, red.amt, acq0);
       out.dual.push('지방교육세 : 조문 문언(지방세법 §151①1호다목1)은 감면율을 정한 경우만 → 공제액 방식 감면은 본문) = ' + won0(edu) + ' / 감면 비율만큼 줄인 값(일부 계산기) = ' + won0(eduR) + '(차이 ' + won0(edu - eduR) + ') · 예규, 심판례 못 찾음 — 문언 기준 값으로 둠');
@@ -894,7 +909,7 @@ var ACQ = (function () {
         var g2 = I.mv - I.price;
         if (g2 >= R.famAmt || g2 * 100 >= I.mv * R.famRate) { var fg = sub({ fam: true, famProof: false });
           out.famLow = { gap: g2, total: fg.total, rate: fg.rate };
-          out.dual.push('배우자·직계존비속 저가 매매 — 차액 ' + won0(g2) + ' : 유상(대가 증명) ' + won0(total) + ' / 증여로 볼 때(§7⑪4호 단서, 2026 개정 · 책 p.24 「차액 3억원 또는 30% 이상」) ' + won0(fg.total) + ' — 위임 시행령 조문 원문 못 찾음 [확인 필요]'); }
+          out.dual.push('배우자·직계존비속 저가 매매 — 차액 ' + won0(g2) + ' : 유상(대가 증명) ' + won0(total) + ' / 증여로 볼 때(§7⑪4호 단서, 2026 개정 · 「2026 주택과 세금」 p.24 「차액 3억원 또는 30% 이상」) ' + won0(fg.total) + ' — 위임 시행령 조문 원문 못 찾음 [확인 필요]'); }
       }
     }
     if (I.pen && !Iin._sub) out.pen = penalty(I.pen, out);
@@ -955,6 +970,7 @@ var ACQ = (function () {
     var S = [], add = function (id, n, v, law, s) { S.push({ id: id, n: n, v: v, law: law || '', s: s || '' }); };
     var BL = { real: ['사실상취득가격', '§10의3①'], mv: ['시가인정액', '§10의2①'], std: [x.c === 'inh' ? '시가표준액(상속)' : '시가표준액(1억원 이하 선택)', x.c === 'inh' ? '§10의2②1호' : '§10의2②2호, 영 §14의2'], part: ['나눈 몫(부담부증여)', '§10의2⑥, 영 §14의4'] };
     var bl = BL[o.baseSrc] || BL.real; if (x.c === 'new' && o.baseSrc === 'real') bl = ['사실상취득가격(원시)', '§10의4'];
+    if (I.tradeLaw && o.baseSrc === 'real') bl = [I.tradeName || '교환·대물변제 취득당시가액', I.tradeLaw];   
     add('base', '과세표준', o.base, bl[1], bl[0] + (I.share < 100 ? ' × 지분 ' + I.share + '%' : '') + (o.famGift ? ' · 배우자·직계존비속 매매 → 증여(§7⑪)' : ''));
     if (x.house && x.c === 'buy') { var cx = o.cntX, xn = cx ? cx.nX + cx.hx + (cx.self && cx.self.ok ? 1 : 0) : 0;
       add('cnt', x.corp ? '취득자 = 법인' : '1세대 주택 수', x.corp ? '주택 수 무관' : o.cnt + '주택', x.corp ? '§13의2①1호' : '§13의3, 영 §28의4', !x.corp && xn ? '이번 주택 포함 ' + cx.raw + '개 − 제외 ' + xn : (x.corp ? '' : '이번 주택 포함')); }
@@ -1015,35 +1031,36 @@ var ACQ = (function () {
     
     if (o.cntX && o.cntX.self && !o.cntX.self.ok) f.push(o.cntX.self.n + ' 요건 미달 — ' + o.cntX.self.why.join(', ') + ' → 이번 주택을 주택 수에서 빼지 않음');
     if (o.cntX && o.cntX.self && o.cntX.self.ok) f.push(o.cntX.self.n + ' : 주택 유형(건축물대장), 최초 유상승계 여부, 임대등록(2호 = 60일 안 · 임대의무기간 안 매각·증여 시 제외) 서류 확인(영 §28의4②)');
-    if (o.cntX && o.cntX.hx) f.push('주택 수 제외(영 §28의4⑥) 항목별 요건 확인 — 상속 = 상속개시일부터 5년(입주권·분양권이 주택이 되면 5년 안이라도 주택), 1억원 이하 = 주택 수 산정일 현재 시가표준액, 공동상속은 지분 가장 큰 상속인(같으면 거주자 → 연장자) 주택(⑤, 책 p.39~43)');
+    if (o.cntX && o.cntX.hx) f.push('주택 수 제외(영 §28의4⑥) 항목별 요건 확인 — 상속 = 상속개시일부터 5년(입주권·분양권이 주택이 되면 5년 안이라도 주택), 1억원 이하 = 주택 수 산정일 현재 시가표준액, 공동상속은 지분 가장 큰 상속인(같으면 거주자 → 연장자) 주택(⑤, 「2026 주택과 세금」 p.39~43)');
     if (o.famGift) f.push('배우자·직계존비속에게서 산 주택 → 대가 지급 증명(취득자 소득, 소유재산 처분·담보, 상속·증여재산, 그 밖 재산) 없으면 증여로 봄 — 증명 서류가 있으면 「대가 증명」을 켜면 유상으로 다시 계산(§7⑪4호)');
     if (o.lowStd) f.push('시가표준액 1억원 이하 무상취득 = 시가인정액과 시가표준액 중 납세자가 정한 가액(§10의2②2호, 영 §14의2 · 지분이면 전체 지분 시가표준액, 부속토지만이면 전체 주택 시가표준액)');
     if (I.cause === 'gift' && I.kind !== 'house' && !o.lowStd && !(+I.part > 0)) f.push('무상취득 과세표준 = 시가인정액(취득일 전 6개월~후 3개월 매매·감정·경매·공매가액, 영 §14①) · 산정이 어려우면 시가표준액(§10의2②3호) · 감정가액 신고는 감정기관 둘(시가표준액 10억원 이하는 하나, 영 §14의3①)');
     if (o.pen && !o.pen.err) f.push('가산세 : 과소신고·신고 없이 매각 때 지방교육세·농어촌특별세 납부지연 가산세는 계산 안 함 · 정당한 사유 감면(지방세기본법 §57①), 고지 뒤 3%·월 0.66%(§55①3·4호)는 반영 안 함 [확인 필요] · 농특세 납부지연 = 국세기본법 §47의4(무신고 가산세 없음 §47의2① 괄호)');
-    if (o.pen || o.dueRaw !== o.due) f.push('신고·납부 기한 특례(지방세기본법 §24①) : 토·일, 양력 공휴일(1.1., 3.1., 5.5., 6.6., 8.15., 10.3., 10.9., 12.25. · 2026.5.11.부터 5.1. 노동절, 7.17. 제헌절)과 그 대체공휴일만 자동 — 설·추석·부처님 오신 날·선거일·임시공휴일은 holidays 칸(YYYY-MM-DD 목록)으로 넣어야 반영 [확인 필요]');
+    if (o.pen || o.dueRaw !== o.due) f.push('신고·납부 기한 특례(지방세기본법 §24①) : 토·일, 양력 공휴일(1.1., 3.1., 5.5., 6.6., 8.15., 10.3., 10.9., 12.25. · 2026.5.11.부터 5.1. 노동절, 7.17. 제헌절)과 그 대체공휴일만 자동 — 설·추석·부처님 오신 날·선거일·임시공휴일은 자동 반영 안 됨 — 기한 끝날이 이런 날이면 다음 날로 직접 확인 [확인 필요]');
     if (o.total10 !== o.total) f.push('낼 돈 = 세목마다 10원 미만 버림 ' + won0(o.total10) + '(국고금 관리법 §47①, 지방세기본법 §59) · 원 단위 합계 ' + won0(o.total));
-    if (o.t2 && o.t2.extra > 0) f.push('일시적 2주택 기한 안 못 팔면 추가 납부 ' + won0(o.t2.extra) + '(중과 ' + pct(o.t2.heavyRate) + ' − 이번 신고) — 사유발생일부터 60일 안 신고·납부하면 가산세 없음(2026 개정, 책 p.24)');
+    if (o.t2 && o.t2.extra > 0) f.push('일시적 2주택 기한 안 못 팔면 추가 납부 ' + won0(o.t2.extra) + '(중과 ' + pct(o.t2.heavyRate) + ' − 이번 신고) — 사유발생일부터 60일 안 신고·납부하면 가산세 없음(2026 개정, 「2026 주택과 세금」 p.24)');
     if (I.kind === 'house' && I.adj) f.push('조정대상지역 지정 현황(2025.10.16. 현재 37곳 · 「2026 주택과 세금」 p.308) : 서울 전 지역, 경기 과천·광명·성남 분당·수정·중원·수원 영통·장안·팔달·안양 동안·용인 수지·의왕·하남 — 그 뒤 지정·해제는 국토교통부 공고로 확인');
     if (o.exr && !o.exr.ok) f.push('중과 제외 주택으로 골랐지만 요건 미달 — ' + o.exr.why + ' → 중과 판정에서 빼지 않음');
     if (o.exr && o.exr.ok && ['rural', 'demolish', 'etc', 'popRent'].indexOf(I.ex) >= 0) f.push('중과 제외 주택 요건(용도, 기간 안 멸실·사용·등록 등)은 서류로 확인, 못 맞추면 중과세율로 추징(영 §28의2 각 호 단서)');
-    if (o.t2) f.push('일시적 2주택 : ' + o.t2.until.replace(/-/g, '.') + '.까지(신규 주택 취득일부터 ' + o.t2.years + '년) 종전 주택등 처분, 못 팔면 사유발생일부터 60일 안 8%와 차액 신고·납부(2026 개정, 가산세 없음, 책 p.24, p.47), [확인 필요] 현행 영 §28의5①(2026.10.1. 시행 원문)은 「종전, 신규 모두 조정대상지역이면 2년」, 책 p.32~33은 「3년」 → 법령 원문 기준으로 둠');
-    if (house && c === 'buy' && I.owner !== 'corp' && o.cnt >= 2) f.push('주택 수 ' + o.cnt + ' = 1세대(배우자, 미혼 30세 미만 자녀 포함, 소득 있는 30세 미만 자녀, 65세 이상 부모 동거봉양 합가는 별도 세대) 기준, 주택 수에서 빼는 것 요건 확인(영 §28의3, §28의4, 책 p.35~44)');
-    if (house && c === 'buy' && I.adj) f.push('조정대상지역 여부는 취득일(잔금일) 현재, 지정고시일 전 계약은 지정 전 취득으로 봄, 해제는 잔금일 기준(책 p.32)');
-    if (house && c === 'gift') f.push('증여 과세표준 = 시가인정액(매매사례가액, 감정가액 등, §10의2①), 3억원 판정은 시가표준액(공시가격, 지분 증여도 전체 주택 기준), 증여 중과 판정 때는 1억원 이하 등 중과 제외 주택과 주택 수 제외 규정을 안 씀(책 p.48~49)');
-    if (house && c === 'buy') f.push('배우자, 직계존비속에게서 산 경우 증여로 봄, 대가 지급(소득, 재산 처분 등) 증명 시 유상, 2026 개정 : 대가와 시가인정액 차액이 3억원 이상 또는 30% 이상인 저가 매매는 증여(3.5%, 조정 3억원 이상은 12%)로 봄(§7⑪, 책 p.24) — 해당하면 원인을 「무상」으로 바꿔 비교');
+    if (o.t2) f.push('일시적 2주택 : ' + o.t2.until.replace(/-/g, '.') + '.까지(신규 주택 취득일부터 ' + o.t2.years + '년) 종전 주택등 처분, 못 팔면 사유발생일부터 60일 안 8%와 차액 신고·납부(2026 개정, 가산세 없음, 「2026 주택과 세금」 p.24, p.47), [확인 필요] 현행 영 §28의5①(2026.10.1. 시행 원문)은 「종전, 신규 모두 조정대상지역이면 2년」, 「2026 주택과 세금」 p.32~33은 「3년」 → 법령 원문 기준으로 둠');
+    if (house && c === 'buy' && I.owner !== 'corp' && o.cnt >= 2) f.push('주택 수 ' + o.cnt + ' = 1세대(배우자, 미혼 30세 미만 자녀 포함, 소득 있는 30세 미만 자녀, 65세 이상 부모 동거봉양 합가는 별도 세대) 기준, 주택 수에서 빼는 것 요건 확인(영 §28의3, §28의4, 「2026 주택과 세금」 p.35~44)');
+    if (house && c === 'buy' && I.adj) f.push('조정대상지역 여부는 취득일(잔금일) 현재, 지정고시일 전 계약은 지정 전 취득으로 봄, 해제는 잔금일 기준(「2026 주택과 세금」 p.32)');
+    if (house && c === 'gift') f.push('증여 과세표준 = 시가인정액(매매사례가액, 감정가액 등, §10의2①), 3억원 판정은 시가표준액(공시가격, 지분 증여도 전체 주택 기준), 증여 중과 판정 때는 1억원 이하 등 중과 제외 주택과 주택 수 제외 규정을 안 씀(「2026 주택과 세금」 p.48~49)');
+    if (house && c === 'buy') f.push('배우자, 직계존비속에게서 산 경우 증여로 봄, 대가 지급(소득, 재산 처분 등) 증명 시 유상, 2026 개정 : 대가와 시가인정액 차액이 3억원 이상 또는 30% 이상인 저가 매매는 증여(3.5%, 조정 3억원 이상은 12%)로 봄(§7⑪, 「2026 주택과 세금」 p.24) — 해당하면 원인을 「무상」으로 바꿔 비교');
     if (o.red) {
       if (!o.red.ok) f.push(o.red.n + ' 요건 미달 — ' + o.red.why.join(', ') + ' → 감면 안 함');
       else {
         f.push(o.red.n + ' 요건(무주택, 거주, 1가구 1주택 등)과 3년 안 매각·증여·임대 시 추징(§36의3④, §36의5②) 확인');
         f.push('감면 때 지방교육세는 줄이지 않고 계산(감면율이 아닌 정액 공제 — §151①1호다목1) 문언 「감면율을 정하는 경우」 · 예규, 심판례 못 찾음 · 줄인 값은 [⚠ 두 값])' + (o.nongEx ? '' : ', 농어촌특별세 = 10% 분(표준세율 2% 기준) + 감면세액 20%로 둠 [확인 필요]'));
       }
-      if (I.relief === 'first') f.push('생애최초 기한 : 책 p.52~53 본문은 「~2025.12.31.」, 요약표 p.22와 현행 지특법 §36의3①은 「2028.12.31.까지」 → 법령 원문 기준');
+      if (I.relief === 'first') f.push('생애최초 기한 : 「2026 주택과 세금」 p.52~53 본문은 「~2025.12.31.」, 요약표 p.22와 현행 지특법 §36의3①은 「2028.12.31.까지」 → 법령 원문 기준');
+      if (I.relief === 'first' && o.red.joint) f.push('공동 취득 생애최초 : 그 주택 총 감면액 ' + won0(o.red.cut0) + ' 이하(지특법 §36의3②) → 이 사람 한도 ' + won0(o.red.cut) + '(' + o.red.joint + ') · 공동 취득자끼리 나누는 방법은 법에 없음(지분 비율로 봄) → 관할 지자체 확인 · 감면 여부는 사람마다 판단(법제처 22-0447, 2022.11.25.)');
     }
-    if (o.lux) f.push('고급주택 요건(시가표준액 9억원 초과 + 면적·시설) 확인, 고급주택 농어촌특별세는 「표준세율 2% + 8%」 × 10%로 계산(책에 고급주택 농특세 예시 없음 — [확인 필요])');
-    if (o.metro) f.push('과밀억제권역 중과 : 법인 설립·전입 5년 안 취득, 대도시 중과 제외 업종(영 §26), 사업용 여부, 산업단지 해당 여부 확인, 책에 사례 없음, 법령 원문만으로 계산(§13①②⑥, §151①1호가목) — [확인 필요]');
+    if (o.lux) f.push('고급주택 요건(시가표준액 9억원 초과 + 면적·시설) 확인, 고급주택 농어촌특별세는 「표준세율 2% + 8%」 × 10%로 계산([확인 필요])');
+    if (o.metro) f.push('과밀억제권역 중과 : 법인 설립·전입 5년 안 취득, 대도시 중과 제외 업종(영 §26), 사업용 여부, 산업단지 해당 여부 확인, 법령 원문으로 계산(§13①②⑥, §151①1호가목) — [확인 필요]');
     if (o.metro && I.hqLand && (I.metro === 'hq' || I.metro === 'both') && c !== 'new') f.push('§13① 부속토지 : 본점·주사무소 사업용(영 §25 — 사무소용, 복지후생시설 제외) 건축물을 신축·증축하는 경우만 · 토지를 먼저 사고 5년 안에 본점 건축물을 신축하면 §13① 세율로 추징(§16①1호), 이미 §13② 로 낸 토지는 차액만 추가(조심 2020지0532, 2021.06.24.) · 본점용·다른 용도 겸용이면 부속토지를 면적으로 안분 [확인 필요]');
     if (!house && c === 'buy' && I.owner === 'corp' && !I.metro) f.push('법인이 대도시(수도권 과밀억제권역)에서 설립 5년 안이면 §13② 중과 여부 확인');
-    if (!house) f.push('주택 외 세율은 책에 계산 사례가 없음 — 법령 원문(§11①, §151, 농특세법 §5)만으로 계산');
+    if (!house) f.push('주택 외 세율 = 법령 원문(§11①, §151, 농특세법 §5)으로 계산');
     if (o.I.share < 100) f.push('지분 취득 : 세율 판정은 전체 주택 가액, 과세표준은 지분만큼으로 둠(§11①8호 후단은 시가표준액 비율로 환산 — 직접 확인)');
     if (house && o.nongEx && I.area > 0) f.push('국민주택규모 = 전용 85㎡(수도권 밖 도시지역 아닌 읍·면 100㎡, 주택법 §2 6호), 부속토지는 용도지역별 배율 안만 비과세(농특세법 시행령 §4⑤)');
     f.push('끝수 : 원 미만 버림, 납부할 세액은 세목마다 10원 미만 버림 반영, 지방교육세 조례 가감(§151②)은 반영 안 함');
@@ -1131,16 +1148,16 @@ if (typeof module !== 'undefined') module.exports = ACQ;
   var N = function (id) { return shown(id) ? (+$(id).value || 0) : 0; };
 
   var EXD = {
-    low: '시가표준액(공시가격, 지분은 전체 주택 기준) 1억원 이하(수도권 밖 2억원 이하, 2025.1.2. 이후 취득분), 정비구역 지정·고시 지역, 소규모주택정비 사업시행구역 안 주택은 안 됨 (영 §28의2 1호, 책 p.33)',
-    unsold: '수도권 밖, 전용 85㎡ 이하, 취득당시가액 6억원 이하, 사용승인 뒤 분양 안 된 아파트를 2026.1.1.~2026.12.31. 최초 유상승계취득 (영 §28의2 17호, 책 p.24, p.34)',
-    popRent: '2026.1.1.~2026.12.31. 인구감소지역 주택 취득 + 취득일부터 60일 안 임대주택 등록, 임대의무기간 중 임대 외 사용, 매각·증여, 등록 말소 시 중과 추징 (영 §28의2 18호, 책 p.24)',
-    rural: '읍·면 소재, 대지 660㎡ 이내, 연면적 150㎡ 이내, 건축물가액 6,500만원 이내, 광역시 군·수도권(접경지역 등 제외), 도시지역, 토지거래허가구역 등 밖 (영 §28의2 11호, 책 p.35)',
-    demolish: '주택건설사업자, 정비사업 시행자, 주택조합 등이 멸실 목적으로 취득, 취득일부터 3년 안 멸실, 7년 안 신축, 기간 넘기면 추징 (영 §28의2 8호, 책 p.33~34)',
-    etc: '노인복지주택·가정어린이집(1년 안 직접 사용, 3년 이상 사용), 공공지원민간임대, 지정·등록문화유산, 사원임대용 60㎡(수도권 밖 85㎡) 이하, 공사대금 미분양 등 (영 §28의2 각 호, 책 p.35)'
+    low: '시가표준액(공시가격, 지분은 전체 주택 기준) 1억원 이하(수도권 밖 2억원 이하, 2025.1.2. 이후 취득분), 정비구역 지정·고시 지역, 소규모주택정비 사업시행구역 안 주택은 안 됨 (영 §28의2 1호, 「2026 주택과 세금」 p.33)',
+    unsold: '수도권 밖, 전용 85㎡ 이하, 취득당시가액 6억원 이하, 사용승인 뒤 분양 안 된 아파트를 2026.1.1.~2026.12.31. 최초 유상승계취득 (영 §28의2 17호, 「2026 주택과 세금」 p.24, p.34)',
+    popRent: '2026.1.1.~2026.12.31. 인구감소지역 주택 취득 + 취득일부터 60일 안 임대주택 등록, 임대의무기간 중 임대 외 사용, 매각·증여, 등록 말소 시 중과 추징 (영 §28의2 18호, 「2026 주택과 세금」 p.24)',
+    rural: '읍·면 소재, 대지 660㎡ 이내, 연면적 150㎡ 이내, 건축물가액 6,500만원 이내, 광역시 군·수도권(접경지역 등 제외), 도시지역, 토지거래허가구역 등 밖 (영 §28의2 11호, 「2026 주택과 세금」 p.35)',
+    demolish: '주택건설사업자, 정비사업 시행자, 주택조합 등이 멸실 목적으로 취득, 취득일부터 3년 안 멸실, 7년 안 신축, 기간 넘기면 추징 (영 §28의2 8호, 「2026 주택과 세금」 p.33~34)',
+    etc: '노인복지주택·가정어린이집(1년 안 직접 사용, 3년 이상 사용), 공공지원민간임대, 지정·등록문화유산, 사원임대용 60㎡(수도권 밖 85㎡) 이하, 공사대금 미분양 등 (영 §28의2 각 호, 「2026 주택과 세금」 p.35)'
   };
   var RD = {
-    first: '본인, 배우자 모두 주택 소유 사실 없음 + 본인 거주 목적 + 취득당시가액 12억원 이하 유상취득(부담부증여 제외) + 미성년자 아님, 2028.12.31.까지 취득, 산출세액(§11①8호 세율)에서 200만원(소형주택, 인구감소지역 300만원) 공제, 감면이면 중과세율 안 씀, 3년 안 매각·증여·임대 등 다른 용도면 추징 (지특법 §36의3, 책 p.52~54)',
-    birth: '2028.12.31.까지 출산한 부모가 자녀와 거주 목적으로 출산일부터 5년 안(출산 전 1년 안 취득 포함, 2024.1.1. 이후 취득) 12억원 이하 주택 취득, 1가구 1주택, 산출세액에서 500만원 공제, 3년 안 매각·증여·임대 시 추징 (지특법 §36의5, 책 p.56~57)'
+    first: '본인, 배우자 모두 주택 소유 사실 없음 + 본인 거주 목적 + 취득당시가액 12억원 이하 유상취득(부담부증여 제외) + 미성년자 아님, 2028.12.31.까지 취득, 산출세액(§11①8호 세율)에서 200만원(소형주택, 인구감소지역 300만원) 공제, 감면이면 중과세율 안 씀, 3년 안 매각·증여·임대 등 다른 용도면 추징 (지특법 §36의3, 「2026 주택과 세금」 p.52~54)',
+    birth: '2028.12.31.까지 출산한 부모가 자녀와 거주 목적으로 출산일부터 5년 안(출산 전 1년 안 취득 포함, 2024.1.1. 이후 취득) 12억원 이하 주택 취득, 1가구 1주택, 산출세액에서 500만원 공제, 3년 안 매각·증여·임대 시 추징 (지특법 §36의5, 「2026 주택과 세금」 p.56~57)'
   };
   var MD = {
     hq: '수도권 과밀억제권역에서 본점·주사무소 사업용으로 신축·증축하는 건축물과 부속토지, 원시 2.8% + 4% = 6.8%, 그 부속토지(유상 4%)는 아래 칸을 켜면 4% + 4% = 8% (§13①) · 신축·증축이 아닌 본점(기존 건물 매입)은 대상 아님',
@@ -1195,7 +1212,7 @@ if (typeof module !== 'undefined') module.exports = ACQ;
     var lowStd = c === 'gift' && !bur && M('std') > 0 && M('std') <= ACQ.R.lowStdMax;
     hide('pickFld', !lowStd);
     $('dateLab').textContent = { buy: '취득일(잔금지급일)', gift: '취득일(증여계약일)', inh: '상속개시일', 'new': '취득일(사용승인일)' }[c];
-    $('dateNote').textContent = '· 유상 = 사실상 잔금지급일(그 전에 등기하면 등기일), 증여 = 계약일, 상속 = 상속개시일, 신축 = 사용승인일·임시사용승인일·사실상 사용일 중 빠른 날(영 §20, 책 p.26~27)';
+    $('dateNote').textContent = '· 유상 = 사실상 잔금지급일(그 전에 등기하면 등기일), 증여 = 계약일, 상속 = 상속개시일, 신축 = 사용승인일·임시사용승인일·사실상 사용일 중 빠른 날(영 §20, 「2026 주택과 세금」 p.26~27)';
     hide('capFld', !(house && (c === 'buy')));
     
     var hb = house && c === 'buy', hg = house && c === 'gift';
@@ -1210,7 +1227,7 @@ if (typeof module !== 'undefined') module.exports = ACQ;
     hide('t2Box', !t2on); hide('t2Fld', !(t2on && $('temp2').checked));
     var ex = $('ex').value; hide('exTip', !ex || !hb); $('exTip').innerHTML = ex ? EXD[ex] : '';
     var d = $('date').value || '2026-01-01', y2 = ACQ.addY(d, $('prevAdj').checked ? 2 : 3);
-    $('t2Tip').innerHTML = '종전 주택등(주택, 입주권, 분양권, 오피스텔) 1개 가진 1세대가 이사·학업·취업 등으로 신규 주택 취득 + 신규 주택 취득일부터 3년(종전, 신규 모두 조정대상지역이면 2년) 안 종전 주택등 처분, 이번 취득일 ' + dt(d) + ' → ' + dt(y2) + '까지 처분, 입주권·분양권이면 그 주택 취득일부터 셈 (영 §28의5, 책 p.44~47)';
+    $('t2Tip').innerHTML = '종전 주택등(주택, 입주권, 분양권, 오피스텔) 1개 가진 1세대가 이사·학업·취업 등으로 신규 주택 취득 + 신규 주택 취득일부터 3년(종전, 신규 모두 조정대상지역이면 2년) 안 종전 주택등 처분, 이번 취득일 ' + dt(d) + ' → ' + dt(y2) + '까지 처분, 입주권·분양권이면 그 주택 취득일부터 셈 (영 §28의5, 「2026 주택과 세금」 p.44~47)';
     
     hide('secGift', !hg); hide('burdenBox', !bur); hide('bProofBox', !$('bFam').checked);
     hide('donorBox', corp); hide('giftTip', corp);
@@ -1377,7 +1394,7 @@ if (typeof module !== 'undefined') module.exports = ACQ;
     var heavy = o.mode !== 'std' || o.lux || o.metro;
     h += '<div class="card"><h3>[결론]</h3><div class="verdict ' + (heavy ? 'ng' : 'ok') + '">취득세 ' + pct(o.rate) + (o.mode !== 'std' ? ' 중과' : '') + (o.red && o.red.amt ? ', 감면 ' + won(o.red.amt) : '') + (o.famGift ? ' (증여로 봄)' : '') + '</div>';
     h += '<div class="big">' + won(o.total) + '<small>취득세 + 지방교육세 + 농어촌특별세</small></div>';
-    h += L(['판정 : ' + o.why.join(' → '), '신고·납부 기한 : <b>' + dt(o.due) + '</b>까지(' + o.dueWhy + ', 지방세법 §20①, 책 p.22, p.60)'].concat(I.cause === 'buy' ? ['그 전에 등기하면 등기 신청일까지 신고·납부(§20④)'] : []).concat(o.t2 ? ['일시적 2주택 처분 기한 : ' + dt(o.t2.until) + '까지 — 못 팔면 ' + won(o.t2.extra) + ' 더 냄(중과 ' + pct(o.t2.heavyRate) + ')'] : [])) + '</div>';
+    h += L(['판정 : ' + o.why.join(' → '), '신고·납부 기한 : <b>' + dt(o.due) + '</b>까지(' + o.dueWhy + ', 지방세법 §20①, 「2026 주택과 세금」 p.22, p.60)'].concat(I.cause === 'buy' ? ['그 전에 등기하면 등기 신청일까지 신고·납부(§20④)'] : []).concat(o.t2 ? ['일시적 2주택 처분 기한 : ' + dt(o.t2.until) + '까지 — 못 팔면 ' + won(o.t2.extra) + ' 더 냄(중과 ' + pct(o.t2.heavyRate) + ')'] : [])) + '</div>';
     h += '<div class="card"><h3>[세액 요약]</h3><table><tr><th>항목</th><th>금액</th></tr>';
     h += '<tr><td>과세표준<small>' + (o.steps[0].s || '') + ' · ' + o.steps[0].law + '</small></td><td>' + won(o.base) + '</td></tr>';
     h += '<tr><td>취득세<small>' + pct(o.rate) + (o.red && o.red.amt ? ', 감면 전 ' + won(o.acq0) : '') + '</small></td><td>' + won(o.acq) + '</td></tr>';
@@ -1394,7 +1411,7 @@ if (typeof module !== 'undefined') module.exports = ACQ;
         var a = ACQ.calc(Object.assign({}, I, base, { adj: true, preAdj: false })), b2 = ACQ.calc(Object.assign({}, I, base, { adj: false }));
         h += '<tr' + (o.cnt === n || (n === 4 && o.cnt > 4) ? ' class="hl"' : '') + '><td>' + n + (n === 4 ? '주택 이상' : '주택') + '</td><td>' + pct(a.rate) + ' / ' + pct(b2.rate) + '<small>' + won(a.total) + ' / ' + won(b2.total) + '</small></td></tr>';
       });
-      h += '</table>' + L(['조정 2주택이 일시적 2주택이면 표준세율, 법인은 주택 수 무관 12%(책 p.22, p.31)']) + '</div>';
+      h += '</table>' + L(['조정 2주택이 일시적 2주택이면 표준세율, 법인은 주택 수 무관 12%(「2026 주택과 세금」 p.22, p.31)']) + '</div>';
     }
     h += infoCards(o.dual || [], o.flags, D.concat(o.defaults || []), o.notes || []);
     $('out').innerHTML = h; xlShow(true);
@@ -1409,9 +1426,9 @@ if (typeof module !== 'undefined') module.exports = ACQ;
     $('spOut').innerHTML = '<table><tr><th>구분</th><th>주택 / 상가 등</th></tr>' +
       '<tr><td>시가표준액 합계<small>건물 + 토지</small></td><td>' + won(s.h) + ' / ' + won(s.c) + '</td></tr>' +
       '<tr><td>안분 비율<small>0.1% 반올림</small></td><td>' + p(s.hP) + ' / ' + p(s.cP) + '</td></tr>' +
-      '<tr class="hl"><td>과세표준(책 방식)<small>취득가격 × 반올림 비율, 책 p.28</small></td><td>' + won(s.hBook) + ' / ' + won(s.cBook) + '</td></tr>' +
+      '<tr class="hl"><td>과세표준(책 방식)<small>취득가격 × 반올림 비율, 「2026 주택과 세금」 p.28</small></td><td>' + won(s.hBook) + ' / ' + won(s.cBook) + '</td></tr>' +
       '<tr><td>과세표준(정확 안분)<small>취득가격 × 시가표준액 ÷ 합계, 원 미만 버림</small></td><td>' + won(s.hEx) + ' / ' + won(s.cEx) + '</td></tr></table>' +
-      L(['책은 비율을 0.1%로 반올림해 곱함, 실제 신고 때 비율 반올림 자릿수 ' + cfm]);
+      L(['「2026 주택과 세금」은 비율을 0.1%로 반올림해 곱함, 실제 신고 때 비율 반올림 자릿수 ' + cfm]);
   }
   ['spHB', 'spHL', 'spCB', 'spCL', 'spTot'].forEach(function (id) { $(id).addEventListener('input', spRun); });
 
@@ -1492,9 +1509,9 @@ if (typeof module !== 'undefined') module.exports = ACQ;
       o: [['1', '1채(이번 집만)'], ['2', '2채'], ['3', '3채'], ['4', '4채 이상']] },
     { id: 'adj', t: 'b', q: '그 집이 조정대상지역에 있어요?',
       on: function (a) { return H(a) && ((BUY(a) && P(a) && a.cnt !== '1') || (GIFT(a) && (STD(a) >= 30000 || (B(a) && a.cnt !== '1')))); },
-      h: '조정대상지역 = 정부가 집값 과열로 지정한 곳 · 2025.10.16. 현재 서울 전 지역, 경기 과천, 광명, 성남(분당, 수정, 중원), 수원(영통, 장안, 팔달), 안양 동안, 용인 수지, 의왕, 하남(책 p.308) · 모르면 주소로 고르기',
+      h: '조정대상지역 = 정부가 집값 과열로 지정한 곳 · 2025.10.16. 현재 서울 전 지역, 경기 과천, 광명, 성남(분당, 수정, 중원), 수원(영통, 장안, 팔달), 안양 동안, 용인 수지, 의왕, 하남(「2026 주택과 세금」 p.308) · 모르면 주소로 고르기',
       o: [['y', '예'], ['n', '아니요'], ['addr', '주소로 고를게요'], ['u', '모르겠어요(조정대상지역으로 계산)']] },
-    { id: 'adjAddr', on: function (a) { return a.adj === 'addr'; }, t: 'b', q: '집이 어디 있어요?', h: '2025.10.16. 현재 조정대상지역 37곳(책 p.308) · 그 뒤 지정, 해제는 국토교통부 공고 확인', o: ADJL },
+    { id: 'adjAddr', on: function (a) { return a.adj === 'addr'; }, t: 'b', q: '집이 어디 있어요?', h: '2025.10.16. 현재 조정대상지역 37곳(「2026 주택과 세금」 p.308) · 그 뒤 지정, 해제는 국토교통부 공고 확인', o: ADJL },
     { id: 't2', on: function (a) { return CNT(a) && a.cnt === '2' && ADJ(a); }, t: 'b', q: '원래 집을 정해진 기간 안에 팔 거예요?',
       h: '일시적 2주택 = 이사 등으로 새 집 산 뒤 3년(두 집 다 조정대상지역이면 2년) 안 원래 집 처분 → 1주택 세율(영 §28의5) · 못 팔면 차액 추가 납부',
       o: [['y', '예 — 원래 집 팔 거예요(일시적 2주택)'], ['n', '아니요 — 2채 다 가질 거예요']] },
@@ -1547,7 +1564,7 @@ if (typeof module !== 'undefined') module.exports = ACQ;
     if (a.adj !== undefined) {
       v.adj = ADJ(a);
       if (a.adj === 'u') D.push('조정대상지역 모름 → 조정대상지역으로 봄(보수적)');
-      if (a.adj === 'addr' && a.adjAddr) D.push('조정대상지역 = 주소로 고름(' + optLab(step('adjAddr'), a.adjAddr, a) + ' → ' + (ADJ(a) ? '조정' : '조정 아님') + ' · 2025.10.16. 현재 목록, 책 p.308) — 그 뒤 지정·해제는 국토교통부 공고 확인');
+      if (a.adj === 'addr' && a.adjAddr) D.push('조정대상지역 = 주소로 고름(' + optLab(step('adjAddr'), a.adjAddr, a) + ' → ' + (ADJ(a) ? '조정' : '조정 아님') + ' · 2025.10.16. 현재 목록, 「2026 주택과 세금」 p.308) — 그 뒤 지정·해제는 국토교통부 공고 확인');
     }
     if (a.t2 !== undefined) v.temp2 = a.t2 === 'y';
     if (a.prevAdj !== undefined) { v.prevAdj = a.prevAdj !== 'n'; if (a.prevAdj === 'u') D.push('원래 집 조정대상지역 모름 → 조정으로 봄(처분 기한 2년 · 보수적)'); }
@@ -1940,7 +1957,7 @@ if (typeof module !== 'undefined') module.exports = ACQ;
   
   function blockRows(b, ACQ) {
     var o = b.o, I = o.I, house = I.kind === 'house', c = I.cause, corp = I.owner === 'corp', rows = [], R = ACQ.R, D = 100 * ACQ.P;
-    var hb = house && c === 'buy', hasMode = house && (c === 'buy' || c === 'gift'), hasSp = c === 'inh', hasMetro = !house && corp, hasLux = house;
+    var hb = house && c === 'buy', hasMode = house && (c === 'buy' || c === 'gift'), hasSp = c === 'inh', hasMetro = corp && (!house || c !== 'buy'),    hasLux = house;
     function sec(t) { rows.push({ sec: t }); }
     function put(key, label, o2) { rows.push(Object.assign({ key: key, label: label }, o2)); }
     function IN(key, label, v, o2) { put(key, label, Object.assign({ v: v, src: '입력' }, o2)); }
@@ -1956,7 +1973,7 @@ if (typeof module !== 'undefined') module.exports = ACQ;
     CN('CORP', '법인 취득', YN(corp), { fmt: 't', law: '§13②, §13의2①1호' });
     if (b.priceRef) F('PRICE', b.priceLab || '시가인정액(전체 · 세율 판정 가액)', b.priceRef, I.price, { src: '나누기 칸', law: b.priceLaw || '§10의2⑥, 영 §14의4' });
     else IN('PRICE', { buy: '사실상취득가격(전체 · 세율 판정 가액)', gift: '시가인정액(전체)', inh: '시가표준액(전체)', 'new': '사실상취득가격(원시)' }[c], I.price, { law: { buy: '§10의3①, §11①8호', gift: '§10의2①', inh: '§10의2②1호', 'new': '§10의4' }[c] });
-    if (b.part) F('PART', '이 몫 과세표준(나누기 칸)', b.part, o.base, { src: '나누기 칸', law: '§10의2⑥, 영 §14의4' });
+    if (b.part) { F('PART', '이 몫 과세표준(나누기 칸)', b.part, o.base, { src: '나누기 칸', law: '§10의2⑥, 영 §14의4' }); if (hb) IN('SHARE', '취득 지분(감면 한도 판정 · 지특법 §36의3②)', I.share == null ? 100 : I.share, { fmt: 's' }); }
     else IN('SHARE', '취득 지분', I.share, { fmt: 's', law: '§11①8호 후단', d: '세율 판정 = 전체 가액 · 과세표준 = 지분만큼' });
     if (c === 'gift') IN('STD', '시가표준액(전체 · 공시가격)', I.std || 0, { law: '§4, 영 §28의6①', d: '무상 중과 3억원 판정, 1억원 이하 과세표준 고르기' });
     if (c === 'gift' && !b.part) {
@@ -1976,6 +1993,9 @@ if (typeof module !== 'undefined') module.exports = ACQ;
       IN('CORPNEW', '  대도시 신설 5년 안 법인(법인만)', YN(!!I.corpNew), { fmt: 't', law: '§13②, §16⑤' });
       IN('RELIEF', '감면', RELN[I.relief || ''] || '없음', { fmt: 't', law: '지특법 §36의3, §36의5', d: '없음 / 생애최초 / 출산·양육' });
       IN('SMALL', '  생애최초 소형주택(1호)', YN(!!I.small), { fmt: 't', law: '지특법 §36의3①1호' });
+      
+      IN('COREL', '  다른 공동 취득자가 받는 감면액(빈칸 = 모름)', I.coRelief === '' || I.coRelief == null || !isFinite(+I.coRelief) ? '' : Math.max(0, Math.round(+I.coRelief)), { law: '지특법 §36의3②' });
+      IN('COFIRST', '  다른 공동 취득자도 생애최초 감면', I.coFirst === 'y' ? '예' : I.coFirst === 'n' ? '아니요' : '모름', { fmt: 't', law: '지특법 §36의3②', d: '모름 = 받는 것으로 보고 총 한도를 지분 비율로 나눔' });
       var rdate = I.relief === 'first' ? I.date <= R.firstEnd : I.relief === 'birth' ? !!(o.red && (o.red.ok || (o.red.why.length === 1 && I.price > R.reliefMax))) : false;
       JD('RDATE', '  감면 날짜 요건(취득일 기한, 출산일)', YN(rdate), { fmt: 't', law: '지특법 §36의3①, §36의5①', d: '취득일 ' + I.date + (I.relief === 'birth' ? ' · 출산일 ' + (I.birthD || '없음') : '') });
     }
@@ -2020,7 +2040,8 @@ if (typeof module !== 'undefined') module.exports = ACQ;
     if (hb) {
       var rd = o.red;
       F('TAX11', '  감면 비교 : 표준세율 산출세액', taxF('{BASE}', '{S}'), rd ? rd.tax11 : null, { law: '지특법 §36의3①, §36의5①' });
-      F('CUT', '  감면 한도', 'IF({RELIEF}="생애최초",IF({SMALL}="예",{$FSMALL},{$FCUT}),IF({RELIEF}="출산·양육",{$BCUT},0))', rd ? rd.cut : null, { law: '지특법 §36의3①, §36의5①' });
+      F('CUT0', '  감면 총 한도', 'IF({RELIEF}="생애최초",IF({SMALL}="예",{$FSMALL},{$FCUT}),IF({RELIEF}="출산·양육",{$BCUT},0))', rd ? (rd.cut0 != null ? rd.cut0 : rd.cut) : null, { law: '지특법 §36의3①, §36의5①' });
+      F('CUT', '  감면 한도(공동 취득 = 이 사람 몫)', 'IF(AND({RELIEF}="생애최초",{SHARE}<100),IF({COREL}<>"",MAX(0,{CUT0}-MAX(0,{COREL})),IF({COFIRST}="아니요",{CUT0},QUOTIENT({CUT0}*{SHARE},100))),{CUT0})', rd ? rd.cut : null, { law: '지특법 §36의3②', d: '공동 취득 : 다른 사람 감면액을 알면 총 한도 − 그 값, 다른 사람이 안 받으면 총 한도, 모르면 총 한도 × 지분' });
       F('REDOK', '  감면 요건(12억원 이하, 날짜, 개인)', 'IF(AND({CORP}<>"예",{RELIEF}<>"없음",{PRICE}<={$RMAX},{RDATE}="예"),"예","아니요")', rd ? YN(rd.ok) : null, { fmt: 't', law: '지특법 §36의3①, §36의5①', d: '무주택, 거주, 3년 안 매각 추징 등은 서류 확인' });
       F('REDAMT', '(−) 감면세액', 'IF({REDOK}="예",MIN({TAX11},{CUT},{ACQ0}),0)', rd ? rd.amt : 0, { law: '지특법 §36의3①, §36의5①', d: '표준세율 산출세액, 한도, 산출세액 중 작은 값' });
       F('REDNONG', '  감면분 농특세(감면세액 × 20%)', 'IF(AND({REDOK}="예",{NONGEX}<>"예"),QUOTIENT({REDAMT}*20,100),0)', rd ? rd.nong : 0, { law: '농특세법 §5①1호' });
@@ -2481,18 +2502,20 @@ https://github.com/nodeca/pako/blob/main/LICENSE
       _a: { l: 'lAcqD', b: 'bAcqD', wa: 'waAcqD', wb: 'wbAcqD', v: 'vAcqD' },
       _w: { n: '증여일', l: '거래일', b: '증여일', wa: '교환일', wb: '교환일', v: '넘기는 날', s: '증여일' },
       _p: function (id) { var m = /^(wa|wb|[nlbvs])(Val|Std|CvA|CvS|AdjA|AdjS|AdjS2)$/.exec(id); return m ? { t: m[1], f: m[2] } : null; },
-      more: function (id, a) { var P = this._p(id); if (!P || !/^(CvA|CvS|Std)$/.test(P.f) || !/^[lb]$/.test(P.t)) return []; var t = P.t, D = a[this._d[t]], A = a[this._a[t]], L = [], dm = A && A < '1985-01-01';
+      more: function (id, a) { var P = this._p(id); if (!P || !/^(CvA|CvS|Std)$/.test(P.f) || !/^[lb]$/.test(P.t)) return []; var t = P.t, D = a[this._d[t]] === '' ? TODAY : a[this._d[t]], A = a[this._a[t]], L = [], dm = A && A < '1985-01-01';
         if (P.f !== 'CvA' && A && !dm) L.push({ id: t + 'CvA', year: pubYear(A), lab: '산 해' });
         if (P.f !== 'CvS' && D) L.push({ id: t + 'CvS', year: pubYear(D), lab: this._w[t] + ' 기준시가' });
         if (P.f !== 'Std' && D) L.push({ id: t + 'Std', year: pubYear(D), lab: this._w[t] + ' 공시가격(취득세)', house: 1 });
         return L; },
       adj: function (id, a) { var P = this._p(id); if (!P) return null;
+        /* 2026-11-20 지적 「증여일을 오늘로 할게요 누르면 판정이 안 됨」 — 「오늘로 할게요」 답 = '' 라 날짜 없음으로 보던 것 → 답이 '' 면 오늘(엔진 IGX6 today() 와 같은 날) */
+        var dt = function (k) { return a[k] === '' ? TODAY : (a[k] || ''); }, tl = function (k, l) { return a[k] === '' ? l + '(오늘)' : l; };
         if (P.f === 'AdjA' && this._a[P.t]) return { date: a[this._a[P.t]] || '', lab: '산 날', yes: 'y', no: 'n' };
         if (P.f === 'AdjS' && P.t === 's') return { date: a.sGDate || '', lab: '증여일', yes: 'y', no: 'n' };
-        if (P.f === 'AdjS2' && P.t === 's') return { date: a.sSDate || '', lab: '파는 날', yes: 'y', no: 'n' };
-        if (P.f === 'AdjS' && this._d[P.t]) return { date: a[this._d[P.t]] || '', lab: this._w[P.t], yes: 'y', no: 'n' };
+        if (P.f === 'AdjS2' && P.t === 's') return { date: dt('sSDate'), lab: tl('sSDate', '파는 날'), yes: 'y', no: 'n' };
+        if (P.f === 'AdjS' && this._d[P.t]) return { date: dt(this._d[P.t]), lab: tl(this._d[P.t], this._w[P.t]), yes: 'y', no: 'n' };
         return null; },
-      pick: function (id, a) { var P = this._p(id); if (!P) return null; var t = P.t, D = a[this._d[t]], A = a[this._a[t]];
+      pick: function (id, a) { var P = this._p(id); if (!P) return null; var t = P.t, D = a[this._d[t]] === '' ? TODAY : a[this._d[t]], A = a[this._a[t]];
         if (P.f === 'Val') return { want: 'any', year: 0, why: '시가(매매사례, 감정가액)가 없을 때 = 공시가격(상증법 §61 · 시가가 먼저)' };
         if (P.f === 'Std') return { want: 'house', year: pubYear(D), why: '취득세 3억원 중과, 1억원 이하 판정 = ' + this._w[t] + ' 현재 공시가격' };
         if (P.f === 'CvA' && /^[lb]$/.test(t)) { var dm = A && A < '1985-01-01'; return { want: 'any', year: dm ? 1985 : pubYear(A), why: dm ? '의제취득일 1985.1.1. 현재 기준시가' : '산 날 현재 고시된 기준시가(소득세법 §99①)' }; }
@@ -2583,7 +2606,9 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     var xg = TAB === 'igx' && a && /^(ngift|low|burden|gsell)$/.test(a.mode), xs = TAB === 'igx' && a && /^(low|burden|swap|divorce|gsell)$/.test(a.mode);
     if (k === 'ot') { if (nat) L.push(['홈택스 오피스텔 및 상업용 건물 기준시가 조회', HTX_URL + '4712090300']); }
     else { if (TAB === 'igt' || xg) L.push(['홈택스 건물 기준시가(상속, 증여) 계산', HTX_URL + '4712090600']); if (TAB === 'cgt' || burden || xs) L.push(['홈택스 건물 기준시가(양도) 계산', HTX_URL + '4712090500']); }
-    if (!nat || burden || TAB === 'igx') L.push(seoul ? ['서울시 이택스 주택외 건물 시가표준액 조회', 'https://etax.seoul.go.kr/jsp/BldnStndAmtLstAction.view?gnb_id=0709&lnb_id=0709&gl_gubun=g'] : ['위택스 건축물 시가표준액 조회', 'https://www.wetax.go.kr/tcp/loi/J030401M01.do']);
+    /* 2026-11-20 지적 6 — 환산취득가액 칸(*CvA·*CvS) = 소득세법 기준시가(§99 · 건물 = 국세청 고시)만 · 지방세 시가표준액(건물분)은 취득세 칸에서만 */
+    var cvStep = false; try { var H0 = CFG.h(); cvStep = !!(H0 && H0.W && /Cv[AS]$/.test(String(H0.W.cur || ''))); } catch (z) {}
+    if ((!nat || burden || TAB === 'igx') && !cvStep) L.push(seoul ? ['서울시 이택스 주택외 건물 시가표준액 조회', 'https://etax.seoul.go.kr/jsp/BldnStndAmtLstAction.view?gnb_id=0709&lnb_id=0709&gl_gubun=g'] : ['위택스 건축물 시가표준액 조회', 'https://www.wetax.go.kr/tcp/loi/J030401M01.do']);
     return '<div class="gsg-r">' + L.map(function (x) { return '<a class="gsg-o" style="text-decoration:none" href="' + x[1] + '" target="_blank" rel="noopener">' + esc(x[0]) + ' (새 창)</a>'; }).join('') + '</div>';
   }
   function open(g) { g.querySelector('.gsg-p').hidden = false; g.querySelector('.gsg-o').hidden = true; }

@@ -731,8 +731,9 @@ button.sm{font-size:16px!important}
     <div class="sec"><h2>거주자일 때만 쓰는 공제 <small>상증법 §19~§23의2</small></h2><div class="row">
       <div class="fld"><label>배우자</label><select id="i_spouse"><option value="1">있음</option><option value="0">없음</option></select></div>
       <div class="fld"><label>배우자가 실제 받는 금액</label><input id="i_spouseActual" inputmode="decimal" placeholder="억"></div>
-      <div class="fld"><label>배우자 법정상속분 한도(§19①1호) <span class="dfl">비우면 30억</span></label><input id="i_spouseLimit" inputmode="decimal" placeholder="억"></div>
+      <div class="fld"><label>배우자 법정상속분 한도(§19①1호) <span class="dfl">비우면 법정상속분으로 계산</span></label><input id="i_spouseLimit" inputmode="decimal" placeholder="억"></div>
       <div class="fld"><label>자녀 수</label><input id="i_children" inputmode="numeric" value="2"></div>
+      <div class="fld"><label>자녀가 없을 때 직계존속(부모) 수 <span class="dfl">배우자 법정상속분 · 민법 §1003</span></label><input id="i_parents" inputmode="numeric" placeholder="명"></div>
       <div class="fld"><label>미성년자 공제 연수 합</label><input id="i_minorYears" inputmode="numeric" placeholder="년"></div>
       <div class="fld"><label>65세 이상 인원</label><input id="i_elderly" inputmode="numeric" placeholder="명"></div>
       <div class="fld"><label>순금융재산</label><input id="i_finNet" inputmode="decimal" placeholder="억"></div>
@@ -758,13 +759,14 @@ button.sm{font-size:16px!important}
       <div class="fld"><label>재산 소재지</label><select id="g_loc"><option value="dom">국내 재산</option><option value="forn">국외 재산(증여자 = 거주자)</option></select></div>
       <div class="fld"><label>10년 안 같은 증여자(부모는 합쳐서) 앞선 증여</label><input id="g_prior" inputmode="decimal" placeholder="억"></div>
       <div class="fld"><label>그 앞선 증여의 산출세액(§58)</label><input id="g_priorTax" inputmode="decimal" placeholder="억"></div>
+      <div class="fld"><label>그 앞선 증여 때 낸 세대생략 할증세액 <span class="dfl">비우면 다시 셈 · 영 §46의3②</span></label><input id="g_priorSurcharge" inputmode="decimal" placeholder="억"></div>
       <div class="fld"><label>합산 안 하는 다른 증여자에게서 이미 쓴 공제</label><input id="g_usedDed" inputmode="decimal" placeholder="억"></div>
       <div class="fld"><label>혼인·출산 공제 받을 금액(거주자만 · 1억 한도)</label><input id="g_marriageBirth" inputmode="decimal" placeholder="억"></div>
       <div class="fld"><label>외국에 낸 증여세</label><input id="g_foreignTax" inputmode="decimal" placeholder="억"></div>
     </div>
     <label class="chk"><input type="checkbox" id="g_donorPays"> 증여자가 증여세를 대신 냄</label>
     <label class="chk"><input type="checkbox" id="g_skip"> 세대를 건너뛴 증여(손자녀 등 · 30% 할증)</label>
-    <label class="chk"><input type="checkbox" id="g_minor"> 수증자가 미성년(20억 초과면 40% 할증)</label>
+    <label class="chk"><input type="checkbox" id="g_minor"> 수증자가 미성년(10년 합산 포함 20억 초과면 40% 할증 · 영 §46의3①)</label>
     <label class="chk"><input type="checkbox" id="g_jointExcluded"> 초과배당 등 상증법 §4의2⑥ 단서 증여(연대납세의무 없음 → 대납하면 다시 증여 · 서면-2020-상속증여-5010, 2021.04.28.)</label>
     <label class="chk"><input type="checkbox" id="g_related" checked> 수증자가 증여자의 특수관계인(국외재산 면제 판정 · 국조법 §35③1호)</label>
     </div>
@@ -5004,6 +5006,7 @@ var NRT = (function () {
   
   
   
+  
   function inherit(q) {
     var appraisal = Math.min(pos(q.appraisal), R.appraisalMax);
     function one(non) {
@@ -5023,7 +5026,16 @@ var NRT = (function () {
       else {
         var personal = IGT.R.inh.basic + n(q.children) * IGT.R.inh.child + n(q.minorYears) * 10000000 + n(q.elderly) * 50000000;
         d.lump = IGT.lumpSum(personal, !!q.soleSpouse); d.basic = 0;
-        d.spouse = q.spouse ? IGT.spouseDed(pos(q.spouseActual), q.spouseLimit ? pos(q.spouseLimit) : IGT.R.inh.spouseMax) : 0;
+        
+        if (q.spouse) {
+          var kids = Math.max(0, Math.round(n(q.children))), par = kids ? 0 : Math.max(0, Math.round(n(q.parents)));
+          d.spShare = IGT.legalShares({ spouse: true, kids: kids, parents: par }).spouse;
+          d.spBase = Math.max(0, r.assets - r.pub - r.debt + r.prior);
+          d.spLegal = Math.max(0, Math.floor(d.spBase * d.spShare + 1e-6) - pos(q.spousePriorBase));   
+          d.spLimitGiven = !!q.spouseLimit;
+          d.spLimit = d.spLimitGiven ? pos(q.spouseLimit) : d.spLegal;
+        }
+        d.spouse = q.spouse ? Math.floor(IGT.spouseDed(pos(q.spouseActual), d.spLimit) + 1e-6) : 0;
         d.fin = IGT.finDeduct(pos(q.finNet)); d.house = IGT.houseDed(pos(q.house));
         d.list = [[d.lump > personal ? '일괄공제' : '기초 + 그 밖 인적공제', d.lump], ['배우자상속공제', d.spouse], ['금융재산상속공제', d.fin], ['동거주택상속공제', d.house]];
       }
@@ -5049,6 +5061,7 @@ var NRT = (function () {
   
   
   
+  
   function giftDedCap(rel) {
     var G = IGT.R.giftDed;
     return rel === 'spouse' ? G.spouse : rel === 'asc' ? G.adult : rel === 'ascMinor' ? G.minor : rel === 'desc' ? G.adult : rel === 'relative' ? G.relative : 0;
@@ -5060,12 +5073,22 @@ var NRT = (function () {
     var base = fl(Math.max(0, amount + prior - ded - mb));
     if (IGT.belowMin(base)) base = 0;
     var t = IGT.rateTax(base), calc = fl(t.tax);
-    var sk = q.skip ? fl(calc * IGT.skipRate(!!q.minor, amount)) : 0;
-    var pre = prior > 0 ? Math.min(pos(q.priorTax), calc + sk) : 0;     
+    
+    var pBase = Math.max(0, prior - Math.min(prior, dedOn ? Math.max(0, cap - pos(q.usedDed)) : 0));
+    
+    var skipGross = amount + prior, sRate = q.skip ? IGT.skipRate(!!q.minor, skipGross) : 0, priorSur = 0, priorSurAssumed = false;
+    if (q.skip && prior > 0) {
+      if (q.priorSurcharge !== '' && q.priorSurcharge != null) priorSur = pos(q.priorSurcharge);
+      else { priorSur = IGT.belowMin(pBase) ? 0 : fl(fl(IGT.rateTax(pBase).tax) * IGT.skipRate(!!q.minor, prior)); priorSurAssumed = priorSur > 0; }   
+    }
+    var sk = q.skip ? Math.max(0, fl(calc * sRate) - priorSur) : 0;
+    var preCap = base > 0 ? fl(calc * Math.min(1, pBase / base)) : 0;    
+    var pre = prior > 0 ? Math.min(pos(q.priorTax), preCap) : 0;          
     var fx = Math.min(pos(q.foreignTax), Math.max(0, calc + sk - pre));
     var net = calc + sk - pre - fx;
     var rep = fl(net * IGT.R.report);
-    return { amount: amount, prior: prior, ded: ded, mb: mb, base: base, rate: t.rate, calc: calc, skip: sk, pre: pre, foreign: fx, report: rep, pay: net - rep };
+    return { amount: amount, prior: prior, ded: ded, mb: mb, base: base, rate: t.rate, calc: calc, skip: sk, skipRate: sRate, skipGross: skipGross, priorSur: priorSur, priorSurAssumed: priorSurAssumed,
+      pBase: pBase, preCap: preCap, pre: pre, foreign: fx, report: rep, pay: net - rep };
   }
   
   function grossUp(amount, q, dedOn, prior) {
@@ -5348,7 +5371,7 @@ var TREATY = [{"n": "가봉", "d": 15.0, "i": 10.0, "dt": "25% 이상 직접 소
       debtSec: eok('i_debtSec'), debtBiz: eok('i_debtBiz'), debtOther: eok('i_debtOther'), pubDom: eok('i_pubDom'), pubOther: eok('i_pubOther'),
       funeral: man('i_funeral'), bongan: man('i_bongan') || 0, appraisal: man('i_appraisal') || 0,
       spouse: raw('i_spouse') === '1', spouseActual: eok('i_spouseActual'), spouseLimit: raw('i_spouseLimit') === '' ? 0 : eok('i_spouseLimit'),
-      soleSpouse: ok('i_soleSpouse'), children: v('i_children'), minorYears: v('i_minorYears'), elderly: v('i_elderly'), finNet: eok('i_finNet'), house: eok('i_house'),
+      soleSpouse: ok('i_soleSpouse'), children: v('i_children'), parents: v('i_parents'), minorYears: v('i_minorYears'), elderly: v('i_elderly'), finNet: eok('i_finNet'), house: eok('i_house'),
       giftCredit: eok('i_giftCredit'), nonresHeir: ok('i_nonresHeir') };
     var r = NRT.inherit(q), a = r.res, b = r.non;
     (window.NRTLAST = window.NRTLAST || {}).inh = { t: 'inh', q: q, r: r };   
@@ -5358,6 +5381,7 @@ var TREATY = [{"n": "가봉", "d": 15.0, "i": 10.0, "dt": "25% 이상 직접 소
       tr(['+ 사전증여재산', W(a.prior), W(b.prior)]),
       tr(['= 상속세 과세가액', W(a.taxable), W(b.taxable)], 'sub'),
       tr(['− 상속공제(한도 적용)', W(a.ded.applied) + '<small>' + a.ded.list.filter(function (x) { return x[1]; }).map(function (x) { return x[0] + ' ' + E(x[1]); }).join(', ') + '</small>', W(b.ded.applied) + '<small>기초공제 2억만(배우자, 일괄, 금융, 동거주택 없음)</small>']),
+    ].concat(a.ded.spLimit != null ? [tr(['  배우자공제 한도(§19①1호)', W(Math.min(a.ded.spLimit, 3e9)) + '<small>' + (a.ded.spLimitGiven ? '입력한 한도' : '(상속재산 − 공과금, 채무 + 사전증여 ' + W(a.ded.spBase) + ') × 법정상속분 ' + (Math.round(a.ded.spShare * 10000) / 100) + '%') + ', 30억 중 작은 것 · 실제 받은 금액이 5억 미만이면 5억</small>', '없음(§19① 「거주자의 사망」)'])] : []).concat([
       tr(['− 감정평가수수료', W(a.appraisal), W(b.appraisal)]),
       tr(['= 과세표준', W(a.base), W(b.base)], 'sub'),
       tr(['산출세액', W(a.calc) + '<small>세율 ' + pct(a.rate) + '</small>', W(b.calc) + '<small>세율 ' + pct(b.rate) + '</small>']),
@@ -5365,11 +5389,11 @@ var TREATY = [{"n": "가봉", "d": 15.0, "i": 10.0, "dt": "25% 이상 직접 소
       tr(['− 신고세액공제 3%', W(a.report), W(b.report)]),
       tr(['납부할 세액', W(a.pay), W(b.pay)], 'tot'),
       tr(['신고기한', '상속개시일이 속하는 달 말일부터 ' + a.months + '개월', b.months + '개월'])
-    ];
+    ]);
     var h = vs('피상속인 거주자', a.pay, '국내외 모든 재산', '피상속인 비거주자', b.pay, '국내 재산만') +
       '<p class="' + (r.diff > 0 ? 'err' : '') + '">비거주자일 때 ' + (r.diff >= 0 ? W(r.diff) + ' 더 냄' : W(-r.diff) + ' 덜 냄') + '</p>' +
       table(['', '거주자 사망', '비거주자 사망'], rows) +
-      law('· 과세 대상 : 거주자 = 모든 상속재산, 비거주자 = 국내에 있는 모든 상속재산(상증법 §3)<br>· 빼는 것 : 비거주자 = 그 재산 공과금, 그 재산을 담보로 한 채무, 국내사업장 장부 채무만(§14②) · 장례비 없음<br>· 사전증여 가산 : 비거주자는 국내 재산을 증여한 경우만(§13②)<br>· 공제 : 기초공제 2억은 둘 다(§18) · 배우자, 그 밖 인적, 일괄, 금융재산, 동거주택은 「거주자의 사망」만(§19~§23의2) · 가업·영농상속공제도 거주자만 · 공제 한도 §24 · 감정평가수수료 500만 한도(영 §20의3)<br>· 신고기한 : 피상속인이나 상속인이 외국에 주소 → 9개월(§67④)<br>· 영주귀국 후 국내에서 사망하면 거주자로 봄(영주귀국 확인서) · 책 사례(21억, 배우자 11억 · 자녀 5억씩) 산출세액 거주자 1.5억 / 비거주자 6억 = 이 엔진 값과 같음');
+      law('· 과세 대상 : 거주자 = 모든 상속재산, 비거주자 = 국내에 있는 모든 상속재산(상증법 §3)<br>· 빼는 것 : 비거주자 = 그 재산 공과금, 그 재산을 담보로 한 채무, 국내사업장 장부 채무만(§14②) · 장례비 없음<br>· 사전증여 가산 : 비거주자는 국내 재산을 증여한 경우만(§13②)<br>· 공제 : 기초공제 2억은 둘 다(§18) · 배우자, 그 밖 인적, 일괄, 금융재산, 동거주택은 「거주자의 사망」만(§19~§23의2) · 가업·영농상속공제도 거주자만 · 공제 한도 §24 · 감정평가수수료 500만 한도(영 §20의3)<br>· 신고기한 : 피상속인이나 상속인이 외국에 주소 → 9개월(§67④)<br>· 영주귀국 후 국내에서 사망하면 거주자로 봄(영주귀국 확인서) · 국세청 「재미납세자가 알아야 할 한·미 세금상식(2026)」 p.265 사례(21억, 배우자 11억 · 자녀 5억씩) 산출세액 거주자 1.5억 / 비거주자 6억 = 이 엔진 값과 같음');
     $('o-inh').innerHTML = card('상속세 비교', h);
   }
 
@@ -5379,12 +5403,12 @@ var TREATY = [{"n": "가봉", "d": 15.0, "i": 10.0, "dt": "25% 이상 직접 소
     if (x.exempt) return [tr(['납부할 세액', '0원 — ' + x.who], 'tot')];
     return [tr(['증여재산가액(대납분 포함)', W(x.amount) + (x.extra ? '<small>대납 증여세 ' + W(x.extra) + ' 포함</small>' : '')]),
       tr(['+ 10년 합산', W(x.prior)]), tr(['− 증여재산공제', W(x.ded)]), tr(['− 혼인·출산 공제', W(x.mb)]),
-      tr(['= 과세표준', W(x.base)], 'sub'), tr(['산출세액', W(x.calc) + '<small>세율 ' + pct(x.rate) + '</small>']), tr(['+ 세대생략 할증', W(x.skip)]),
-      tr(['− 납부세액공제(§58)', W(x.pre)]), tr(['− 외국납부세액공제', W(x.foreign)]), tr(['− 신고세액공제 3%', W(x.report)]),
+      tr(['= 과세표준', W(x.base)], 'sub'), tr(['산출세액', W(x.calc) + '<small>세율 ' + pct(x.rate) + '</small>']), tr(['+ 세대생략 할증', W(x.skip) + (x.skipRate ? '<small>' + Math.round(x.skipRate * 100) + '% · 판정 가액 ' + W(x.skipGross) + '(10년 합산 포함 · 영 §46의3①)' + (x.priorSur ? ' · 종전 할증 ' + W(x.priorSur) + ' 뺌' + (x.priorSurAssumed ? '(앞선 증여 과세표준으로 다시 셈 · 가정)' : '') : '') + '</small>' : '')]),
+      tr(['− 납부세액공제(§58)', W(x.pre) + (x.prior > 0 ? '<small>한도 ' + W(x.preCap) + '(§58②)</small>' : '')]), tr(['− 외국납부세액공제', W(x.foreign)]), tr(['− 신고세액공제 3%', W(x.report)]),
       tr(['납부할 세액', W(x.pay)], 'tot'), tr(['내는 사람', x.who + '<small>' + (x.payer || '') + '</small>'])];
   }
   function runGift() {
-    var q = { amount: eok('g_amount'), rel: raw('g_rel'), loc: raw('g_loc'), prior: eok('g_prior'), priorTax: eok('g_priorTax'), usedDed: eok('g_usedDed'),
+    var q = { amount: eok('g_amount'), rel: raw('g_rel'), loc: raw('g_loc'), prior: eok('g_prior'), priorTax: eok('g_priorTax'), priorSurcharge: raw('g_priorSurcharge') === '' ? '' : eok('g_priorSurcharge'), usedDed: eok('g_usedDed'),
       marriageBirth: eok('g_marriageBirth'), foreignTax: eok('g_foreignTax'), donorPays: ok('g_donorPays'), skip: ok('g_skip'), minor: ok('g_minor'),
       jointExcluded: ok('g_jointExcluded'), related: ok('g_related') };
     var r = NRT.gift(q), a = r.res, b = r.non;
@@ -5399,7 +5423,7 @@ var TREATY = [{"n": "가봉", "d": 15.0, "i": 10.0, "dt": "25% 이상 직접 소
     h += table(['', '거주자 수증', '비거주자 수증'], rows);
     if (r.nonAlt) h += '<p class="err">⚠ 국외재산 → 비거주자 : 증여재산공제를 두고 해석이 갈림 — 공제 없음(위 값, 처분청·국세청 회신) ' + W(b.pay) + ' / 공제 적용(조심 2016서0113, 2016.03.30.) ' + W(r.nonAlt.pay) + ' · 신고 전 세무대리인 확인</p>';
     if (q.loc === 'forn') h += '<p class="law">거주자 수증 국외재산 = 수증자가 납세(상증법 §4의2①1호), 외국 증여세는 §59 공제 · 비거주자 수증 국외재산 = 증여자가 납세(국조법 §35②) · 상증법 쪽 증여와 10년 합산 안 함(조심 2026소1527, 2026.08.18.)</p>';
-    h += law('· 비거주자 수증 = 국내에 있는 증여재산만 과세(상증법 §4의2①2호) · 증여재산공제는 「거주자가」 받은 경우만(§53) → 비거주자 공제 0 · 혼인·출산 공제(§53의2)도 거주자만<br>· 수증자가 비거주자면 증여자가 연대납세의무(§4의2⑥3호) → 증여자가 낸 증여세는 다시 증여 아님(서면-2020-법령해석재산-5328, 2021.12.10. · 서면-2018-상속증여-2015, 2019.02.11.) · 단, 초과배당 등 §4의2⑥ 단서 증여는 연대납세 없음 → 대납하면 증여(서면-2020-상속증여-5010, 2021.04.28.)<br>· 거주자 수증자를 위해 대신 낸 증여세는 다시 증여 → 대납분까지 합쳐 반복 계산(§47② 10년 합산 · §58 납부세액공제는 이 화면 계산에 넣지 않음, 대납분을 한 건으로 봄)<br>· 거주자가 비거주자에게 국외재산 증여 = 증여자 납세(국조법 §35②) · 비특수관계인 + 외국 증여세 부과면 면제(§35③) · 외국 납부 증여세 공제(§35⑤) · §53 등 준용(§35⑥)<br>· 신고 = 증여받은 날이 속하는 달 말일부터 3개월(§68) · 비거주자 수증은 증여자 주소지 관할<br>· 책 사례(21억 = 배우자 11억, 자녀 5억씩) 산출세액 거주자 2.5억 / 비거주자 4.6억 = 이 엔진 값과 같음');
+    h += law('· 비거주자 수증 = 국내에 있는 증여재산만 과세(상증법 §4의2①2호) · 증여재산공제는 「거주자가」 받은 경우만(§53) → 비거주자 공제 0 · 혼인·출산 공제(§53의2)도 거주자만<br>· 수증자가 비거주자면 증여자가 연대납세의무(§4의2⑥3호) → 증여자가 낸 증여세는 다시 증여 아님(서면-2020-법령해석재산-5328, 2021.12.10. · 서면-2018-상속증여-2015, 2019.02.11.) · 단, 초과배당 등 §4의2⑥ 단서 증여는 연대납세 없음 → 대납하면 증여(서면-2020-상속증여-5010, 2021.04.28.)<br>· 거주자 수증자를 위해 대신 낸 증여세는 다시 증여 → 대납분까지 합쳐 반복 계산(§47② 10년 합산 · §58 납부세액공제는 이 화면 계산에 넣지 않음, 대납분을 한 건으로 봄)<br>· 거주자가 비거주자에게 국외재산 증여 = 증여자 납세(국조법 §35②) · 비특수관계인 + 외국 증여세 부과면 면제(§35③) · 외국 납부 증여세 공제(§35⑤) · §53 등 준용(§35⑥)<br>· 신고 = 증여받은 날이 속하는 달 말일부터 3개월(§68) · 비거주자 수증은 증여자 주소지 관할<br>· 국세청 「재미납세자가 알아야 할 한·미 세금상식(2026)」 p.265 사례(21억 = 배우자 11억, 자녀 5억씩) 산출세액 거주자 2.5억 / 비거주자 4.6억 = 이 엔진 값과 같음');
     $('o-gift').innerHTML = card('증여세 비교', h);
   }
 
@@ -6220,8 +6244,10 @@ var TREATY = [{"n": "가봉", "d": 15.0, "i": 10.0, "dt": "25% 이상 직접 소
     { g: '한국 세금', k: 'inh', l: '상속세', q: [
       ['who', '피상속인 거주 구분', RN],
       ['dom', '국내 상속재산', 'num', '억'], ['forn', '국외 상속재산', 'num', '억'], ['debt', '국내 재산 담보 채무', 'num', '억'],
-      ['sp', '배우자 유무', [['있음', '1'], ['없음', '0']]], ['kids', '자녀 수', 'num', '명']],
-      go: function (a) { sv('i_dom', a.dom || ''); sv('i_forn', a.forn || ''); sv('i_debtSec', a.debt || ''); sv('i_spouse', a.sp || '1'); sv('i_children', a.kids || ''); return 'inh'; } },
+      ['sp', '배우자 유무', [['있음', '1'], ['없음', '0']]], ['kids', '자녀 수', 'num', '명'],
+      ['par', '[자녀 없음] 살아 계신 부모(직계존속) 수 — 배우자 법정상속분(공제 한도)', 'num', '명'],
+      ['spa', '[배우자] 배우자가 실제 받을 상속재산(모르면 비움 = 최소 5억 공제)', 'num', '억']],
+      go: function (a) { sv('i_dom', a.dom || ''); sv('i_forn', a.forn || ''); sv('i_debtSec', a.debt || ''); sv('i_spouse', a.sp || '1'); sv('i_children', a.kids || ''); sv('i_parents', a.par || ''); sv('i_spouseActual', a.spa || ''); sv('i_spouseLimit', ''); return 'inh'; } },
     { g: '한국 세금', k: 'house', l: '국내 주택 양도세', q: [
       ['sale', '양도가액', 'num', '억'], ['acq', '취득가액', 'num', '억'], ['ad', '취득일', 'date'], ['sd', '양도일', 'date'],
       ['cnt', '1세대 국내 주택 수', [['1주택', '1'], ['2주택', '2'], ['3주택 이상', '3']]], ['ry', '거주기간', 'num', '년'],
@@ -6272,7 +6298,7 @@ var TREATY = [{"n": "가봉", "d": 15.0, "i": 10.0, "dt": "25% 이상 직접 소
   function esc(t) { return String(t).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
   var wzCur = null, wzAns = {}, wzStep = 0, wzT = 0;   
   function wzW() { return WZ.filter(function (x) { return x.k === wzCur; })[0]; }
-  function wzQ(w) { var as = wzAns.asset; return w.q.filter(function (q) { return !(as === 'st' && /^\[부동산\]/.test(q[1])) && !(as === 're' && /^\[주식\]/.test(q[1])); }); }   
+  function wzQ(w) { var as = wzAns.asset, noSp = wzAns.sp === '0', kid = +wzAns.kids > 0; return w.q.filter(function (q) { return !(as === 'st' && /^\[부동산\]/.test(q[1])) && !(as === 're' && /^\[주식\]/.test(q[1])) && !(noSp && /^\[(배우자|자녀 없음)\]/.test(q[1])) && !(kid && /^\[자녀 없음\]/.test(q[1])); }); }   
   function wzHas(id) { return wzAns[id] !== undefined && wzAns[id] !== ''; }
   function wzShow(q, id) {   
     var x = wzAns[id]; if (!wzHas(id)) return '';
@@ -6377,7 +6403,8 @@ var TREATY = [{"n": "가봉", "d": 15.0, "i": 10.0, "dt": "25% 이상 직접 소
       if (sk.length) x += '<div class="pk-wdf"><b>[기본값으로 둔 것]</b> (질문형, 비워 둔 질문 = 아래 칸 기본값)<br>' + sk.map(esc).join('<br>') + '</div>';
       if (Q.length) x += '<div class="pk-wa"><h4>내 답</h4><ul>' + Q.map(function (q, i) { return '<li><span>' + esc(wzTitle(q)) + ' <b>' + esc(wzHas(q[0]) ? wzShow(q, q[0]) : '모름(비워 둠)') + '</b></span><button type="button" data-wzed="' + i + '">고치기</button></li>'; }).join('') + '</ul></div>';
       x += '<details class="pk-wd"><summary>자세히(계산 내역)</summary><div class="pk-wdet">' + R.det + '</div></details>';
-      if (window.NRTXL && NRTXL.XLT[t]) x += '<button type="button" class="pk-go pk-xl" data-nrtxl="' + t + '">엑셀 받기 (수식)</button><div class="pk-xlm nrtxl-m"></div>';   
+      if (window.NRTXL && NRTXL.XLT[t]) x += '<button type="button" class="pk-go pk-xl" data-nrtxl="' + t + '">엑셀 받기 (수식)</button><div class="pk-xlm nrtxl-m"></div>';
+      else if (window.TXTBL && $('o-' + t)) x += '<button type="button" class="pk-go pk-xl" data-nrttb="' + t + '">엑셀 받기 (결과표)</button><div class="pk-xlm nrttb-m"></div>';      
       x += '<div class="pk-wbt"><button type="button" class="pk-go2" data-wzhome="1">다른 항목</button><button type="button" class="pk-go2" data-wzre="1">처음부터</button></div>';
       box.innerHTML = x; wzOut = R.det;
     }, 60);
@@ -6512,8 +6539,9 @@ var TREATY = [{"n": "가봉", "d": 15.0, "i": 10.0, "dt": "25% 이상 직접 소
     i_bongan: ['봉안시설, 자연장지 비용(만원)', '300만 원 = 300', '500만 원 한도', 'o:0'],
     i_appraisal: ['재산 감정평가 수수료(만원)', '', '500만 원 한도', 'o:0'],
     i_spouse: ['배우자가 있는지', '', '배우자공제(최소 5억) 판정', 'n'],
-    i_spouseActual: ['배우자가 실제로 받는 상속재산', '10억 = 10', '배우자공제 = 실제 받은 금액(한도 30억)', 'o:최소 5억 공제'],
-    i_spouseLimit: ['배우자 법정상속분 한도', '', '', 'o:30억'],
+    i_spouseActual: ['배우자가 실제로 받는 상속재산', '10억 = 10', '배우자공제 = 실제 받은 금액(한도 = 법정상속분, 30억 중 작은 것)', 'o:최소 5억 공제'],
+    i_spouseLimit: ['배우자 법정상속분 한도', '', '비우면 (상속재산 − 채무 + 사전증여) × 배우자 법정상속분으로 계산', 'o:법정상속분 계산'],
+    i_parents: ['자녀가 없을 때 살아 계신 부모(직계존속) 수', '2', '배우자 법정상속분 = 1.5 ÷ (1.5 + 부모 수)', 'o:0'],
     i_children: ['자녀 수', '2', '자녀 1인당 5,000만 원 공제', 'n'],
     i_minorYears: ['미성년 자녀가 19세가 될 때까지 남은 햇수의 합', '10살, 15살 = 9 + 4 = 13', '1년당 1,000만 원 공제', 'o:0'],
     i_elderly: ['65세 이상 상속인 등 인원', '1', '1인당 5,000만 원 공제', 'o:0'],
@@ -6531,11 +6559,12 @@ var TREATY = [{"n": "가봉", "d": 15.0, "i": 10.0, "dt": "25% 이상 직접 소
     g_loc: ['주는 재산이 한국 안인지 밖인지', '', '', 'n'],
     g_prior: ['10년 안 같은 사람에게 이미 받은 증여', '3년 전 아버지에게 2억 = 2', '부모는 한 사람으로 합쳐서 봄', 'o:0'],
     g_priorTax: ['그 앞선 증여 때 계산된 산출세액', '', '', 'o:0'],
+    g_priorSurcharge: ['그 앞선 증여 때 낸 세대생략 할증세액', '', '이번 할증에서 뺌(영 §46의3②)', 'o:다시 셈'],
     g_usedDed: ['다른 사람에게 받을 때 이미 쓴 증여재산공제', '', '', 'o:0'],
     g_marriageBirth: ['혼인, 출산 공제로 받을 금액', '1억 = 1', '거주자만, 1억 한도', 'o:0'],
     g_foreignTax: ['같은 재산에 외국에서 낸 증여세', '', '외국납부세액공제', 'o:0'],
     g_donorPays: ['주는 사람이 증여세까지 대신 내면 체크', '', '거주자 수증자면 대신 낸 세금도 다시 증여로 봄'],
-    g_skip: ['조부모 → 손자녀처럼 세대를 건너뛰면 체크', '', '세금 30% 더 붙음(20억 넘는 미성년은 40%)'],
+    g_skip: ['조부모 → 손자녀처럼 세대를 건너뛰면 체크', '', '세금 30% 더 붙음(10년 합산 포함 20억 넘는 미성년은 40%)'],
     g_minor: ['받는 사람이 미성년이면 체크', '', ''],
     g_jointExcluded: ['초과배당 등 특수한 증여면 체크', '모르면 비움', ''],
     g_related: ['받는 사람이 주는 사람의 가족 등 특수관계인이면 체크', '부모 자식 = 체크', '국외재산 증여의 한국 증여세 면제 판정에 씀'],
@@ -6957,7 +6986,8 @@ var TREATY = [{"n": "가봉", "d": 15.0, "i": 10.0, "dt": "25% 이상 직접 소
     i_bongan: '장례비에 더해 500만 원까지 더 빼 줌',
     i_appraisal: '감정평가를 받았으면 그 수수료를 과세표준에서 빼 줌',
     i_spouse: '배우자가 있으면 배우자공제(최소 5억, 최대 30억)가 붙어 세금이 크게 줄어듦. 비거주자 사망엔 없음',
-    i_spouseActual: '배우자공제는 배우자가 실제 받은 금액만큼(5억~30억). 많이 받을수록 세금이 줄어듦',
+    i_spouseActual: '배우자공제는 배우자가 실제 받은 금액만큼(5억~30억, 법정상속분까지). 많이 받을수록 세금이 줄어듦',
+    i_parents: '자녀가 없으면 배우자는 부모와 함께 상속 → 부모가 많을수록 배우자 몫(공제 한도)이 줄어듦',
     i_spouseLimit: '배우자공제는 법정상속분까지만 됨. 상속인 수에 따라 한도가 달라짐',
     i_children: '자녀 1명당 5,000만 원 공제. 일괄공제 5억과 비교해 큰 쪽을 씀',
     i_minorYears: '미성년 자녀는 19세까지 남은 1년마다 1,000만 원 더 빼 줌',
@@ -6980,7 +7010,7 @@ var TREATY = [{"n": "가봉", "d": 15.0, "i": 10.0, "dt": "25% 이상 직접 소
     g_marriageBirth: '혼인, 출산 때는 1억을 더 빼 줌. 거주자 수증자만',
     g_foreignTax: '같은 재산에 외국 증여세를 냈으면 한국 세금에서 빼 줌',
     g_donorPays: '거주자 수증자면 대신 내 준 세금도 또 증여라 세금이 늘어남. 비거주자 수증자는 연대납세라 늘지 않음',
-    g_skip: '손자녀 등 세대를 건너뛰면 세금이 30%(미성년 20억 초과 40%) 더 붙음',
+    g_skip: '손자녀 등 세대를 건너뛰면 세금이 30%(미성년 + 10년 합산 포함 20억 초과 40%) 더 붙음',
     g_minor: '미성년이면 공제가 2,000만으로 줄고, 세대생략 할증이 40%가 될 수 있음',
     g_jointExcluded: '이런 증여는 연대납세의무가 없어, 증여자가 대신 내면 다시 증여로 봄',
     g_related: '국외 재산을 비거주자에게 줄 때, 가족 사이가 아니면 한국 증여세가 면제될 수 있어 판정에 씀',
@@ -7181,6 +7211,9 @@ var TREATY = [{"n": "가봉", "d": 15.0, "i": 10.0, "dt": "25% 이상 직접 소
       if (f === 'MIN') return Math.min.apply(null, X.map(N));
       if (f === 'MAX') return Math.max.apply(null, X.map(N));
       if (f === 'INT') return Math.floor(N(X[0]));
+      if (f === 'TRUNC') return Math.trunc(N(X[0]));   
+      if (f === 'SUM' || f === 'AVERAGE') { var fl = []; X.forEach(function (x) { if (Array.isArray(x)) x.forEach(function (y) { if (typeof y === 'number') fl.push(y); }); else fl.push(N(x)); });
+        var sm = fl.reduce(function (a, b) { return a + b; }, 0); return f === 'SUM' ? sm : (fl.length ? sm / fl.length : 0); }
       if (f === 'QUOTIENT') return Math.trunc(N(X[0]) / N(X[1]));
       if (f === 'ROUND') { var d = Math.pow(10, N(X[1])), a0 = N(X[0]), v1 = +(Math.abs(a0) * d).toPrecision(15); return (a0 < 0 ? -1 : 1) * Math.floor(v1 + 0.5) / d; }
       if (f === 'AND') return X.every(T);
@@ -7345,6 +7378,8 @@ var TREATY = [{"n": "가봉", "d": 15.0, "i": 10.0, "dt": "25% 이상 직접 소
     }
 
     
+    if (typeof o.pre === 'function') o.pre(wb, { fx: function (t) { return fx(t, null); }, ADDR: ADDR, M: M, font: font, fill: fill, C: C, NF: NF, thin: thin, sheet: sheet, hdr: hdr, footRow: footRow, colL: colL, SN: SN, FOOT: FOOT });
+    
     var ws = sheet(SN.calc, [44, 22, 12, 26, 44], o.title);
     hdr(ws, 4, ['요약', '금액', '구분', '판정', '']);
     M.sums.forEach(function (x, i) {
@@ -7459,6 +7494,64 @@ var TREATY = [{"n": "가봉", "d": 15.0, "i": 10.0, "dt": "25% 이상 직접 소
 
 
 (function (root) {
+  'use strict';
+  var TOT = /합계|납부할|낼 세액|총 ?세액|총부담/;
+  function txt(e) { return e ? String(e.textContent || '').replace(/\s+/g, ' ').trim() : ''; }
+  
+  function amt(t) {
+    var m = /^(△|-|−)?\s*([0-9][0-9,]*)\s*원(.*)$/.exec(String(t || '').trim());
+    if (!m) return null;
+    var v = +m[2].replace(/,/g, ''); if (m[1]) v = -v;
+    return { v: v, d: m[3].replace(/^[\s,·()]+|[\s)]+$/g, '') };
+  }
+  function model(el, o) {
+    var X = root.TXXL; if (!X) throw new Error('엑셀 틀(TXXL) 없음');
+    if (!el || !txt(el)) throw new Error('먼저 이 화면에서 [계산]을 눌러 주세요');
+    o = o || {};
+    var M = X.model([]), cards = [].slice.call(el.querySelectorAll('.card')).filter(function (c) { return !c.parentNode.closest || !c.parentNode.closest('.card'); });
+    if (!cards.length) cards = [el];
+    var bigs = [];
+    cards.forEach(function (c, ci) {
+      var h3 = c.querySelector('h3'), lab = txt(h3) || (o.title || '결과') + ' ' + (ci + 1), id = 'C' + (ci + 1), first = null, pick = null;
+      M.block(id, lab, function (b) {
+        var k = 0, key = function () { return 'R' + (++k); };
+        var bg = c.querySelector('.big');
+        if (bg) { var a0 = amt(txt(bg.firstChild && bg.firstChild.nodeType === 3 ? { textContent: bg.firstChild.nodeValue } : bg)); if (a0) { b.IN('BIG', lab + ' — 결과', a0.v, { fmt: 'w', src: '화면 값', d: txt(bg.querySelector('small')) }); first = 'BIG'; } }
+        [].forEach.call(c.querySelectorAll('.verdict'), function (v) { b.CN(key(), '결론', txt(v), { fmt: 't' }); });
+        [].forEach.call(c.querySelectorAll('table'), function (tb) {
+          var heads = [];
+          [].forEach.call(tb.querySelectorAll('tr'), function (tr) {
+            var th = tr.querySelectorAll('th'), td = tr.querySelectorAll('td');
+            if (th.length && !td.length) { heads = [].map.call(th, txt); return; }
+            var cells = [].slice.call(tr.children); if (cells.length < 2) { if (cells.length && txt(cells[0])) b.CN(key(), txt(cells[0]), '', { fmt: 't' }); return; }
+            var rl = txt(cells[0]) || '줄';
+            cells.slice(1).forEach(function (cl, j) {
+              var t = txt(cl); if (!t || t === '—' || t === '-') return;
+              var nm = rl + (heads[j + 1] ? ' — ' + heads[j + 1] : ''), a = amt(t), kk = key();
+              if (a) { b.IN(kk, nm, a.v, { fmt: 'w', src: '화면 값', d: a.d }); if (!first) first = kk; if (!pick && TOT.test(rl)) pick = kk; }
+              else b.CN(kk, nm, t, { fmt: 't' });
+            });
+          });
+        });
+        [].forEach.call(c.querySelectorAll('p'), function (p) { var t = txt(p); if (t && !p.closest('table')) b.CN(key(), '설명', t, { fmt: 't' }); });
+      });
+      [].forEach.call(c.querySelectorAll('li'), function (li) { var t = txt(li); if (t) M.info.notes.push(lab + ' : ' + t); });
+      if (!(c.querySelector('.big') && first === 'BIG') && pick) first = pick;   
+      if (first) bigs.push({ id: id, key: first, lab: lab, v: M.VAL[id + ':' + first] });
+    });
+    bigs.forEach(function (x, i) { M.sum('S' + (i + 1), x.lab, '{' + x.id + ':' + x.key + '}', x.v, { big: i === 0 ? 1 : 0 }); });
+    M.info.why.push(o.title || '결과');
+    if (o.via) M.info.via = o.via;
+    M.info.noF = '이 항목은 수식 엑셀이 아직 없음 → 화면 결과(엔진 계산값)를 그대로 옮긴 표 · 요약 줄만 그 칸을 가리키는 수식';
+    return M;
+  }
+  function opts(o) { o = o || {}; return { title: (o.title || '계산 결과') + ' — 결과표', eng: (o.eng || '시뮬레이터') + ' 화면 계산값', file: (o.file || '계산결과') + '_결과표', tbNote: '이 항목은 세율표 없음(화면 결과를 옮긴 표)' }; }
+  var API = { model: model, opts: opts, amt: amt };
+  if (typeof module !== 'undefined' && module.exports) module.exports = API;
+  root.TXTBL = API;
+})(typeof window !== 'undefined' ? window : globalThis);
+
+(function (root) {
   function pos(x) { x = +x; return isFinite(x) && x > 0 ? x : 0; }
   function n(x) { x = +x; return isFinite(x) ? x : 0; }
   var XLT = { inh: 1, gift: 1, div: 1 };
@@ -7480,7 +7573,8 @@ var TREATY = [{"n": "가봉", "d": 15.0, "i": 10.0, "dt": "25% 이상 직접 소
       TB.push({ k: 'IELD', n: '연로자공제(1명당)', v: unit({ elderly: 1 }) - unit({}), law: '§20①3호' });
       TB.push({ k: 'ILUMP', n: '일괄공제', v: R.inh.lump, law: '§21①' });
       TB.push({ k: 'SPMIN', n: '배우자상속공제 최소', v: R.inh.spouseMin, law: '§19④' });
-      TB.push({ k: 'SPMAX', n: '배우자상속공제 최대(한도를 비우면 이 금액)', v: R.inh.spouseMax, law: '§19①' });
+      TB.push({ k: 'SPMAX', n: '배우자상속공제 최대', v: R.inh.spouseMax, law: '§19①2호' });
+      TB.push({ k: 'SPLEGAL', n: '배우자 법정상속분 가산(공동상속인 1 에 더하는 몫)', v: 1.5, fmt: 'y', law: '민법 §1009②' });
       TB.push({ k: 'FINFLOOR', n: '금융재산상속공제 — 전액 공제 한도, 최소', v: R.inh.finFloor, law: '§22①' });
       TB.push({ k: 'FINRATE', n: '금융재산상속공제율', v: R.inh.finRate, fmt: 'r', law: '§22①' });
       TB.push({ k: 'FINMAX', n: '금융재산상속공제 최대', v: R.inh.finMax, law: '§22①' });
@@ -7500,8 +7594,8 @@ var TREATY = [{"n": "가봉", "d": 15.0, "i": 10.0, "dt": "25% 이상 직접 소
       TB.push({ k: 'DOTHER', n: '그 밖의 사람', v: R.giftDed.other, law: '§53' });
       TB.push({ k: 'DMB', n: '혼인·출산 증여재산공제 한도', v: R.giftDed.marriageBirth, law: '§53의2' });
       TB.push({ k: 'SKIPN', n: '세대생략 할증률', v: R.skip.normal, fmt: 'r', law: '§57①' });
-      TB.push({ k: 'SKIPL', n: '세대생략 할증률(미성년 + 20억원 초과)', v: R.skip.large, fmt: 'r', law: '§57① 단서' });
-      TB.push({ k: 'SKIPOVER', n: '  40% 기준 금액(이번 증여가액)', v: R.skip.over, law: '§57① 단서' });
+      TB.push({ k: 'SKIPL', n: '세대생략 할증률(미성년 + 20억원 초과)', v: R.skip.large, fmt: 'r', law: '§57① 본문 괄호' });
+      TB.push({ k: 'SKIPOVER', n: '  40% 기준 금액(이번 증여 + 10년 합산 증여)', v: R.skip.over, law: '§57① 본문 괄호, 영 §46의3①(10년 합산액으로 판정)' });
     }
     if (t === 'div') {
       TB.push({ sec: '비거주자 원천징수율 (소득세법 §156①) · 지방소득세' });
@@ -7533,6 +7627,7 @@ var TREATY = [{"n": "가봉", "d": 15.0, "i": 10.0, "dt": "25% 이상 직접 소
       b.IN('SP', '배우자 있음', YN(!!q.spouse), { fmt: 't', law: '§19' });
       b.IN('SPACT', '  배우자 실제 상속액', n(q.spouseActual), { law: '§19①' });
       if (slGiven) b.IN('SPLIM', '  배우자 법정상속분 한도', n(q.spouseLimit), { law: '§19①1호' });
+      else { b.IN('PAR', '  자녀가 없을 때 직계존속 수', n(q.parents), { fmt: 'y', law: '민법 §1003①, §1009②' }); b.IN('SPE', '  배우자 사전증여 과세표준', n(q.spousePriorBase), { law: '§19①1호 E' }); }
       b.IN('SOLE', '배우자 단독상속', YN(!!q.soleSpouse), { fmt: 't', law: '§21②' });
       b.IN('CHILD', '자녀 수', n(q.children), { fmt: 'y', law: '§20①1호' });
       b.IN('MINY', '미성년자 공제 연수 합', n(q.minorYears), { fmt: 'y', law: '§20①2호' });
@@ -7555,7 +7650,12 @@ var TREATY = [{"n": "가봉", "d": 15.0, "i": 10.0, "dt": "25% 이상 직접 소
         else {
           b.F('PERS', '  기초 + 그 밖 인적공제', '{$IBASIC}+{I:CHILD}*{$ICHILD}+{I:MINY}*{$IMINOR}+{I:OLD}*{$IELD}', null, { law: '§18, §20' });
           b.F('LUMP', '  일괄공제 비교', 'IF({I:SOLE}="예",{PERS},MAX({PERS},{$ILUMP}))', x.ded.lump, { law: '§21' });
-          b.F('SPD', '  배우자상속공제', 'IF({I:SP}="예",MIN(MAX(MAX(0,{I:SPACT}),{$SPMIN}),MAX(' + (slGiven ? 'MAX(0,{I:SPLIM})' : '{$SPMAX}') + ',{$SPMIN}),{$SPMAX}),0)', x.ded.spouse, { law: '§19①④' });
+          if (!slGiven) {
+            b.F('SPBASE', '  배우자공제 한도 기초(상속재산 − 공과금, 채무 + 사전증여)', 'MAX(0,{ASSETS}-{PUB}-{DEBT}+{PRIOR})', x.ded.spBase != null ? x.ded.spBase : null, { law: '§19①1호 A·C, 영 §17①', d: '장례비는 안 뺌' });
+            b.F('SPSH', '  배우자 법정상속분', 'IF(ROUND({I:CHILD},0)>0,{$SPLEGAL}/({$SPLEGAL}+ROUND({I:CHILD},0)),IF(ROUND({I:PAR},0)>0,{$SPLEGAL}/({$SPLEGAL}+ROUND({I:PAR},0)),1))', x.ded.spShare != null ? x.ded.spShare : null, { fmt: 'r', law: '민법 §1003①, §1009②' });
+            b.F('SPLEG', '  배우자 법정상속분 한도(원 미만 버림)', 'MAX(0,INT({SPBASE}*{SPSH}+0.000001)-MAX(0,{I:SPE}))', x.ded.spLegal != null ? x.ded.spLegal : null, { law: '§19①1호' });
+          }
+          b.F('SPD', '  배우자상속공제', 'IF({I:SP}="예",MIN(MAX(MAX(0,{I:SPACT}),{$SPMIN}),MAX(' + (slGiven ? 'MAX(0,{I:SPLIM})' : '{SPLEG}') + ',{$SPMIN}),{$SPMAX}),0)', x.ded.spouse, { law: '§19①④' });
           b.F('FIND', '  금융재산상속공제', 'IF(MAX(0,{I:FIN})<=0,0,IF(MAX(0,{I:FIN})<={$FINFLOOR},MAX(0,{I:FIN}),MIN(MAX(MAX(0,{I:FIN})*{$FINRATE},{$FINFLOOR}),{$FINMAX})))', x.ded.fin, { law: '§22' });
           b.F('HOUSED', '  동거주택상속공제', 'MIN(MAX(0,{I:HOUSE}),{$HOUSEMAX})', x.ded.house, { law: '§23의2' });
           b.F('DSUM', '− 상속공제 합계(한도 전)', '{LUMP}+{SPD}+{FIND}+{HOUSED}', x.ded.sum, {});
@@ -7581,7 +7681,7 @@ var TREATY = [{"n": "가봉", "d": 15.0, "i": 10.0, "dt": "25% 이상 직접 소
     M.info.why.push('피상속인 거주자 = 국내외 모든 재산, 비거주자 = 국내 재산만, 공제는 기초공제만(§3, §18~§23의2)');
   }
   function giftRows(E, M, q, r) {
-    var X = E.X, YN = X.YN, nR = E.G.R.rate.length, loc = q.loc || 'dom';
+    var X = E.X, YN = X.YN, nR = E.G.R.rate.length, loc = q.loc || 'dom', psGiven = q.priorSurcharge !== '' && q.priorSurcharge != null;
     var capRef = { spouse: '{$DSP}', asc: '{$DADULT}', ascMinor: '{$DMINOR}', desc: '{$DADULT}', relative: '{$DREL}' }[q.rel] || '{$DOTHER}';
     M.block('I', '입력 (원 · 파란 글자 = 입력 칸)', function (b) {
       b.CN('REL', '증여자와의 관계', RELN[q.rel] || q.rel, { fmt: 't', law: '§53', d: '관계를 바꾸면 공제 종류가 달라짐 → 시뮬레이터에서 새로 받기' });
@@ -7589,11 +7689,12 @@ var TREATY = [{"n": "가봉", "d": 15.0, "i": 10.0, "dt": "25% 이상 직접 소
       b.IN('AMT', '증여재산가액', pos(q.amount), { law: '§31' });
       b.IN('PRIOR', '10년 내 같은 증여자 증여(합산)', pos(q.prior), { law: '§47②' });
       b.IN('PTAX', '  그 증여 산출세액', n(q.priorTax), { law: '§58' });
+      if (psGiven) b.IN('PSUR', '  그 증여 때 낸 세대생략 할증세액', n(q.priorSurcharge), { law: '영 §46의3②' });
       b.IN('USED', '다른 증여자에게서 10년 안 쓴 같은 줄 공제', n(q.usedDed), { law: '§53' });
       b.IN('MB', '혼인·출산 공제 받을 금액(거주자만)', n(q.marriageBirth), { law: '§53의2' });
       b.IN('FTAX', '외국에 낸 증여세', n(q.foreignTax), { law: '§59, 국조법 §35⑤' });
       b.IN('SKIP', '세대생략', YN(!!q.skip), { fmt: 't', law: '§57' });
-      b.IN('MINOR', '수증자 미성년', YN(!!q.minor), { fmt: 't', law: '§57① 단서' });
+      b.IN('MINOR', '수증자 미성년', YN(!!q.minor), { fmt: 't', law: '§57① 본문 괄호' });
       b.CN('DP', '증여자가 증여세를 대신 냄', YN(!!q.donorPays), { fmt: 't', law: '§4의2⑥, 서면-2020-법령해석재산-5328' });
       b.CN('JX', '§4의2⑥ 단서 증여(초과배당 등 · 연대납세 없음)', YN(!!q.jointExcluded), { fmt: 't', law: '서면-2020-상속증여-5010' });
     });
@@ -7609,8 +7710,11 @@ var TREATY = [{"n": "가봉", "d": 15.0, "i": 10.0, "dt": "25% 이상 직접 소
         b.F('BASE', '= 과세표준(50만원 미만 = 0)', 'IF(AND({BASE0}>0,{BASE0}<{$MINBASE}),0,{BASE0})', x.base, { law: '§55②' });
         b.F('RATE', '세율(한계)', X.rateF('{BASE}', 'IR', nR), x.rate, { fmt: 'r', law: '§56' });
         b.F('CALC', '산출세액(원 미만 버림)', 'INT(' + X.progF('{BASE}', 'IR', nR) + ')', x.calc, { law: '§56' });
-        b.F('SK', '+ 세대생략 할증', 'IF({I:SKIP}="예",INT({CALC}*IF(AND({I:MINOR}="예",{AMT}>{$SKIPOVER}),{$SKIPL},{$SKIPN})),0)', x.skip, { law: '§57' });
-        b.F('PRE', '− 납부세액공제', 'IF({PRIOR}>0,MIN(MAX(0,{I:PTAX}),{CALC}+{SK}),0)', x.pre, { law: '§58' });
+        b.F('PBASE', '  10년 합산분 과세표준(공제는 합산분에 먼저)', 'MAX(0,{PRIOR}-MIN({PRIOR},MAX(0,{CAP}-MAX(0,{I:USED}))))', x.pBase, { law: '§58②' });
+        b.F('PSUR', '  종전 세대생략 할증세액', 'IF(AND({I:SKIP}="예",{PRIOR}>0),' + (psGiven ? 'MAX(0,{I:PSUR})' : 'IF(AND({PBASE}>0,{PBASE}<{$MINBASE}),0,INT(INT(' + X.progF('{PBASE}', 'IR', nR) + ')*IF(AND({I:MINOR}="예",{PRIOR}>{$SKIPOVER}),{$SKIPL},{$SKIPN})))') + ',0)', x.priorSur, { law: '영 §46의3②', d: psGiven ? '입력값' : '빈칸 = 합산분 과세표준으로 다시 셈(가정)' });
+        b.F('SK', '+ 세대생략 할증', 'IF({I:SKIP}="예",MAX(0,INT({CALC}*IF(AND({I:MINOR}="예",{AMT}+{PRIOR}>{$SKIPOVER}),{$SKIPL},{$SKIPN}))-{PSUR}),0)', x.skip, { law: '§57, 영 §46의3', d: '40% 판정 = 이번 + 10년 합산 · 종전 할증 뺌' });
+        b.F('PRECAP', '  납부세액공제 한도(산출세액 × 합산분 과세표준 ÷ 과세표준)', 'IF({BASE}>0,INT({CALC}*MIN(1,{PBASE}/{BASE})),0)', x.preCap, { law: '§58②' });
+        b.F('PRE', '− 납부세액공제', 'IF({PRIOR}>0,MIN(MAX(0,{I:PTAX}),{PRECAP}),0)', x.pre, { law: '§58' });
         b.F('FX', '− 외국납부세액공제', 'MIN(MAX(0,{I:FTAX}),MAX(0,{CALC}+{SK}-{PRE}))', x.foreign, { law: '§59' });
         b.F('NET', '  공제 뒤', '{CALC}+{SK}-{PRE}-{FX}', null, {});
         b.F('REP', '− 신고세액공제(원 미만 버림)', 'INT({NET}*{$REPORT})', x.report, { law: '§69' });
@@ -7666,7 +7770,7 @@ var TREATY = [{"n": "가봉", "d": 15.0, "i": 10.0, "dt": "25% 이상 직접 소
     var M = E.X.model(table(E, L.t));
     if (L.t === 'inh') inhRows(E, M, L.q, L.r); else if (L.t === 'gift') giftRows(E, M, L.q, L.r); else divRows(E, M, L.q, L.r);
     M.info.via = ctx.via || '';
-    M.info.noF = L.t === 'inh' ? '장례비 입력 여부(비우면 0), 배우자 법정상속분 한도 입력 여부(비우면 30억원) = 화면 조건 · 신고기한(6개월 / 9개월) = 화면 조건 · 그 밖(국내외 재산 구분, 공제 종류, 공제 한도, 과세최저한)은 수식 · 가업·영농상속공제는 이 화면 밖'
+    M.info.noF = L.t === 'inh' ? '장례비 입력 여부(비우면 0), 배우자 법정상속분 한도 입력 여부(비우면 법정상속분 수식) = 화면 조건 · 신고기한(6개월 / 9개월) = 화면 조건 · 그 밖(국내외 재산 구분, 공제 종류, 공제 한도, 과세최저한)은 수식 · 가업·영농상속공제는 이 화면 밖'
       : L.t === 'gift' ? '증여자와의 관계(공제 종류), 국내재산 / 국외재산, 증여자 대납 증여세까지 합친 가액(반복 계산 = 엔진 값), 국외재산 면제(국조법 §35③) = 화면 조건, 엔진 판정 · 그 밖(공제 유무, 할증, 납부세액공제, 외국납부세액공제)은 수식'
       : '소득 종류, 의제배당 금액, 거주자 종합과세 비교(배당가산율, 비교과세 = DIVT 엔진 값) = 화면 조건, 엔진 판정 · 비거주자 원천징수(조약 제한세율, 지방소득세 포함 여부)는 수식';
     return M;
@@ -7679,6 +7783,15 @@ var TREATY = [{"n": "가봉", "d": 15.0, "i": 10.0, "dt": "25% 이상 직접 소
     window.NRTXL = API;
     var box = function (t) { return '<div class="xlbox nrtxl-box"><button type="button" class="xlb" data-nrtxl="' + t + '">엑셀 받기 (수식)</button><div class="xlm nrtxl-m"></div></div>'; };
     Object.keys(XLT).forEach(function (t) { var o = document.getElementById('o-' + t); if (o && !(o.nextElementSibling && o.nextElementSibling.classList.contains('nrtxl-box'))) o.insertAdjacentHTML('afterend', box(t)); });
+    
+    var tbName = function (t) { var b = document.querySelector('[data-t="' + t + '"]'); return b ? b.textContent.replace(/^[①-⑳]\s*/, '').trim() : t; };
+    var tbBox = function (t) { return '<div class="xlbox nrttb-box"><button type="button" class="xlb" data-nrttb="' + t + '">엑셀 받기 (결과표)</button><div class="xlm nrttb-m"></div></div>'; };
+    [].forEach.call(document.querySelectorAll('[id^="o-"]'), function (o) { var t = o.id.slice(2); if (XLT[t]) return; if (!(o.nextElementSibling && o.nextElementSibling.classList.contains('nrttb-box'))) o.insertAdjacentHTML('afterend', tbBox(t)); });
+    TXXL.wire('nrttb', 'nrttb-m', function (t, el) {
+      if (!window.TXTBL) throw new Error('결과표 엑셀 모듈 없음');
+      var nm = tbName(t), o = document.getElementById('o-' + t);
+      return { M: TXTBL.model(o, { title: '비거주자 ' + nm, via: el.closest('#pkRoot') ? '질문형(바로 계산)' : '직접 입력 화면' }), o: TXTBL.opts({ title: '비거주자 ' + nm, eng: '비거주자 시뮬레이터', file: '비거주자_' + nm.replace(/[^가-힣A-Za-z0-9]+/g, '') }) };
+    });
     TXXL.wire('nrtxl', 'nrtxl-m', function (t, el) {
       var L = window.NRTLAST && window.NRTLAST[t];
       if (!L) throw new Error('먼저 이 탭의 [계산]을 눌러 주세요');
