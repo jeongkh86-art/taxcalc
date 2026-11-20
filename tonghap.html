@@ -460,6 +460,8 @@ body .y4box .y4e{color:var(--pd-acc)!important}
       <div class="fld"><label>증여재산가액 합계</label><input id="i_prior" type="number" value="0"></div>
       <div class="fld"><label>그 증여 과세표준 합 <span class="cfm">선택</span></label><input id="i_priorBase" type="number" placeholder="비우면 공제 5천만원 가정"></div>
       <div class="fld"><label>그 증여세 산출세액 합</label><input id="i_priorTax" type="number" value="0"><span class="dfl">증여세액공제(§28) · 모르면 0</span></div>
+      <div class="fld"><label>그중 상속인 아닌 사람 몫 과세표준 <span class="cfm">선택</span></label><input id="i_nhBase" type="number" value="0"><span class="dfl">손자녀, 사위 등(상속인·수유자 아님) · §28② 후단 상속인별 한도용 · 없으면 0</span></div>
+      <div class="fld"><label>그중 상속인 아닌 사람 몫 산출세액 <span class="cfm">선택</span></label><input id="i_nhTax" type="number" value="0"><span class="dfl">위 몫의 증여세 산출세액 · 없으면 0</span></div>
     </div>
   </section>
 
@@ -470,9 +472,10 @@ body .y4box .y4e{color:var(--pd-acc)!important}
   <details class="why"><summary>계산에 없는 것, 확인 필요</summary><p class="law">
     · 받는 사람(상속은 돌아가신 분) = 거주자만 · 비거주자는 「비거주자」 탭<br>
     · 증여 : 합산배제 증여재산(§47①), 부담부증여 채무 인수분 양도소득세, 창업자금, 가업승계 증여세 과세특례(조특법 §30의5, §30의6)는 안 넣음<br>
-    · 상속 : 가업상속공제, 영농상속공제, 연부연납, 추정상속재산, 상속인별 세액 나누기(§28② 후단 상속인별 한도) 안 넣음 · 증여세액공제 한도 = 합계식(§28② 전단)<br>
+    · 상속 : 가업상속공제, 영농상속공제, 연부연납, 추정상속재산, 상속인별 세액 나누기 안 넣음 · 증여세액공제 한도 = 상속인 몫 §28② 후단(과세표준 − 상속인 아닌 사람 몫 과세표준으로 나눔) + 상속인 아닌 사람 몫 전단 · 상속인끼리 몫을 사람마다 나누지 않음(한 덩어리)<br>
     · 법인 증여 : 자산 무상 제공(§45의5①1호) 한 건만 · 저가·고가 거래, 채무면제, 자본거래는 안 넣음 · 지배주주등 지분 = 넣은 가족 주주 직접 보유 합계(간접 보유 미반영) <span class="cfm">확인 필요</span> · 1억원 판정(령 §34의5⑤) = 이번 거래 하나 기준(같은 해 같은 유형 거래 합산은 미반영) <span class="cfm">확인 필요</span> · 법인세 공제·감면 없음 가정<br>
     · 신고세액공제 3% = 신고기한(증여 = 증여일이 속한 달 말일부터 3개월, 상속 = 상속개시일이 속한 달 말일부터 6개월) 안 신고 가정
+    · 끝수 : 산출세액, 세대생략 할증세액은 원 미만을 그대로 두고 신고세액공제, 납부할 세액에서 버림 · 중간 세액마다 원 미만을 버리는지 홈택스 모의계산으로 확인 못 함(법령은 과세표준 §47②, 납부액 §47①만 정함 · 차이는 10원 안팎) <span class="cfm">확인 필요</span>
   </p></details>
 </div>
 
@@ -909,7 +912,7 @@ var IGTC = (function () {
     var dedGen = deduction;
     deduction += mb;
     deduction = Math.min(deduction, taxableTotal);
-    var taxBase = Math.max(0, taxableTotal - deduction);
+    var taxBase = Math.max(0, Math.floor(taxableTotal - deduction + 1e-6));   
     var b = baseTax(taxBase), calculated = Math.max(0, b.tax);
     var belowMin = G.belowMin(taxBase);
     if (belowMin) calculated = 0;
@@ -1008,7 +1011,7 @@ var IGTC = (function () {
     var limit = Math.max(0, taxable - l1 - l2 - l3);
     var totalDeduct = Math.min(before, limit), limitApplied = before > limit;
     var fee = Math.min(R.fee.appraisal, Math.max(0, num(o.appraisalFee)));
-    var taxBase = Math.max(0, taxable - totalDeduct - fee);
+    var taxBase = Math.max(0, Math.floor(taxable - totalDeduct - fee + 1e-6));   
     var b = baseTax(taxBase), calculated = Math.max(0, b.tax), belowMin = G.belowMin(taxBase);
     if (belowMin) calculated = 0;
     var skipShare = has(o.skipShare) ? Math.min(1, Math.max(0, num(o.skipShare))) : 0;
@@ -1016,8 +1019,13 @@ var IGTC = (function () {
     var surcharge = skipShare > 0 ? calculated * skipShare * sRate : 0;
     var beforeCredit = calculated + surcharge;
     var gIn = Math.max(0, num(o.priorTax)), gCap = 0, gBlocked = false;
-    if (gIn > 0) { if (taxable <= R.inh.limitFloor) gBlocked = true; else if (taxBase > 0) gCap = calculated * Math.min(1, priorBase / taxBase); }
-    var giftCredit = gBlocked ? 0 : Math.min(gIn, gCap, beforeCredit);
+    
+    var nhB = 0, nhT = 0, gCapH = 0, gCapN = 0, gSplit = false;
+    if (o.priorNonHeir && (num(o.priorNonHeir.base) > 0 || num(o.priorNonHeir.tax) > 0)) { gSplit = true; nhB = Math.min(priorBase, Math.max(0, num(o.priorNonHeir.base))); nhT = Math.min(gIn, Math.max(0, num(o.priorNonHeir.tax))); }
+    if (gIn > 0) { if (taxable <= R.inh.limitFloor) gBlocked = true; else if (taxBase > 0) {
+      if (!gSplit) gCap = calculated * Math.min(1, priorBase / taxBase);
+      else { var tDen = taxBase - nhB; gCapH = tDen > 0 ? calculated * Math.min(1, (priorBase - nhB) / tDen) : 0; gCapN = calculated * Math.min(1, nhB / taxBase); gCap = gCapH + gCapN; } } }
+    var giftCredit = gBlocked ? 0 : gSplit ? Math.min(Math.min(gIn - nhT, gCapH) + Math.min(nhT, gCapN), beforeCredit) : Math.min(gIn, gCap, beforeCredit);
     var afterCredit = Math.max(0, beforeCredit - giftCredit);
     var reportCredit = Math.floor(afterCredit * G.R.report + 1e-6);   
     var payable = Math.max(0, afterCredit - reportCredit);
@@ -1038,7 +1046,7 @@ var IGTC = (function () {
     L.push({ k: '× 세율', v: b.rate, rate: true, deduct: b.deduct, law: '§26' });
     L.push({ k: '= 산출세액' + (belowMin ? '(과세표준 50만원 미만 — 부과 안 함)' : ''), v: calculated, law: belowMin ? '§25②' : '§26' });
     if (surcharge) L.push({ k: '+ 세대생략 할증(' + Math.round(sRate * 100) + '%)', v: surcharge, law: '§27' });
-    if (gIn > 0) L.push({ k: '− 증여세액공제' + (gBlocked ? '(과세가액 5억원 이하 — 공제 안 됨)' : ''), v: giftCredit, law: '§28', sub: gBlocked ? '' : '한도 ' + w(gCap) });
+    if (gIn > 0) L.push({ k: '− 증여세액공제' + (gBlocked ? '(과세가액 5억원 이하 — 공제 안 됨)' : ''), v: giftCredit, law: gSplit ? '§28② 후단, 영 §20의4' : '§28', sub: gBlocked ? '' : gSplit ? '상속인 몫 한도 ' + w(gCapH) + '(§28② 후단) + 상속인 아닌 사람 몫 한도 ' + w(gCapN) : '한도 ' + w(gCap) });
     L.push({ k: '− 신고세액공제(' + Math.round(G.R.report * 100) + '%)', v: reportCredit, law: '§69' });
     L.push({ k: '= 납부할 세액', v: payable, law: '', big: true });
     var payable10 = pay10(payable);
@@ -1049,7 +1057,7 @@ var IGTC = (function () {
       spouseDeduction: spouseDeduct, spouseActual: spActual, spouseLegalShare: spLegal, spouseLimitBase: spBase, spouseShareRate: share ? share.spouse : 0,
       financialDeduction: finDeduct, houseDeduction: houseDeduct, deductionBeforeLimit: before, deductionLimit: limit, deductionLimitApplied: limitApplied, totalDeduction: totalDeduct,
       priorGiftTaxBase: priorBase, priorGiftBaseAssumed: priorBaseAssumed, appraisalDeduction: fee, taxBase: taxBase, belowTaxMinimum: belowMin, marginalRate: b.rate, progressiveDeduct: b.deduct,
-      calculatedTax: calculated, genSkipSurcharge: surcharge, giftTaxCredit: giftCredit, giftTaxCreditCap: gCap, giftTaxCreditBlocked: gBlocked,
+      calculatedTax: calculated, genSkipSurcharge: surcharge, giftTaxCredit: giftCredit, giftTaxCreditCap: gCap, giftTaxCreditBlocked: gBlocked, giftTaxCreditSplit: gSplit ? { heirCap: gCapH, nonHeirCap: gCapN, nonHeirBase: nhB, nonHeirTax: nhT } : null,
       reportCredit: reportCredit, payableTax: payable, payable10: payable10, effectiveRate: taxable > 0 ? payable / taxable : 0, lines: L
     };
   }
@@ -1516,6 +1524,8 @@ var HTX = (function () {
       
       if (holdYR < 1) c.push({ n: '주택 외 토지·건물 보유 1년 미만', flat: CGT.shortPct(holdYR, 'land'), k: 'f' + CGT.shortPct(holdYR, 'land') });
       else if (holdYR < 2) c.push({ n: '주택 외 토지·건물 보유 1년 이상 2년 미만', flat: CGT.shortPct(holdYR, 'land'), k: 'f' + CGT.shortPct(holdYR, 'land') });
+      
+      if (holdYR < 2 && I.kind !== 'nonbiz') c.push({ n: '기본세율(§104①1호 — 단기세율과 큰 세액 · §104① 후단)', add: 0, k: 'b' });
       if (I.kind === 'nonbiz' && I._nbHist && I._nbHist.rate === 'b') c.push({ n: '비사업용 토지 — ' + I._nbHist.why, add: 0, k: 'b' });   
       else if (I.kind === 'nonbiz' && I._nbHist && I._nbHist.rate === 'f60') c.push({ n: '비사업용 토지 — ' + I._nbHist.why, flat: 60, k: 'f60' });
       else if (I.kind === 'nonbiz' && I.reform26 && I.saleDate >= '2028-01-01') c.push({ n: '비사업용 토지(기본세율 + 20%p · 개정안 가정 §104①8호 상향안 · 2028.1.1. 이후 양도 · 국회 미통과)', add: 20, k: 'nbR' });   
@@ -1820,7 +1830,9 @@ var HTX = (function () {
     var W = +q.hiBase > 0 ? Math.round(+q.hiBase) : q.sale; o.hiBase = W;
     var HP = hiAt(saleDate), hiR = q.exempt && W > HP ? function (g) { return mulDiv(g, W - HP, W); } : function (g) { return g; };
     o.hiPct = q.exempt && W > HP ? (W - HP) / W : 1;
-    if (q.exempt && W <= HP) { o.exemptAll = true; o.nat = 0; return o; }
+    if (q.exempt && W <= HP) {   
+      var F0 = BK.redev(Object.assign({}, q, { exempt: false })); F0.exemptAll = true; F0.nat = 0; F0.ltAmt = 0; F0.hiPct = 1; return F0;
+    }
     var rp = R3 ? (+R3.pre || 0) : 0, rm = R3 ? (+R3.mid || 0) : 0, rn = R3 ? (+R3.nw || 0) : 0;
     
     function LR(hold, resJ, resR, t2) {
@@ -1831,7 +1843,8 @@ var HTX = (function () {
     var t2 = !!q.table2, pt = q.prevType || 'house';
     o.lts = [];   
     function part(n, g, from, to, resJ, resR, tt) {
-      var h = fullYears(from, to), L = LR(h, resJ, resR, tt), a = fl(g * L.pct / 100);
+      var h = fullYears(from, to), L = LR(h, resJ, resR, tt), a = g > 0 ? fl(g * L.pct / 100) : 0;   
+      if (g < 0) o.lossPart = (o.lossPart || []).concat([n]);
       o.lts.push({ n: n, gain: g, from: from, to: to, hold: h, pct: L.pct, t: L.t, hp: L.hold, rp: L.res, amt: a, t2want: L.t2want, t2ok: L.t2ok }); return a;
     }
     if (q.mode === 'recv') {
@@ -2175,6 +2188,10 @@ var HTX = (function () {
     }
     if (obj !== 'cash' && I.sale <= 0) err.push('양도가액 입력 필요');
     if (origin === 'orig' && value <= 0) err.push('권리가액(종전자산 평가액 × 비례율) 입력 필요');
+    if (origin === 'orig' && ct === 'recv' && value > 0 && cash >= value) err.push('받은 청산금이 권리가액 이상 — 받은 청산금 = 권리가액 − 조합원 분양가라 권리가액보다 작아야 함');   
+    
+    if (obj !== 'cash' && conv && I.saleDate && conv > I.saleDate) err.push('권리변환일(' + conv + ')이 양도일보다 늦음 — 양도일에는 아직 조합원입주권이 아님(종전 주택·토지 양도로 따로 계산)');
+    if (origin === 'orig' && conv && I.acqDate && I.acqDate > conv) err.push('원조합원인데 종전부동산 취득일(' + I.acqDate + ')이 권리변환일(' + conv + ')보다 늦음 — 권리변환일 뒤에 샀으면 승계조합원');
     if (origin === 'orig' && obj === 'house' && !d.doneDate) F.push('신축 준공(사용승인)일을 넣으면 신축 거주·완성일 판정이 정확해짐');
     if (err.length) return { err: err };
     
@@ -2299,6 +2316,7 @@ var HTX = (function () {
     if (obj === 'right') F.push('세율 : 조합원입주권 단기세율 = 주택과 같음(§104①2·3호) · 보유기간 = 종전 취득일부터 통산(사전법령해석재산2021-1152 · 서면4팀-3967) · 다주택 중과 없음');
     if (obj === 'house') F.push('세율·한시배제 보유기간 = ' + (rateFrom === I.acqDate ? '종전 취득일부터(소령 §167의10 해당 호 괄호 「신축주택 … 기존건물 취득일부터 기산」)' : '사용승인일 등부터') + ' · 청산금 납부로 늘어난 부수토지는 신축 준공일부터(부동산거래관리-102) — 이 계산은 한 기간으로 봄');
     if (obj === 'house' && I.unreg) F.push('미등기 : 준공 후 이전고시 전이라 등기 못 한 신축 양도는 미등기 아님(집행기준 91-168-4, 사전법령해석재산2017-550 · 시행령 §168①2호 「법률의 규정으로 양도 당시 취득 등기가 불가능한 자산」 · 원문 확인) — 이 경우 미등기 체크를 끄세요');
+    if (o.lossPart && o.lossPart.length) F.push('부분 양도차손 — ' + o.lossPart.join(', ') + ' : 손실 부분 장기보유특별공제 = 0, 다른 부분 차익과 합산(통산)해 양도차익 계산 [확인 필요]');   
     if (obj === 'house' && ct === 'pay' && rs.mid > 0 && t2) F.push('신축 청산금 납부 — 기존건물분 거주에 인가 후 멸실 전 거주를 넣음(종전주택 거주로 봄) [확인 필요]');
     if (obj === 'house' && ct === 'pay' && t2 && rs.nw < 2 && I.saleDate >= '2020-01-01') F.push('청산금납부분 : 신축 거주 2년 미만 → 표1(대법 2025두34147 2026.01.08 · 사전법규재산2022-1126)');
     if (obj === 'right' && t2) F.push('표2 판정 = 인가 후 멸실 전 거주 포함, 공제율 = 인가일까지 거주만(사전-2023-법규재산-0141 2023.11.30)');
@@ -4385,6 +4403,9 @@ var ACQ = (function () {
     lowCap: 100000000, lowNon: 200000000, 
     reliefMax: 1200000000,           
     firstCut: 2000000, firstSmall: 3000000, firstEnd: '2028-12-31',
+    
+    firstFrom: '2020-07-10', firstNowFrom: '2022-06-21', firstSmallFrom: '2025-01-01',
+    lawAsOf: '2026-01-01',           
     birthCut: 5000000, birthEnd: '2028-12-31', birthFrom: '2024-01-01',
     nongArea: 85,                    
     
@@ -4530,7 +4551,7 @@ var ACQ = (function () {
         cntX = { raw: cntRaw, nX: +I.nX || 0, hx: hxSum, hxL: hxL, self: sx };
         if (hxL.length) why.push('주택 수 제외 ' + hxSum + '(' + hxL.join(', ') + '), 영 §28의4⑥');
         if (sx && sx.ok) why.push(sx.n + ' → 이번 취득 주택은 주택 수에서 뺌(기존 주택 수 세율), 영 §28의4②');
-        var firstOK = !corp && I.relief === 'first' && I.price <= R.reliefMax && I.date <= R.firstEnd;
+        var firstOK = !corp && I.relief === 'first' && I.price <= R.reliefMax && I.date <= R.firstEnd && I.date >= R.firstNowFrom;   
         if (I.ex) exr = exCheck(I);
         var exOK = exr && exr.ok;
         if (corp) {
@@ -4615,7 +4636,12 @@ var ACQ = (function () {
       if (I.price > R.reliefMax) { ok = false; rw.push('취득당시가액 12억원 초과'); }
       if (I.relief === 'first') {
         if (I.date > R.firstEnd) { ok = false; rw.push('2028.12.31. 뒤 취득'); }
-        var cut0 = I.small ? R.firstSmall : R.firstCut, cut = cut0, jn = '';
+        
+        if (I.date < R.firstFrom) { ok = false; rw.push('2020.7.10. 전 취득 — 생애최초 감면(지특법 §36의3)은 2020.7.10. 이후 취득분부터(부칙 2020.8.12. 제17474호 §4)'); }
+        else if (I.date < R.firstNowFrom) { ok = false; rw.push('2022.6.21. 전 취득 — 지금 감면(12억원 이하, 200만원 공제)은 2022.6.21. 이후 취득분부터(부칙 2023.3.14. 제19232호 §5) · 그때 법(부부 합산소득 7천만원 이하, 3억원(수도권 4억원) 이하, 1.5억원 이하 면제 · 초과 50% 경감)은 이 계산기에 없음 [확인 필요]'); }
+        var smallOld = I.small && I.date < R.firstSmallFrom;   
+        var cut0 = I.small && !smallOld ? R.firstSmall : R.firstCut, cut = cut0, jn = '';
+        if (smallOld) bx.notes.push('소형주택 300만원 한도(지특법 §36의3①1호)는 2025.1.1. 이후 납세의무 성립분부터(부칙 2024.12.31. 제20632호 §2) → 그 전 취득은 200만원');
         
         
         if (I.share < 100) {
@@ -4626,7 +4652,7 @@ var ACQ = (function () {
             if (I.coFirst !== 'y') bx.defaults.push('공동 취득 — 다른 공동 취득자도 생애최초 감면을 받는지 칸 비움 → 받는 것으로 보고 총 한도 ' + won0(cut0) + '(지특법 §36의3②)를 지분 비율로 나눔 = ' + won0(cut));
           }
         }
-        red = { n: '생애최초 주택 구입 감면(지특법 §36의3①' + (I.small ? '1호' : '2호') + (jn ? ', ②' : '') + ')', cut: cut };
+        red = { n: '생애최초 주택 구입 감면(지특법 §36의3①' + (I.small && !smallOld ? '1호' : '2호') + (jn ? ', ②' : '') + ')', cut: cut };
         if (jn) { red.cut0 = cut0; red.joint = jn; }   
       } else {
         var b = I.birthD || '';
@@ -4807,6 +4833,10 @@ var ACQ = (function () {
   function flags(I, o) {
     var f = [], house = I.kind === 'house', c = I.cause;
     
+    if (I.date && I.date < R.lawAsOf) f.push('취득일 ' + I.date.replace(/-/g, '.') + '. — 이 계산은 ' + R.lawAsOf.slice(0, 4) + '년 현행 세율, 중과, 감면 규정 그대로 · 그때 법(예 다주택 중과 §13의2 = 2020.8.12. 신설, 생애최초 감면 = 2020.7.10. 이후분)과 다를 수 있음 [확인 필요]');
+    var tdy = I.today || (function () { var d = new Date(), z = function (n) { return (n < 10 ? '0' : '') + n; }; return d.getFullYear() + '-' + z(d.getMonth() + 1) + '-' + z(d.getDate()); })();
+    if (o.due && o.due < tdy && !o.pen) f.push('신고·납부 기한 ' + o.due.replace(/-/g, '.') + '.이 이미 지남 → 무신고, 납부지연 가산세 대상(지방세기본법 §53, §55) — 특수 사례 「늦게 신고·납부함(가산세)」에 신고·납부일을 넣으면 가산세까지 계산');
+    
     if (o.cntX && o.cntX.self && !o.cntX.self.ok) f.push(o.cntX.self.n + ' 요건 미달 — ' + o.cntX.self.why.join(', ') + ' → 이번 주택을 주택 수에서 빼지 않음');
     if (o.cntX && o.cntX.self && o.cntX.self.ok) f.push(o.cntX.self.n + ' : 주택 유형(건축물대장), 최초 유상승계 여부, 임대등록(2호 = 60일 안 · 임대의무기간 안 매각·증여 시 제외) 서류 확인(영 §28의4②)');
     if (o.cntX && o.cntX.hx) f.push('주택 수 제외(영 §28의4⑥) 항목별 요건 확인 — 상속 = 상속개시일부터 5년(입주권·분양권이 주택이 되면 5년 안이라도 주택), 1억원 이하 = 주택 수 산정일 현재 시가표준액, 공동상속은 지분 가장 큰 상속인(같으면 거주자 → 연장자) 주택(⑤, 「2026 주택과 세금」 p.39~43)');
@@ -4967,7 +4997,8 @@ if (typeof module !== 'undefined') module.exports = ACQ;
     }
     return { fn: 'inherit', o: { estate: man('i_est') || 0, debts: man('i_debt') || 0, funeral: man('i_fun'), bongan: man('i_bong') || undefined, spouse: $('i_sp').checked, spouseActual: $('i_sp').checked ? man('i_spAct') : undefined,
       kids: cnt('i_kids'), parents: cnt('i_par'), minorYears: cnt('i_minY'), elderly: cnt('i_old'), disabledYears: cnt('i_disY'), financial: man('i_fin') || 0, house: man('i_house') || 0,
-      appraisalFee: man('i_fee') || 0, prior: man('i_prior') || 0, priorBase: man('i_priorBase'), priorTax: man('i_priorTax') || 0 } };
+      appraisalFee: man('i_fee') || 0, prior: man('i_prior') || 0, priorBase: man('i_priorBase'), priorTax: man('i_priorTax') || 0,
+      priorNonHeir: (man('i_nhBase') || man('i_nhTax')) ? { base: man('i_nhBase') || 0, tax: man('i_nhTax') || 0 } : null } };   
   }
   function stepRows(L) {
     return L.map(function (l) {
@@ -6157,6 +6188,22 @@ if (typeof module !== 'undefined' && module.exports) module.exports.IGBD = IGBD;
   }
   function restart() { W.a = {}; W.cur = 'mode'; W.path = []; W.done = false; W.stale = false; draw(); }
   function edit(id) { var V = vis().map(function (s) { return s.id; }), i = V.indexOf(id); if (i < 0) return; W.path = V.slice(0, i); W.cur = id; W.done = false; W.stale = false; draw(); }
+  
+  var ORD = [['bAcqD', 'bDate', '산 날', '증여일'], ['lAcqD', 'lDate', '산 날', '거래일'], ['waAcqD', 'wDate', '내 부동산 산 날', '교환일'], ['wbAcqD', 'wDate', '상대 부동산 산 날', '교환일'],
+    ['vAcqD', 'vDate', '산 날', '넘기는 날'], ['sAcqD', 'sGDate', '증여자가 산 날', '증여일'], ['sGDate', 'sSDate', '증여일', '파는 날']];
+  function tdy() { var d = new Date(), z = function (n) { return (n < 10 ? '0' : '') + n; }; return d.getFullYear() + '-' + z(d.getMonth() + 1) + '-' + z(d.getDate()); }
+  function dTxt(d) { return d.replace(/-/g, '.') + '.'; }
+  function ordErr(id, x) {   
+    var U = function (k) { var q = step(k); return q && q.unk; }, ans = function (k) { return W.path.indexOf(k) >= 0 && k in W.a; };
+    for (var i = 0; i < ORD.length; i++) {
+      var o = ORD[i], lo, hi;
+      if (id === o[0]) { if (x === '' || !ans(o[1])) continue; lo = x; hi = W.a[o[1]] || (U(o[1]) ? tdy() : ''); }
+      else if (id === o[1]) { if (!ans(o[0]) || !W.a[o[0]]) continue; lo = W.a[o[0]]; hi = x || (U(o[1]) ? tdy() : ''); }
+      else continue;
+      if (lo && hi && lo > hi) return id === o[0] ? o[2] + '이 ' + o[3] + '(' + dTxt(hi) + (W.a[o[1]] ? '' : ' 오늘') + ')보다 늦어요 — 날짜를 확인해 주세요' : o[3] + '(' + dTxt(hi) + (x ? '' : ' 오늘') + ')이 ' + o[2] + '(' + dTxt(lo) + ')보다 빨라요 — 날짜를 확인해 주세요';
+    }
+    return '';
+  }
   function readIn() {
     var s = step(W.cur);
     var f = $('pkWz').querySelector('[data-pkwi="0"]'), x = f ? f.value.trim() : '';
@@ -6166,12 +6213,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports.IGBD = IGBD;
     if (s.t === 'd') {
       if (x === '') { if (s.req) return { err: s.req }; return { v: '' }; }
       if (!/^\d{4}-\d{2}-\d{2}$/.test(x)) return { err: '날짜로 넣어 주세요(예 2015-06-01)' };
-      if (s.id === 'bAcqD' && W.a.bDate && x > W.a.bDate) return { err: '산 날이 증여일(' + W.a.bDate + ')보다 늦어요' };
-      if (s.id === 'lAcqD' && W.a.lDate && x > W.a.lDate) return { err: '산 날이 거래일(' + W.a.lDate + ')보다 늦어요' };
-      if ((s.id === 'waAcqD' || s.id === 'wbAcqD') && W.a.wDate && x > W.a.wDate) return { err: '산 날이 교환일(' + W.a.wDate + ')보다 늦어요' };
-      if (s.id === 'vAcqD' && W.a.vDate && x > W.a.vDate) return { err: '산 날이 넘기는 날(' + W.a.vDate + ')보다 늦어요' };
-      if (s.id === 'sAcqD' && W.a.sGDate && x > W.a.sGDate) return { err: '증여자가 산 날이 증여일(' + W.a.sGDate + ')보다 늦어요' };
-      if (s.id === 'sSDate' && x !== '' && W.a.sGDate && x < W.a.sGDate) return { err: '파는 날이 증여일(' + W.a.sGDate + ')보다 빨라요' };
+      var oe = ordErr(s.id, x); if (oe) return { err: oe };
       return { v: x };
     }
     if (isEok(s) && x !== '') { var mm = eokToMan(x); if (isNaN(mm)) return { err: '숫자로 넣어 주세요(억 · 예 1.29)' }; x = String(mm); }   
@@ -6198,7 +6240,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports.IGBD = IGBD;
     if (!t) return; var d = t.dataset;
     if (d.pkwv !== undefined) { go(d.pkwv); return; }
     if (d.pkwn) { var R = readIn(); if (R.err) { $('pkWer').textContent = R.err; return; } go(R.v); return; }
-    if (d.pkwu) { go(''); return; }
+    if (d.pkwu) { var su = step(W.cur), ue = su && su.t === 'd' ? ordErr(su.id, '') : ''; if (ue) { $('pkWer').textContent = ue; return; } go(''); return; }   
     if (d.pkwback) { goBack(); return; }
     if (d.pkwre) { restart(); var r = $('pkRoot'); if (r) r.scrollIntoView({ block: 'start' }); return; }
     if (d.pkwed) { edit(d.pkwed); return; }
@@ -6648,7 +6690,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports.IGBD = IGBD;
       b.F('DED', '공제 합계(과세가액 한도)', 'MIN({DEDGEN0}+{MB},{TOTAL})', R.deduction, { law: '§53, §53의2' });
       b.F('DEDG', '  − 증여재산공제', 'MIN({DEDGEN0},{TOTAL})', R.deductionGeneral, { law: '§53' });
       b.F('DEDM', '  − 혼인·출산 증여재산공제', '{DED}-{DEDG}', R.marriageDeduction, { law: '§53의2' });
-      b.F('BASE', '= 과세표준', 'MAX(0,{TOTAL}-{DED})', R.taxBase, { law: '§55①' });
+      b.F('BASE', '= 과세표준', 'MAX(0,ROUNDDOWN({TOTAL}-{DED},0))', R.taxBase, { law: '§55①, 국고금 관리법 §47②' });
 
       b.sec('세액 (세율 = 「세율표」 시트)');
       b.F('RATE', '세율(한계)', X.rateF('{BASE}', 'IR', E.G.R.rate.length), R.marginalRate, { fmt: 'r', law: '§56(§26)' });
@@ -6698,6 +6740,10 @@ if (typeof module !== 'undefined' && module.exports) module.exports.IGBD = IGBD;
       if (has(o.priorBase)) b.IN('PBIN', '  그 증여 과세표준 합', Math.max(0, num(o.priorBase)), { law: '§24 3호, §28' });
       else if (has(o.priorDed)) b.IN('PDIN', '  그 증여 때 쓴 공제 합', Math.max(0, num(o.priorDed)), { law: '§24 3호' });
       b.IN('PTAX', '  그 증여세 산출세액 합', Math.max(0, num(o.priorTax)), { law: '§28' });
+      
+      var NH = o.priorNonHeir || {};
+      b.IN('NHB', '  그중 상속인 아닌 사람 몫 과세표준', Math.max(0, num(NH.base)), { law: '§28② 후단, 영 §3①2호' });
+      b.IN('NHT', '  그중 상속인 아닌 사람 몫 산출세액', Math.max(0, num(NH.tax)), { law: '§28② 후단' });
       b.IN('SP', '배우자 있음', YN(!!o.spouse), { fmt: 't', law: '§19' });
       if (has(o.spouseActual)) b.IN('SPACTIN', '  배우자 실제 상속받는 금액', num(o.spouseActual), { law: '§19①' });
       b.IN('SPPB', '  배우자 사전증여 과세표준', Math.max(0, num(o.spousePriorBase)), { law: '§19①1호' });
@@ -6743,7 +6789,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports.IGBD = IGBD;
       b.F('LIM', '  공제 종합한도', 'MAX(0,{TAXABLE}-{BEQ}-{REN}-IF({TAXABLE}>{$LIMFLOOR},{PBASE},0))', R.deductionLimit, { law: '§24' });
       b.F('TOTD', '= 공제 합계(한도 적용)', 'MIN({BEF},{LIM})', R.totalDeduction, { law: '§24' });
       b.F('FEE', '− 감정평가수수료', 'MIN({$FEEAPP},MAX(0,{FEEIN}))', R.appraisalDeduction, { law: '§25①2호' });
-      b.F('BASE', '= 과세표준', 'MAX(0,{TAXABLE}-{TOTD}-{FEE})', R.taxBase, { law: '§25' });
+      b.F('BASE', '= 과세표준', 'MAX(0,ROUNDDOWN({TAXABLE}-{TOTD}-{FEE},0))', R.taxBase, { law: '§25, 국고금 관리법 §47②' });
 
       b.sec('세액 (세율 = 「세율표」 시트)');
       b.F('RATE', '세율(한계)', X.rateF('{BASE}', 'IR', E.G.R.rate.length), R.marginalRate, { fmt: 'r', law: '§26' });
@@ -6754,8 +6800,18 @@ if (typeof module !== 'undefined' && module.exports) module.exports.IGBD = IGBD;
       b.F('SUR', '+ 세대생략 할증', 'IF({SKSH}>0,{CALC}*{SKSH}*{SRATE},0)', R.genSkipSurcharge, { law: '§27' });
       b.F('BCR', '  공제 전 세액', '{CALC}+{SUR}', null, {});
       b.F('GBLK', '  증여세액공제 안 됨(과세가액 5억원 이하)', 'IF(AND({PTAX}>0,{TAXABLE}<={$LIMFLOOR}),"예","아니요")', YN(R.giftTaxCreditBlocked), { fmt: 't', law: '§28① 단서' });
+      var SP = R.giftTaxCreditSplit;
+      if (!SP) {
       b.F('GCAP', '  증여세액공제 한도', 'IF(AND({PTAX}>0,{GBLK}="아니요",{BASE}>0),{CALC}*MIN(1,{PBASE}/{BASE}),0)', R.giftTaxCreditCap, { law: '§28②' });
       b.F('GCR', '− 증여세액공제', 'IF({GBLK}="예",0,MIN({PTAX},{GCAP},{BCR}))', R.giftTaxCredit, { law: '§28' });
+      } else {
+      b.F('NHB2', '  상속인 아닌 사람 몫 과세표준(합계 이내)', 'MIN({PBASE},{NHB})', SP.nonHeirBase, { law: '§28② 후단' });
+      b.F('NHT2', '  상속인 아닌 사람 몫 산출세액(합계 이내)', 'MIN({PTAX},{NHT})', SP.nonHeirTax, { law: '§28② 후단' });
+      b.F('GCAPH', '  상속인 몫 한도', 'IF(AND({PTAX}>0,{GBLK}="아니요",{BASE}-{NHB2}>0),{CALC}*MIN(1,({PBASE}-{NHB2})/({BASE}-{NHB2})),0)', SP.heirCap, { law: '§28② 후단, 영 §20의4, 영 §3①' });
+      b.F('GCAPN', '  상속인 아닌 사람 몫 한도', 'IF(AND({PTAX}>0,{GBLK}="아니요",{BASE}>0),{CALC}*MIN(1,{NHB2}/{BASE}),0)', SP.nonHeirCap, { law: '§28② 전단' });
+      b.F('GCAP', '  증여세액공제 한도', '{GCAPH}+{GCAPN}', R.giftTaxCreditCap, { law: '§28②' });
+      b.F('GCR', '− 증여세액공제', 'IF({GBLK}="예",0,MIN(MIN({PTAX}-{NHT2},{GCAPH})+MIN({NHT2},{GCAPN}),{BCR}))', R.giftTaxCredit, { law: '§28②' });
+      }
       b.F('AFTER', '  증여세액공제 뒤', 'MAX(0,{BCR}-{GCR})', null, {});
       b.F('REP', '− 신고세액공제', 'ROUNDDOWN({AFTER}*{$REPORT},0)', R.reportCredit, { law: '§69' });
       b.F('PAY', '= 납부할 세액', 'MAX(0,{AFTER}-{REP})', R.payableTax, { big: 1 });
@@ -7610,7 +7666,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
   if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',go); else go();
 })();
 </script>
-<div id="pubFoot" style="margin:28px auto 0;padding:14px 16px 22px;max-width:1100px;font:14px/1.6 Freesentation,-apple-system,BlinkMacSystemFont,'Apple SD Gothic Neo','Malgun Gothic','Noto Sans KR',sans-serif;color:#6B7684;text-align:center;border-top:1px solid #E5E8EB">본 자료 = 일반적 정보 제공 목적, 실제 적용 시 개별 사안별 법률적 검토 및 전문가 자문 필수<br>계산은 이 기기 안에서만 하며 입력값은 보내지 않습니다(「주소로 찾기」에 넣은 주소만 공시가격, 조정대상지역 확인을 위해 브이월드로 보냄). · 판 2026-11-20</div><script>try{if(window.self!==window.top)document.getElementById("pubFoot").style.display="none";}catch(e){}</script>
+<div id="pubFoot" style="margin:28px auto 0;padding:14px 16px 22px;max-width:1100px;font:14px/1.6 Freesentation,-apple-system,BlinkMacSystemFont,'Apple SD Gothic Neo','Malgun Gothic','Noto Sans KR',sans-serif;color:#6B7684;text-align:center;border-top:1px solid #E5E8EB">본 자료 = 일반적 정보 제공 목적, 실제 적용 시 개별 사안별 법률적 검토 및 전문가 자문 필수<br>계산은 이 기기 안에서만 하며 입력값은 보내지 않습니다(「주소로 찾기」에 넣은 주소만 공시가격, 조정대상지역 확인을 위해 브이월드로 보냄). · 판 2026-11-21</div><script>try{if(window.self!==window.top)document.getElementById("pubFoot").style.display="none";}catch(e){}</script>
 <script id="gsgJs">(function () {
   'use strict';
   var TAB = "igx", KEY = "66360EF1-780E-4AB9-A5AA-A119D3364B46";

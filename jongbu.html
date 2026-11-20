@@ -653,8 +653,9 @@ var JBS = (function () {
   
   
   
-  var FIX = { e1: true, e3: true, e4: true };
-  function setFix(o) { var old = { e1: FIX.e1, e3: FIX.e3, e4: FIX.e4 }; if (o) Object.keys(o).forEach(function (k) { if (k in FIX) FIX[k] = !!o[k]; }); return old; }
+  var FIX = { e1: true, e3: true, e4: true, e5: true, s1: true };   
+  function setFix(o) { var old = {}; Object.keys(FIX).forEach(function (k) { old[k] = FIX[k]; }); if (o) Object.keys(o).forEach(function (k) { if (k in FIX) FIX[k] = !!o[k]; }); return old; }
+  function r4(v) { return FIX.s1 ? Math.round(v * 1e4) / 1e4 : v; }   
   function cl(v) { return isFinite(v) && v !== 0 ? +(+v).toPrecision(15) : v; }   
   function fl(v) { return FIX.e4 ? Math.floor(cl(v)) : v; }                   
   function rd(v) { return FIX.e4 ? Math.round(cl(v)) : v; }                  
@@ -722,10 +723,10 @@ var JBS = (function () {
     
     
     var n = one ? 1 : hs.filter(function (h) { return !h.xr; }).length;
-    var sum = hs.reduce(function (a, h) { return a + h.price * sh(h); }, 0);
-    var residSum = hs.reduce(function (a, h) { return a + (h.resid && !h.ex ? h.price * sh(h) : 0); }, 0);   
+    var sum = hs.reduce(function (a, h) { return a + r4(h.price * sh(h)); }, 0);   
+    var residSum = hs.reduce(function (a, h) { return a + (h.resid && !h.ex ? r4(h.price * sh(h)) : 0); }, 0);   
     
-    var exSum = hs.reduce(function (a, h) { return a + (h.ex && h.crx !== false ? h.price * sh(h) : 0); }, 0);
+    var exSum = hs.reduce(function (a, h) { return a + (h.ex && h.crx !== false ? r4(h.price * sh(h)) : 0); }, 0);
     var anyAdj = hs.some(function (h) { return h.adj; });
     var notes = [];
 
@@ -787,7 +788,7 @@ var JBS = (function () {
     
     var ptNum = (corp && FIX.e1 && !inp.ptNum04) ? prog(base * pf, PT_STD).tax : base * pf * .004;   
     var ptCredit;
-    if (FIX.e4) ptCredit = ptStdAll > 0 ? Math.min(calcTax, Math.floor(cl(ptSum * tr10(ptNum / ptStdAll)))) : 0;   
+    if (FIX.e4) ptCredit = ptStdAll > 0 ? Math.min(calcTax, Math.floor(cl(inp.ptExact ? ptSum * ptNum / ptStdAll : ptSum * tr10(ptNum / ptStdAll)))) : 0;      
     else { ptCredit = ptStdAll > 0 ? Math.min(calcTax, ptSum * ptNum / ptStdAll) : 0; ptCredit = Math.floor(ptCredit / 10) * 10; }   
     if (FIX.e1) ptCredit = Math.min(ptCredit, Math.floor(cl(ptSum)));   
     var afterPt = calcTax - ptCredit;
@@ -819,7 +820,7 @@ var JBS = (function () {
     jbs -= capCut;
 
     
-    var agri = rd(jbs * .2);                                   
+    var agri = inp.nongTrunc ? fl(jbs * .2) : rd(jbs * .2);   
     
     var instAmt = installment(jbs).later;
     var pay = jbs + agri;
@@ -868,7 +869,7 @@ var JBS = (function () {
     var bBase = fl((inp.bldg || 0) * lf), bRaw = fl(bBase * .0025);   
     var bPt = (caps.bldg != null && bRaw > caps.bldg) ? fl(caps.bldg) : bRaw;
     var b = { pt: bPt, ptRaw: bRaw, city: fl(bBase * .0014), edu: fl(bPt * .2) };
-    var jbs = c.jbs + s.jbs, agri = rd(jbs * .2);
+    var jbs = c.jbs + s.jbs, agri = inp.nongTrunc ? fl(jbs * .2) : rd(jbs * .2);
     var hold = c.pt + s.pt + b.pt + c.city + s.city + b.city + c.edu + s.edu + b.edu + jbs + agri;
     return { comb: c, sep: s, bldg: b, jbs: jbs, agri: agri, pay: jbs + agri, hold: hold, ptFmv: lf };
   }
@@ -1042,7 +1043,7 @@ var JBS = (function () {
     live.forEach(function (o) {
       if (isRentH(o)) return;   
       var s = o.share == null ? 1 : Math.max(0, Math.min(1, o.share));
-      var parts = o.owner === 'joint' ? [['me', s], ['sp', 1 - s]] : [[o.owner === 'sp' ? 'sp' : 'me', s]];
+      var parts = o.owner === 'joint' ? [['me', s], ['sp', FIX.s1 ? Math.round((1 - s) * 1e12) / 1e12 : 1 - s]] : [[o.owner === 'sp' ? 'sp' : 'me', s]];   
       if (jointOne && (o.type === 'house' || o.type === 'otRes')) parts = [[base.jointPayer === 'sp' ? 'sp' : 'me', 1]];   
       if (jointDeem && (o.type === 'house' || o.type === 'otRes')) parts = [[payer, 1]];   
       parts.forEach(function (pp) {
@@ -1056,9 +1057,9 @@ var JBS = (function () {
           else if (o.ex && o.ex !== 'rent') { hx.ex = o.ex; hx.crx = CRX.indexOf(o.ex) >= 0; hx.xr = XR_ALWAYS.indexOf(o.ex) >= 0 || (deem && (o.ex === 'temp' || o.ex === 'local')); }
           q.houses.push(hx);
         }
-        else if (o.type === 'comb') q.comb += o.price * w;
-        else if (o.type === 'sep') q.sep += o.price * w;
-        else if (o.type === 'otBiz') { q.bldg += o.price * w; q.sep += (o.land || 0) * w; }
+        else if (o.type === 'comb') q.comb += r4(o.price * w);
+        else if (o.type === 'sep') q.sep += r4(o.price * w);
+        else if (o.type === 'otBiz') { q.bldg += r4(o.price * w); q.sep += r4((o.land || 0) * w); }
       });
     });
     var one = (nh === 1 && !notOne) || deem, people = [];
@@ -1066,7 +1067,7 @@ var JBS = (function () {
       var q = P[k];
       if (!q.houses.length && !q.comb && !q.sep && !q.bldg) return;
       var who = k === 'me' ? base : Object.assign({}, base, { owner: '개인', age: sp.age, hold: sp.hold, resid: sp.resid, prev: null, nonres: !!sp.nonres });
-      people.push({ key: k, label: k === 'me' ? '본인' : '배우자', inp: Object.assign({}, who, q, { one: one && !jointNo && q.houses.length > 0, ptOne: nhAll === 1, jointNoElect: jointNo }) });   
+      people.push({ key: k, label: k === 'me' ? '본인' : '배우자', inp: Object.assign({}, who, q, { one: one && !jointNo && q.houses.length > 0, ptOne: FIX.e5 ? nhAll === 1 && who.owner !== '법인' && !(who.nonres && base.nonresPtOne === false) : nhAll === 1, jointNoElect: jointNo }) });   
     });
     return { people: people, nHouse: nh, nOt: hObjs.filter(function (o) { return o.type === 'otRes'; }).length, one: one, notOne: notOne || undefined, jointOne: jointOne, jointPayer: jointOne ? (base.jointPayer === 'sp' ? 'sp' : 'me') : null, jointNo: jointNo, deem: deem, exList: exList, xrOnly: xrOnly, exWhy: exWhy, jointDeem: jointDeem, jointDeemNo: jointDeemNo, payer: payer, rentList: rentList, rentOut: rentOut };
   }
@@ -1282,6 +1283,7 @@ var JBS = (function () {
       '끝수(국고금 관리법 §47 · 2026-11-19 홈택스 모의계산 실측) : 과세표준, 산출세액, 재산세, 세액공제(고령자, 장기보유 따로), 상한 뒤 종부세 = 원 미만 버림, 농특세 = 원 미만 반올림(홈택스 실측) · 공제할 재산세 = 비율 소수 10자리 버림 뒤 주택 원 미만, 토지 10원 미만 버림 · 결과 값 = 홈택스 모의계산과 같은 원 단위, 「고지 예상」 = 세목마다 10원 미만 버림(§47①, ③) · 분납 = 종부세법 §20 · 영 §16①(250만 초과~500만 = 250만 초과분, 500만 초과 = 50% 이하)',
       '단계표, 명의 비교의 2027·2028 열 = 기본 현행법(2026 법 · 같은 공시가격) · 「개편안 가정」을 켜면 정부 개편안(국회 미통과) · 재산세 1주택 특례 종료(2027~)는 연도별 표에만 반영',
       '공동명의 특례 미신청 = 부부 각자 지분 공시가로 계산(영 §4의3③1호 각자 1주택), 재산세는 세대 1주택 특례비율·세율 적용 후 지분 안분',
+      '공동명의 사람별 재산세, 도시지역분, 지방교육세 = 세대 세액 × 지분(지방세법 §107①1호), 원 미만 그대로 · 사람별 원 미만 처리 규정 못 찾음 [확인 필요] · 고지 예상 = 10원 미만 버림(국고금 관리법 §47①③)',
       '2027년 세액공제 = 연령 + max(보유 × 1/2, 거주), 2028년 = 연령 + 거주, 합계 80% · 한도 800만원/600만원',
       '2028년 공정시장가액비율 80% = 3주택 이상 또는 조정대상지역 주택 보유(1세대 1주택 제외), 그 외 70%',
       '법인 = §9②3호 일반 법인 세율(공익법인 등 예외 미반영)',
@@ -1331,6 +1333,20 @@ var JBS = (function () {
       var c04 = sumRows(people.map(function (p) { return yearly(Object.assign({}, p.inp, { ptNum04: true }), Object.assign({}, YO, { mode: 'cur' })); }));
       dual.push('법인 주택 재산세 중복분 공제 분자(영 §4의3①) — 누진 표준세율(홈택스 법인 고지 2건 역산 · 이 계산) 2026년 보유세 ' + wonT(C.rows[0].total) + ' / 1천분의 4(조문 문언, 개인과 같은 방식 · 서울행법 2023구합71483 계산례) ' + wonT(c04[0].total) + ' · 표준세율 적용방법을 맡긴 시행규칙 조문 원문 못 찾음 [확인 필요]');
     }
+    
+    var nrP = people.filter(function (p) { return p.inp.nonres && p.inp.owner !== '법인' && (p.inp.houses || []).some(liveH); });
+    if (nrP.length) {
+      var nrAlt = base.nonresPtOne === false;   
+      var HHn = household(Object.assign({}, base, { nonresPtOne: nrAlt }), objs, sp), nrT = sumRows(HHn.people.map(function (p) { return yearly(p.inp, Object.assign({}, YO, { mode: 'cur' })); }));
+      if (Math.round(nrT[0].total) !== Math.round(C.rows[0].total)) { var L60 = '1세대 1주택 아님 60%(국세청 「해외납세자 세금상식」 p.64)', L45 = '국내 세대별 주민등록표에 1세대로 올라 있으면 1세대 1주택 43~45%(지방세법 시행령 §110의2① 문언 · 비거주자 제외 문언 없음)';
+        dual.push('비거주자 1주택 재산세 공정시장가액비율 — ' + (nrAlt ? L60 : L45) + ' · 이 계산 2026년 보유세 ' + wonT(C.rows[0].total) + ' / ' + (nrAlt ? L45 : L60) + ' ' + wonT(nrT[0].total) + ' · 예규, 심판례, 행안부 회신 못 찾음 [확인 필요]'); }
+    }
+    
+    var row0 = function (flag) { return sumRows(people.map(function (p) { return yearly(Object.assign({}, p.inp, flag), Object.assign({}, YO, { mode: 'cur', years: 1 })); }))[0]; };
+    var e1r = row0({ ptExact: true });
+    if (Math.round(e1r.jbsPay) !== Math.round(C.rows[0].jbsPay)) dual.push('공제할 재산세 끝수 — 홈택스 모의계산(비율 소수 10자리 버림 뒤 원 미만 버림 · 이 계산) 2026년 종부세 + 농특세 ' + wonT(C.rows[0].jbsPay) + ' / 곱한 뒤 나누기(「2026 주택과 세금」 p.101 324,000) ' + wonT(e1r.jbsPay) + ' · 법령에 끝수 단계 규정 없음 [확인 필요]');
+    var n2r = row0({ nongTrunc: true });
+    if (Math.round(n2r.jbsPay) !== Math.round(C.rows[0].jbsPay)) dual.push('농특세 원 미만 끝수 — 홈택스 모의계산 반올림(이 계산) 2026년 종부세 + 농특세 ' + wonT(C.rows[0].jbsPay) + ' / 국고금 관리법 §47① 끝수 버림 ' + wonT(n2r.jbsPay) + ' · 고지(10원 미만 버림)도 이에 따라 10원 차이 날 수 있음 [확인 필요]');
     var yrs = C.rows.map(function (r, i) { return r.year + ' ' + wonT(r.total) + ' / ' + wonT(F.rows[i].total); }).slice(1);
     dual.push('2027년 이후 세제 — 현행 법 그대로 4년 보유세 ' + wonT(C.total) + ' / 2026 세제개편안(정부안 9.1, 국회 미통과) ' + wonT(F.total) + '(차이 ' + (F.total - C.total >= 0 ? '+' : '') + wonT(F.total - C.total) + ') · 연도별 현행 / 개편안 : ' + yrs.join(', ') + ' · 2026년분은 둘 다 현행');
     if (altT) dual.push((HH.jointDeem || HH.jointDeemNo ? '부부 공동명의 + 신규주택 등' : '부부 공동 1주택') + ' §10의2 특례 — 지금 ' + (jOn ? '신청' : '안 함') + ' 4년 현행 ' + wonT(C.total) + ', 개편안 ' + wonT(F.total) + ' / ' + (jOn ? '안 함(각자 9억)' : '신청(12억)') + '이면 현행 ' + wonT(altT[0]) + ', 개편안 ' + wonT(altT[1]) + ' · 신청은 9.16.~9.30.(§10의2)');
@@ -2633,9 +2649,9 @@ adrMsg('가액(만원)을 손으로 넣으면 바로 계산 · 주소 불러오�
 
     if (hasH) {
       sec('주택분 종합부동산세 (검은 글자 = 수식)');
-      F('HSUM', '주택 공시가격 합계(지분)', sumT(nh, function (i) { return '{H' + i + 'P}*{H' + i + 'S}'; }), h.sum, { law: '종부세법 §8①', d: 'Σ 공시가격 × 지분' });
-      F('RSUM', '  실거주 주택분(제외 주택 뺌)', sumT(nh, function (i) { return 'IF(AND({H' + i + 'RES}="예",{H' + i + 'EX}="없음"),{H' + i + 'P}*{H' + i + 'S},0)'; }), null, { d: '개편안 공제, 거주 공제 판정용' });
-      F('XSUM', '  세액공제 제외 주택분', sumT(nh, function (i) { return 'IF({H' + i + 'CX}="예",{H' + i + 'P}*{H' + i + 'S},0)'; }), h.exSum, { law: '종부세법 §9⑦⑨' });
+      F('HSUM', '주택 공시가격 합계(지분)', sumT(nh, function (i) { return 'ROUND({H' + i + 'P}*{H' + i + 'S},4)'; }), h.sum, { law: '종부세법 §8①', d: 'Σ 공시가격 × 지분(소수 넷째 자리 반올림 · 2026-11-20 S1)' });
+      F('RSUM', '  실거주 주택분(제외 주택 뺌)', sumT(nh, function (i) { return 'IF(AND({H' + i + 'RES}="예",{H' + i + 'EX}="없음"),ROUND({H' + i + 'P}*{H' + i + 'S},4),0)'; }), null, { d: '개편안 공제, 거주 공제 판정용' });
+      F('XSUM', '  세액공제 제외 주택분', sumT(nh, function (i) { return 'IF({H' + i + 'CX}="예",ROUND({H' + i + 'P}*{H' + i + 'S},4),0)'; }), h.exSum, { law: '종부세법 §9⑦⑨' });
       F('N', '세율 적용 주택 수', 'IF({ONE}="예",1,' + sumT(nh, function (i) { return 'IF({H' + i + 'XR}="예",0,1)'; }) + ')', h.n, { fmt: 'y', law: '종부세법 §9①, 영 §4의3③' });
       F('ADJ', '  조정대상지역 주택 있음', 'IF(OR(' + lin(nh, function (i) { return '{H' + i + 'ADJ}="예"'; }) + '),"예","아니요")', null, { fmt: 't' });
       F('DED', '(−) 기본공제', 'IF({CORP}="예",0,IF({JNE}="예",IF(OR({R}=2026,{RSUM}>0),900000000,600000000),IF({ONE}="예",IF({R}=2026,1200000000,IF({RSUM}>0,1400000000,1200000000)),IF(OR({R}=2026,{MULTI}="9억"),900000000,400000000+500000000*IF({HSUM}<>0,{RSUM}/{HSUM},0)))))',
@@ -3221,7 +3237,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
 })();
 
 </script>
-<div id="pubFoot" style="margin:28px auto 0;padding:14px 16px 22px;max-width:1100px;font:14px/1.6 Freesentation,-apple-system,BlinkMacSystemFont,'Apple SD Gothic Neo','Malgun Gothic','Noto Sans KR',sans-serif;color:#6B7684;text-align:center;border-top:1px solid #E5E8EB">본 자료 = 일반적 정보 제공 목적, 실제 적용 시 개별 사안별 법률적 검토 및 전문가 자문 필수<br>계산은 이 기기 안에서만 하며 입력값은 보내지 않습니다(「주소로 찾기」에 넣은 주소만 공시가격, 조정대상지역 확인을 위해 브이월드로 보냄). · 판 2026-11-20</div><script>try{if(window.self!==window.top)document.getElementById("pubFoot").style.display="none";}catch(e){}</script>
+<div id="pubFoot" style="margin:28px auto 0;padding:14px 16px 22px;max-width:1100px;font:14px/1.6 Freesentation,-apple-system,BlinkMacSystemFont,'Apple SD Gothic Neo','Malgun Gothic','Noto Sans KR',sans-serif;color:#6B7684;text-align:center;border-top:1px solid #E5E8EB">본 자료 = 일반적 정보 제공 목적, 실제 적용 시 개별 사안별 법률적 검토 및 전문가 자문 필수<br>계산은 이 기기 안에서만 하며 입력값은 보내지 않습니다(「주소로 찾기」에 넣은 주소만 공시가격, 조정대상지역 확인을 위해 브이월드로 보냄). · 판 2026-11-21</div><script>try{if(window.self!==window.top)document.getElementById("pubFoot").style.display="none";}catch(e){}</script>
 <script id="gsgJs">(function () {
   'use strict';
   var TAB = "jbs", KEY = "66360EF1-780E-4AB9-A5AA-A119D3364B46";

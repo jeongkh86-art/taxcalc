@@ -1403,6 +1403,8 @@ var HTX = (function () {
       
       if (holdYR < 1) c.push({ n: '주택 외 토지·건물 보유 1년 미만', flat: CGT.shortPct(holdYR, 'land'), k: 'f' + CGT.shortPct(holdYR, 'land') });
       else if (holdYR < 2) c.push({ n: '주택 외 토지·건물 보유 1년 이상 2년 미만', flat: CGT.shortPct(holdYR, 'land'), k: 'f' + CGT.shortPct(holdYR, 'land') });
+      
+      if (holdYR < 2 && I.kind !== 'nonbiz') c.push({ n: '기본세율(§104①1호 — 단기세율과 큰 세액 · §104① 후단)', add: 0, k: 'b' });
       if (I.kind === 'nonbiz' && I._nbHist && I._nbHist.rate === 'b') c.push({ n: '비사업용 토지 — ' + I._nbHist.why, add: 0, k: 'b' });   
       else if (I.kind === 'nonbiz' && I._nbHist && I._nbHist.rate === 'f60') c.push({ n: '비사업용 토지 — ' + I._nbHist.why, flat: 60, k: 'f60' });
       else if (I.kind === 'nonbiz' && I.reform26 && I.saleDate >= '2028-01-01') c.push({ n: '비사업용 토지(기본세율 + 20%p · 개정안 가정 §104①8호 상향안 · 2028.1.1. 이후 양도 · 국회 미통과)', add: 20, k: 'nbR' });   
@@ -1707,7 +1709,9 @@ var HTX = (function () {
     var W = +q.hiBase > 0 ? Math.round(+q.hiBase) : q.sale; o.hiBase = W;
     var HP = hiAt(saleDate), hiR = q.exempt && W > HP ? function (g) { return mulDiv(g, W - HP, W); } : function (g) { return g; };
     o.hiPct = q.exempt && W > HP ? (W - HP) / W : 1;
-    if (q.exempt && W <= HP) { o.exemptAll = true; o.nat = 0; return o; }
+    if (q.exempt && W <= HP) {   
+      var F0 = BK.redev(Object.assign({}, q, { exempt: false })); F0.exemptAll = true; F0.nat = 0; F0.ltAmt = 0; F0.hiPct = 1; return F0;
+    }
     var rp = R3 ? (+R3.pre || 0) : 0, rm = R3 ? (+R3.mid || 0) : 0, rn = R3 ? (+R3.nw || 0) : 0;
     
     function LR(hold, resJ, resR, t2) {
@@ -1718,7 +1722,8 @@ var HTX = (function () {
     var t2 = !!q.table2, pt = q.prevType || 'house';
     o.lts = [];   
     function part(n, g, from, to, resJ, resR, tt) {
-      var h = fullYears(from, to), L = LR(h, resJ, resR, tt), a = fl(g * L.pct / 100);
+      var h = fullYears(from, to), L = LR(h, resJ, resR, tt), a = g > 0 ? fl(g * L.pct / 100) : 0;   
+      if (g < 0) o.lossPart = (o.lossPart || []).concat([n]);
       o.lts.push({ n: n, gain: g, from: from, to: to, hold: h, pct: L.pct, t: L.t, hp: L.hold, rp: L.res, amt: a, t2want: L.t2want, t2ok: L.t2ok }); return a;
     }
     if (q.mode === 'recv') {
@@ -2062,6 +2067,10 @@ var HTX = (function () {
     }
     if (obj !== 'cash' && I.sale <= 0) err.push('양도가액 입력 필요');
     if (origin === 'orig' && value <= 0) err.push('권리가액(종전자산 평가액 × 비례율) 입력 필요');
+    if (origin === 'orig' && ct === 'recv' && value > 0 && cash >= value) err.push('받은 청산금이 권리가액 이상 — 받은 청산금 = 권리가액 − 조합원 분양가라 권리가액보다 작아야 함');   
+    
+    if (obj !== 'cash' && conv && I.saleDate && conv > I.saleDate) err.push('권리변환일(' + conv + ')이 양도일보다 늦음 — 양도일에는 아직 조합원입주권이 아님(종전 주택·토지 양도로 따로 계산)');
+    if (origin === 'orig' && conv && I.acqDate && I.acqDate > conv) err.push('원조합원인데 종전부동산 취득일(' + I.acqDate + ')이 권리변환일(' + conv + ')보다 늦음 — 권리변환일 뒤에 샀으면 승계조합원');
     if (origin === 'orig' && obj === 'house' && !d.doneDate) F.push('신축 준공(사용승인)일을 넣으면 신축 거주·완성일 판정이 정확해짐');
     if (err.length) return { err: err };
     
@@ -2186,6 +2195,7 @@ var HTX = (function () {
     if (obj === 'right') F.push('세율 : 조합원입주권 단기세율 = 주택과 같음(§104①2·3호) · 보유기간 = 종전 취득일부터 통산(사전법령해석재산2021-1152 · 서면4팀-3967) · 다주택 중과 없음');
     if (obj === 'house') F.push('세율·한시배제 보유기간 = ' + (rateFrom === I.acqDate ? '종전 취득일부터(소령 §167의10 해당 호 괄호 「신축주택 … 기존건물 취득일부터 기산」)' : '사용승인일 등부터') + ' · 청산금 납부로 늘어난 부수토지는 신축 준공일부터(부동산거래관리-102) — 이 계산은 한 기간으로 봄');
     if (obj === 'house' && I.unreg) F.push('미등기 : 준공 후 이전고시 전이라 등기 못 한 신축 양도는 미등기 아님(집행기준 91-168-4, 사전법령해석재산2017-550 · 시행령 §168①2호 「법률의 규정으로 양도 당시 취득 등기가 불가능한 자산」 · 원문 확인) — 이 경우 미등기 체크를 끄세요');
+    if (o.lossPart && o.lossPart.length) F.push('부분 양도차손 — ' + o.lossPart.join(', ') + ' : 손실 부분 장기보유특별공제 = 0, 다른 부분 차익과 합산(통산)해 양도차익 계산 [확인 필요]');   
     if (obj === 'house' && ct === 'pay' && rs.mid > 0 && t2) F.push('신축 청산금 납부 — 기존건물분 거주에 인가 후 멸실 전 거주를 넣음(종전주택 거주로 봄) [확인 필요]');
     if (obj === 'house' && ct === 'pay' && t2 && rs.nw < 2 && I.saleDate >= '2020-01-01') F.push('청산금납부분 : 신축 거주 2년 미만 → 표1(대법 2025두34147 2026.01.08 · 사전법규재산2022-1126)');
     if (obj === 'right' && t2) F.push('표2 판정 = 인가 후 멸실 전 거주 포함, 공제율 = 인가일까지 거주만(사전-2023-법규재산-0141 2023.11.30)');
@@ -6099,6 +6109,11 @@ var TREATY = [{"n": "가봉", "d": 15.0, "i": 10.0, "dt": "25% 이상 직접 소
   function runMvRe() {
     var basis = eok('m_donorBasis'), gv = eok('m_giftVal'), sale = eok('m_sale'), dA = raw('m_dAcqDate'), gD = raw('m_gDate'), sD = raw('m_sDate');
     if (!gv || !sale || !dA || !gD || !sD) { $('o-mv').innerHTML = card('증여 자산 이주 사례', '<p class="err">증여재산 평가액, 실지 양도가액, 증여자 취득일, 증여일, 양도일 입력 필요</p>'); return; }
+    
+    if (dA > gD || gD > sD) { $('o-mv').innerHTML = card('증여 자산 이주 사례', '<p class="err">날짜 순서를 확인해 주세요 — 증여자 취득일(' + dA + ') ≤ 증여일(' + gD + ') ≤ 양도일(' + sD + ')</p>'); return; }
+    try { runMvRe2(basis, gv, sale, dA, gD, sD); } catch (e) { $('o-mv').innerHTML = card('증여 자산 이주 사례', '<p class="err">입력 확인 — ' + String(e.message).replace(/[&<>]/g, '') + '</p>'); }
+  }
+  function runMvRe2(basis, gv, sale, dA, gD, sD) {
     var kind = raw('m_reKind'), rel = sprMRel();
     var cC = Math.max(1, Math.round(v('m_cCount')) || 1), cR = v('m_cResY'), pC = Math.max(1, Math.round(v('m_pCount')) || 1), pR = v('m_pResY');
     function giftTax(amount, donorPays, nonres) { var r = NRT.gift({ amount: amount, rel: rel, loc: 'dom', prior: 0, priorTax: 0, usedDed: 0, marriageBirth: 0, foreignTax: 0, donorPays: donorPays, skip: false, minor: false, jointExcluded: false, related: true }); return (nonres ? r.non : r.res).pay; }
@@ -6410,6 +6425,27 @@ var TREATY = [{"n": "가봉", "d": 15.0, "i": 10.0, "dt": "25% 이상 직접 소
       box.innerHTML = x; wzOut = R.det;
     }, 60);
   }
+  
+  var WZ_ORD = [['ad', 'sd', '취득일', '양도일'], ['dA', 'gD', '증여자 취득일', '증여일'], ['gD', 'sD', '증여일', '양도일'], ['dA', 'sD', '증여자 취득일', '양도일']];
+  function wzChk(id, x) {
+    var Q = wzQ(wzW()), q = Q.filter(function (y) { return y[0] === id; })[0]; if (!q) return '';
+    x = String(x == null ? '' : x).trim(); if (x === '') return '';
+    if (q[2] === 'num') {
+      if (!isFinite(+x)) return '숫자로 넣어 주세요';
+      if ((q[3] === '억' || q[3] === '$') && +x < 0) return '0 이상으로 넣어 주세요';
+      if (q[3] === '억' && +x > 1000000) return '금액이 너무 커요 — 100조원(1,000,000억) 이하로 넣어 주세요';
+      if (q[3] === '$' && +x > 100000000000) return '금액이 너무 커요 — 1,000억 달러 이하로 넣어 주세요';
+      return '';
+    }
+    if (q[2] !== 'date') return '';
+    var has = function (k) { return Q.some(function (y) { return y[0] === k; }) && wzAns[k]; }, t = function (d) { return d.replace(/-/g, '.') + '.'; };
+    for (var i = 0; i < WZ_ORD.length; i++) {
+      var o = WZ_ORD[i];
+      if (id === o[0] && has(o[1]) && x > wzAns[o[1]]) return o[2] + '이 ' + o[3] + '(' + t(wzAns[o[1]]) + ')보다 늦어요 — 날짜를 확인해 주세요';
+      if (id === o[1] && has(o[0]) && x < wzAns[o[0]]) return o[3] + '이 ' + o[2] + '(' + t(wzAns[o[0]]) + ')보다 빨라요 — 날짜를 확인해 주세요';
+    }
+    return '';
+  }
   function wzNextStep() { var w = wzW(); if (!w) return; if (wzStep < wzQ(w).length - 1) wzStep++; else wzDone = true; wzDraw(); var r = $('wiz'); if (r && r.getBoundingClientRect().top < 0) r.scrollIntoView({ block: 'start' }); }
   $('wzQs').addEventListener('click', function (ev) {
     var b = ev.target.closest('button'); if (!b) return; var d = b.dataset;
@@ -6418,7 +6454,7 @@ var TREATY = [{"n": "가봉", "d": 15.0, "i": 10.0, "dt": "25% 이상 직접 소
     if (d.wznext) { var f = $('wzQs').querySelector('[data-a]');
       
       if (f && f.classList.contains('dm-date')) { var r9 = ''; try { r9 = String(Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').get.call(f)).trim(); } catch (e9) {} if (r9 && !f.value) { $('wzErr').textContent = '날짜를 숫자 8자리로 넣어 주세요(예 20150302) — 모르면 「모르겠어요」'; return; } }
-      if (f) wzAns[f.dataset.a] = f.value; wzNextStep(); return; }
+      if (f) { var ve = wzChk(f.dataset.a, f.value); if (ve) { $('wzErr').textContent = ve; return; } wzAns[f.dataset.a] = f.value; } wzNextStep(); return; }
     if (d.wzskip) { var q = wzQ(wzW())[wzStep]; delete wzAns[q[0]]; wzNextStep(); return; }
     if (d.wzback) { if (wzDone) { wzDone = false; wzStep = Math.max(0, wzQ(wzW()).length - 1); } else if (wzStep > 0) wzStep--; else wzCur = null; if (!wzQ(wzW() || { q: [] }).length) wzCur = null; wzDraw(); return; }
     if (d.wzhome) { wzCur = null; wzDone = false; wzStep = 0; wzDraw(); return; }
@@ -8007,7 +8043,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
   if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',go); else go();
 })();
 </script>
-<div id="pubFoot" style="margin:28px auto 0;padding:14px 16px 22px;max-width:1100px;font:14px/1.6 Freesentation,-apple-system,BlinkMacSystemFont,'Apple SD Gothic Neo','Malgun Gothic','Noto Sans KR',sans-serif;color:#6B7684;text-align:center;border-top:1px solid #E5E8EB">본 자료 = 일반적 정보 제공 목적, 실제 적용 시 개별 사안별 법률적 검토 및 전문가 자문 필수<br>계산은 이 기기 안에서만 하며 입력값은 보내지 않습니다(「주소로 찾기」에 넣은 주소만 공시가격, 조정대상지역 확인을 위해 브이월드로 보냄). · 판 2026-11-20</div><script>try{if(window.self!==window.top)document.getElementById("pubFoot").style.display="none";}catch(e){}</script>
+<div id="pubFoot" style="margin:28px auto 0;padding:14px 16px 22px;max-width:1100px;font:14px/1.6 Freesentation,-apple-system,BlinkMacSystemFont,'Apple SD Gothic Neo','Malgun Gothic','Noto Sans KR',sans-serif;color:#6B7684;text-align:center;border-top:1px solid #E5E8EB">본 자료 = 일반적 정보 제공 목적, 실제 적용 시 개별 사안별 법률적 검토 및 전문가 자문 필수<br>계산은 이 기기 안에서만 하며 입력값은 보내지 않습니다(「주소로 찾기」에 넣은 주소만 공시가격, 조정대상지역 확인을 위해 브이월드로 보냄). · 판 2026-11-21</div><script>try{if(window.self!==window.top)document.getElementById("pubFoot").style.display="none";}catch(e){}</script>
 </body>
 
 </html>

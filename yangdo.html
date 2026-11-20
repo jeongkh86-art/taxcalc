@@ -1361,6 +1361,8 @@ var HTX = (function () {
       
       if (holdYR < 1) c.push({ n: '주택 외 토지·건물 보유 1년 미만', flat: CGT.shortPct(holdYR, 'land'), k: 'f' + CGT.shortPct(holdYR, 'land') });
       else if (holdYR < 2) c.push({ n: '주택 외 토지·건물 보유 1년 이상 2년 미만', flat: CGT.shortPct(holdYR, 'land'), k: 'f' + CGT.shortPct(holdYR, 'land') });
+      
+      if (holdYR < 2 && I.kind !== 'nonbiz') c.push({ n: '기본세율(§104①1호 — 단기세율과 큰 세액 · §104① 후단)', add: 0, k: 'b' });
       if (I.kind === 'nonbiz' && I._nbHist && I._nbHist.rate === 'b') c.push({ n: '비사업용 토지 — ' + I._nbHist.why, add: 0, k: 'b' });   
       else if (I.kind === 'nonbiz' && I._nbHist && I._nbHist.rate === 'f60') c.push({ n: '비사업용 토지 — ' + I._nbHist.why, flat: 60, k: 'f60' });
       else if (I.kind === 'nonbiz' && I.reform26 && I.saleDate >= '2028-01-01') c.push({ n: '비사업용 토지(기본세율 + 20%p · 개정안 가정 §104①8호 상향안 · 2028.1.1. 이후 양도 · 국회 미통과)', add: 20, k: 'nbR' });   
@@ -1665,7 +1667,9 @@ var HTX = (function () {
     var W = +q.hiBase > 0 ? Math.round(+q.hiBase) : q.sale; o.hiBase = W;
     var HP = hiAt(saleDate), hiR = q.exempt && W > HP ? function (g) { return mulDiv(g, W - HP, W); } : function (g) { return g; };
     o.hiPct = q.exempt && W > HP ? (W - HP) / W : 1;
-    if (q.exempt && W <= HP) { o.exemptAll = true; o.nat = 0; return o; }
+    if (q.exempt && W <= HP) {   
+      var F0 = BK.redev(Object.assign({}, q, { exempt: false })); F0.exemptAll = true; F0.nat = 0; F0.ltAmt = 0; F0.hiPct = 1; return F0;
+    }
     var rp = R3 ? (+R3.pre || 0) : 0, rm = R3 ? (+R3.mid || 0) : 0, rn = R3 ? (+R3.nw || 0) : 0;
     
     function LR(hold, resJ, resR, t2) {
@@ -1676,7 +1680,8 @@ var HTX = (function () {
     var t2 = !!q.table2, pt = q.prevType || 'house';
     o.lts = [];   
     function part(n, g, from, to, resJ, resR, tt) {
-      var h = fullYears(from, to), L = LR(h, resJ, resR, tt), a = fl(g * L.pct / 100);
+      var h = fullYears(from, to), L = LR(h, resJ, resR, tt), a = g > 0 ? fl(g * L.pct / 100) : 0;   
+      if (g < 0) o.lossPart = (o.lossPart || []).concat([n]);
       o.lts.push({ n: n, gain: g, from: from, to: to, hold: h, pct: L.pct, t: L.t, hp: L.hold, rp: L.res, amt: a, t2want: L.t2want, t2ok: L.t2ok }); return a;
     }
     if (q.mode === 'recv') {
@@ -2020,6 +2025,10 @@ var HTX = (function () {
     }
     if (obj !== 'cash' && I.sale <= 0) err.push('양도가액 입력 필요');
     if (origin === 'orig' && value <= 0) err.push('권리가액(종전자산 평가액 × 비례율) 입력 필요');
+    if (origin === 'orig' && ct === 'recv' && value > 0 && cash >= value) err.push('받은 청산금이 권리가액 이상 — 받은 청산금 = 권리가액 − 조합원 분양가라 권리가액보다 작아야 함');   
+    
+    if (obj !== 'cash' && conv && I.saleDate && conv > I.saleDate) err.push('권리변환일(' + conv + ')이 양도일보다 늦음 — 양도일에는 아직 조합원입주권이 아님(종전 주택·토지 양도로 따로 계산)');
+    if (origin === 'orig' && conv && I.acqDate && I.acqDate > conv) err.push('원조합원인데 종전부동산 취득일(' + I.acqDate + ')이 권리변환일(' + conv + ')보다 늦음 — 권리변환일 뒤에 샀으면 승계조합원');
     if (origin === 'orig' && obj === 'house' && !d.doneDate) F.push('신축 준공(사용승인)일을 넣으면 신축 거주·완성일 판정이 정확해짐');
     if (err.length) return { err: err };
     
@@ -2144,6 +2153,7 @@ var HTX = (function () {
     if (obj === 'right') F.push('세율 : 조합원입주권 단기세율 = 주택과 같음(§104①2·3호) · 보유기간 = 종전 취득일부터 통산(사전법령해석재산2021-1152 · 서면4팀-3967) · 다주택 중과 없음');
     if (obj === 'house') F.push('세율·한시배제 보유기간 = ' + (rateFrom === I.acqDate ? '종전 취득일부터(소령 §167의10 해당 호 괄호 「신축주택 … 기존건물 취득일부터 기산」)' : '사용승인일 등부터') + ' · 청산금 납부로 늘어난 부수토지는 신축 준공일부터(부동산거래관리-102) — 이 계산은 한 기간으로 봄');
     if (obj === 'house' && I.unreg) F.push('미등기 : 준공 후 이전고시 전이라 등기 못 한 신축 양도는 미등기 아님(집행기준 91-168-4, 사전법령해석재산2017-550 · 시행령 §168①2호 「법률의 규정으로 양도 당시 취득 등기가 불가능한 자산」 · 원문 확인) — 이 경우 미등기 체크를 끄세요');
+    if (o.lossPart && o.lossPart.length) F.push('부분 양도차손 — ' + o.lossPart.join(', ') + ' : 손실 부분 장기보유특별공제 = 0, 다른 부분 차익과 합산(통산)해 양도차익 계산 [확인 필요]');   
     if (obj === 'house' && ct === 'pay' && rs.mid > 0 && t2) F.push('신축 청산금 납부 — 기존건물분 거주에 인가 후 멸실 전 거주를 넣음(종전주택 거주로 봄) [확인 필요]');
     if (obj === 'house' && ct === 'pay' && t2 && rs.nw < 2 && I.saleDate >= '2020-01-01') F.push('청산금납부분 : 신축 거주 2년 미만 → 표1(대법 2025두34147 2026.01.08 · 사전법규재산2022-1126)');
     if (obj === 'right' && t2) F.push('표2 판정 = 인가 후 멸실 전 거주 포함, 공제율 = 인가일까지 거주만(사전-2023-법규재산-0141 2023.11.30)');
@@ -6047,14 +6057,27 @@ PKD.KTERMS = {
     if(s.t==='m'&&wParts(s)){ if(!L.some(function(x){return x!=='';})) return {err:'한 칸 이상 넣어 주세요(만원)'}; if(L.some(function(x){return x!==''&&!(+x>=0);})) return {err:'금액은 0 이상(만원)'}; W.a.acqP=L.slice(); var sm=Math.round(L.reduce(function(t,x){return t+(+x||0);},0)*10000)/10000; if(sm>1e10) return {err:'금액이 너무 커요 — 100조원(1,000,000억) 이하로 넣어 주세요'}; return {v:sm}; }
     if(s.t==='d'){ if(!/^\d{4}-\d{2}-\d{2}$/.test(L[0])) return {err:'날짜를 골라 주세요 — 보유기간, 거주기간, 세율 판정에 꼭 필요해요'};
       
-      if(s.id==='saleD'&&W.a.acqD&&L[0]<W.a.acqD) return {err:'판 날이 산 날('+W.a.acqD.replace(/-/g,'.')+'.)보다 빨라요 — 날짜를 확인해 주세요'};
+      if(s.id==='saleD'&&W.a.acqD&&W.path.indexOf('acqD')>=0&&L[0]<W.a.acqD) return {err:'판 날이 산 날('+W.a.acqD.replace(/-/g,'.')+'.)보다 빨라요 — 날짜를 확인해 주세요'};
       if(s.id==='acqD'&&W.a.saleD&&W.path.indexOf('saleD')>=0&&L[0]>W.a.saleD) return {err:'산 날이 판 날('+W.a.saleD.replace(/-/g,'.')+'.)보다 늦어요 — 날짜를 확인해 주세요'};
+      
+      
+      if(W.a.kind==='ipju'){ var ipD=['ipImpl','ipAppr'].filter(function(k){return W.path.indexOf(k)>=0&&W.a[k];}).map(function(k){return W.a[k];}).sort(), ipL=ipD.length?ipD[ipD.length-1]:'';
+        if(s.id==='saleD'&&ipL&&L[0]<ipL) return {err:'판 날이 인가일('+ipL.replace(/-/g,'.')+'.)보다 빨라요 — 입주권은 권리변환일(인가일) 뒤에 생겨요 · 그 전에 팔았으면 [이전] → 「주택」(또는 토지)으로'};
+        if((s.id==='ipImpl'||s.id==='ipAppr')&&W.a.saleD&&W.path.indexOf('saleD')>=0&&L[0]>W.a.saleD) return {err:'인가일이 판 날('+W.a.saleD.replace(/-/g,'.')+'.)보다 늦어요 — 날짜를 확인해 주세요'};
+        if(s.id==='ipAppr'&&W.a.ipImpl&&W.path.indexOf('ipImpl')>=0&&L[0]<W.a.ipImpl) return {err:'관리처분계획인가일이 사업시행인가일('+W.a.ipImpl.replace(/-/g,'.')+'.)보다 빨라요 — 관리처분은 사업시행인가 뒤예요'};
+        if(s.id==='acqD'&&W.a.ipOrg==='orig'&&ipL&&L[0]>ipL) return {err:'원조합원인데 산 날이 인가일('+ipL.replace(/-/g,'.')+'.)보다 늦어요 — 인가 뒤에 샀으면 [이전] → 「입주권을 샀어요(승계조합원)」'};
+      }
+      var inhOn=W.path.indexOf('inhD')>=0&&W.a.inhD&&W.a.why==='inh';
+      if(s.id==='saleD'&&inhOn&&L[0]<W.a.inhD) return {err:'판 날이 상속개시일('+W.a.inhD.replace(/-/g,'.')+'.)보다 빨라요 — '+(W.a.which==='inh'?'상속받은 집은 상속개시일 뒤에만 팔 수 있어요':'판 날에 상속받은 집이 없었다면 [이전]에서 집 수를 다시 골라 주세요')};
+      if(s.id==='inhD'&&W.a.saleD&&W.path.indexOf('saleD')>=0&&L[0]>W.a.saleD) return {err:'상속개시일이 판 날('+W.a.saleD.replace(/-/g,'.')+'.)보다 늦어요 — 날짜를 확인해 주세요'};
+      if(s.id==='inhD'&&W.a.hoDec&&W.path.indexOf('hoDec')>=0&&L[0]<W.a.hoDec) return {err:'상속개시일이 돌아가신 분이 산 날('+W.a.hoDec.replace(/-/g,'.')+'.)보다 빨라요 — 날짜를 확인해 주세요'};
+      if(s.id==='hoDec'&&W.a.inhD&&W.path.indexOf('inhD')>=0&&L[0]>W.a.inhD) return {err:'돌아가신 분이 산 날이 상속개시일('+W.a.inhD.replace(/-/g,'.')+'.)보다 늦어요 — 날짜를 확인해 주세요'};
       return {v:L[0]}; }
     if(s.t==='w'){ var wv=+L[0]; if(L[0]===''||!(wv>0)) return {err:'0보다 큰 숫자를 넣어 주세요('+(s.u||'')+') — 시행령 §164④ 산식에 꼭 필요해요'}; return {v:wv}; }
     if(s.t==='n'){ var nv=+L[0]; if(L[0]===''||!(nv>=0&&nv<=130)||Math.floor(nv)!==nv) return {err:'만 나이를 넣어 주세요 — 별도 세대 판정(만 30세 이상 등)에 꼭 필요해요'}; return {v:nv}; }
     if(s.t==='pN'){ if(L.some(function(x){ return !(+x>0&&+x<100); })) return {err:'지분을 모두 넣어 주세요(0 초과 100 미만 %)'}; var ps=Math.round(L.reduce(function(t,x){ return t+(+x); },0)*1e6)/1e6; if(Math.abs(ps-100)>1e-6) return {err:'지분 합계가 100%가 되게 넣어 주세요(지금 '+ps+'%)'}; return {v:L.map(Number)}; }
     
-    if(s.t==='m'){ var rq=wReq(s); if(L[0]===''){ if(rq) return {err:rq}; if(s.unk) return {v:''}; L[0]='0'; } if(!(+L[0]>=0)) return {err:'금액을 넣어 주세요('+(isEok(s)?'억':'만원')+')'}; if(rq&&!(+L[0]>0)) return {err:rq}; if(+L[0]>1e10) return {err:'금액이 너무 커요 — 100조원(1,000,000억) 이하로 넣어 주세요'}; return {v:+L[0]}; }   
+    if(s.t==='m'){ var rq=wReq(s); if(L[0]===''){ if(rq) return {err:rq}; if(s.unk) return {v:''}; L[0]='0'; } if(!(+L[0]>=0)) return {err:'금액을 넣어 주세요('+(isEok(s)?'억':'만원')+')'}; if(rq&&!(+L[0]>0)) return {err:rq}; if(+L[0]>1e10) return {err:'금액이 너무 커요 — 100조원(1,000,000억) 이하로 넣어 주세요'}; if(s.id==='ipCash'&&W.a.ipCt==='recv'&&+W.a.ipVal>0&&+L[0]>=+W.a.ipVal) return {err:'받은 청산금이 권리가액('+wEok(+W.a.ipVal).replace(/^= /,'')+')보다 커요 — 받은 청산금 = 권리가액 − 조합원 분양가'};    return {v:+L[0]}; }   
     if(s.t==='ym'){ var y=+(L[0]||0), m=+(L[1]||0); if(!(y>=0)||!(m>=0&&m<=11)) return {err:'년(0 이상), 개월(0~11)을 넣어 주세요'}; return {v:[y,m]}; }
     if(s.t==='p2'){ var a=+L[0], b=+L[1]; if(!(a>0&&a<=100&&b>0&&b<=100)) return {err:'지분(%)을 둘 다 넣어 주세요'}; if(a>b) return {err:'내 지분이 가장 큰 지분보다 클 수 없음 · 내가 가장 크면 [이전] → 「내 지분이 가장 커요」'}; if(a===b) return {err:'지분이 같으면 그 집에 사는 사람 → 최연장자 순으로 주인을 봄(시행령 §155③) · 내가 주인이면 [이전] → 「내 지분이 가장 커요」, 아니면 다른 사람 지분을 조금 크게(예 50.01) 넣기'}; return {v:[a,b]}; }
     return {err:''}; }
@@ -7124,7 +7147,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
 })();
 
 </script>
-<div id="pubFoot" style="margin:28px auto 0;padding:14px 16px 22px;max-width:1100px;font:14px/1.6 Freesentation,-apple-system,BlinkMacSystemFont,'Apple SD Gothic Neo','Malgun Gothic','Noto Sans KR',sans-serif;color:#6B7684;text-align:center;border-top:1px solid #E5E8EB">본 자료 = 일반적 정보 제공 목적, 실제 적용 시 개별 사안별 법률적 검토 및 전문가 자문 필수<br>계산은 이 기기 안에서만 하며 입력값은 보내지 않습니다(「주소로 찾기」에 넣은 주소만 공시가격, 조정대상지역 확인을 위해 브이월드로 보냄). · 판 2026-11-20</div><script>try{if(window.self!==window.top)document.getElementById("pubFoot").style.display="none";}catch(e){}</script>
+<div id="pubFoot" style="margin:28px auto 0;padding:14px 16px 22px;max-width:1100px;font:14px/1.6 Freesentation,-apple-system,BlinkMacSystemFont,'Apple SD Gothic Neo','Malgun Gothic','Noto Sans KR',sans-serif;color:#6B7684;text-align:center;border-top:1px solid #E5E8EB">본 자료 = 일반적 정보 제공 목적, 실제 적용 시 개별 사안별 법률적 검토 및 전문가 자문 필수<br>계산은 이 기기 안에서만 하며 입력값은 보내지 않습니다(「주소로 찾기」에 넣은 주소만 공시가격, 조정대상지역 확인을 위해 브이월드로 보냄). · 판 2026-11-21</div><script>try{if(window.self!==window.top)document.getElementById("pubFoot").style.display="none";}catch(e){}</script>
 <script id="gsgJs">(function () {
   'use strict';
   var TAB = "cgt", KEY = "66360EF1-780E-4AB9-A5AA-A119D3364B46";
