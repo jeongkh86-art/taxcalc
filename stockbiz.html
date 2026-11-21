@@ -1043,6 +1043,7 @@ if (__SEV_NODE) {
     var deduction = Math.max(0, cap - num(p.usedDeduction));
     var capLeft = deduction;   
     var priorDedIn = (p.priorDeduction !== undefined && p.priorDeduction !== null && p.priorDeduction !== '') ? Math.max(0, num(p.priorDeduction)) : null;
+    if (priorDedIn !== null && priorDedIn > capLeft) priorDedIn = capLeft;   
     
     if (priorDedIn !== null && prior > 0) {
       deduction = Math.min(priorDedIn, prior) + Math.min(Math.max(0, cap - num(p.usedDeduction) - priorDedIn), gross);

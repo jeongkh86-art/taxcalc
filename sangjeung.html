@@ -907,6 +907,7 @@ var IGTC = (function () {
     var deduction = Math.max(0, cap - num(o.usedDed));
     var capLeft = deduction;
     var priorDedIn = has(o.priorDed) ? Math.max(0, num(o.priorDed)) : null;
+    var priorDedRaw = priorDedIn; if (priorDedIn !== null && priorDedIn > capLeft) priorDedIn = capLeft;   
     if (priorDedIn !== null && prior > 0) deduction = Math.min(priorDedIn, prior) + Math.min(Math.max(0, cap - num(o.usedDed) - priorDedIn), gross);
     var mbOK = !!o.marriage && (rel ? (rel === 'parent' || rel === 'grand') : true);   
     var mb = mbOK ? Math.max(0, G.R.giftDed.marriageBirth - num(o.marriageUsed)) : 0;   
@@ -947,7 +948,7 @@ var IGTC = (function () {
     else L.push({ k: '증여재산가액', v: gross, law: '§47①' });
     if (priorIn > 0) L.push({ k: priorBelowFloor ? '10년 내 같은 사람 증여 — 1천만원 미만, 합산 안 함' : '+ 10년 내 같은 사람 증여 합산', v: prior, law: '§47②' });
     L.push({ k: '= 증여세 과세가액', v: taxableTotal, law: '§47' });
-    L.push({ k: '− 증여재산공제(' + (rel ? REL[rel].lab : key) + ')', v: dedGen > taxableTotal ? taxableTotal : dedGen, law: rel ? REL[rel].law : '§53', sub: '한도 ' + w(cap) + (num(o.usedDed) > 0 ? ', 10년 안에 다른 사람에게서 쓴 공제 ' + w(num(o.usedDed)) + ' 뺌' : '') });
+    L.push({ k: '− 증여재산공제(' + (rel ? REL[rel].lab : key) + ')', v: dedGen > taxableTotal ? taxableTotal : dedGen, law: rel ? REL[rel].law : '§53', sub: '한도 ' + w(cap) + (num(o.usedDed) > 0 ? ', 10년 안에 다른 사람에게서 쓴 공제 ' + w(num(o.usedDed)) + ' 뺌' + (num(o.usedDed) > cap ? '(한도 ' + w(cap) + '보다 많이 넣음 → 남은 공제 0 · 넣은 값 확인 필요)' : '') : '') + (priorDedRaw !== null && priorDedRaw > priorDedIn ? ', 앞 증여 때 쓴 공제 ' + w(priorDedRaw) + ' 넣음 → 한도 안 ' + w(priorDedIn) + '으로 봄(§53 10년 통산 · 넣은 값 확인 필요)' : '') });
     if (mb > 0) L.push({ k: '− 혼인·출산 증여재산공제', v: deduction - Math.min(dedGen, taxableTotal), law: '§53의2' });
     L.push({ k: '= 과세표준', v: taxBase, law: '§55①' });
     L.push({ k: '× 세율', v: b.rate, rate: true, deduct: b.deduct, law: '§56(§26 세율)' });
@@ -964,7 +965,7 @@ var IGTC = (function () {
       taxBase: taxBase, belowTaxMinimum: belowMin, marginalRate: b.rate, progressiveDeduct: b.deduct, calculatedTax: calculated,
       genSkip: skip, genSkipRate: skip ? sRate : 0, genSkipSurcharge: surcharge, genSkipGross: skipGross, priorSurcharge: priorSur, priorSurchargeAssumed: priorSurAssumed,
       prepaidTax: prepaid, prepaidTaxInput: prepaidIn, prepaidTaxCap: prepaidCap, prepaidTaxCapped: prepaidCapped, prepaidTaxAuto: prepaidAuto, priorGiftTaxBase: pBase,
-      priorDeductionAssumed: prior > 0 && priorDedIn === null, reportCredit: reportCredit, payableTax: payable, payable10: payable10, effectiveRate: gross > 0 ? payable / gross : 0, lines: L
+      priorDeductionAssumed: prior > 0 && priorDedIn === null, priorDedCapped: priorDedRaw !== null && priorDedRaw > priorDedIn ? { input: priorDedRaw, used: priorDedIn } : null, usedDedOver: num(o.usedDed) > cap, reportCredit: reportCredit, payableTax: payable, payable10: payable10, effectiveRate: gross > 0 ? payable / gross : 0, lines: L
     };
   }
 
@@ -5803,6 +5804,20 @@ window.LANDQ = (function () {
   var Y17 = function (a) { return !a.bAcqD || a.bAcqD >= '2017-08-03'; };   
   var LIN = function (a) { return G(a) && (a.gRel === 'parent' || a.gRel === 'grand'); };
   var GRP = { parent: '직계존속(부모, 조부모 등)', grand: '직계존속(부모, 조부모 등)', child: '직계비속(자녀, 손자녀 등)', relative: '기타친족' };
+
+  
+  function capOf(s, a) {
+    var FM = (window.IGTC && IGTC.R && IGTC.R.inh && IGTC.R.inh.funeralMax) || 10000000;
+    if (s.id === 'gUsed') { var c = a.gRel === 'relative' ? D.relative : (a.gRel === 'parent' || a.gRel === 'grand') && a.gMinor === 'y' ? D.minor : D.adult;
+      return { v: c, t: '한도 ' + eok(c) + '(' + (GRP[a.gRel] || '') + ' 10년 합계)', o: '한도 ' + eok(c) + '을 넘어요 — 이번 증여재산공제는 0원으로 계산해요' }; }
+    if (s.id === 'gMbUsed') return { v: D.marriageBirth, t: '한도 ' + eok(D.marriageBirth) + '(혼인, 출산 합쳐 평생)', o: '한도 ' + eok(D.marriageBirth) + '을 넘어요 — 이번 혼인·출산 공제는 0원으로 계산해요' };
+    if (s.id === 'iFun') return { v: FM, t: '한도 ' + eok(FM) + '(봉안시설 빼고)', o: '한도 ' + eok(FM) + '을 넘어요 — 장례비는 ' + eok(FM) + '까지만 빼요' };
+    if (s.id === 'iSpAct') return { v: I.spouseMax, t: '배우자상속공제 한도 ' + eok(I.spouseMax) + '(법정상속분 한도 따로)', o: '한도 ' + eok(I.spouseMax) + '을 넘어요 — 배우자상속공제는 ' + eok(I.spouseMax) + '까지만 빼요' };
+    if (s.id === 'iHouseAmt') return { v: I.houseMax, t: '동거주택상속공제 한도 ' + eok(I.houseMax), o: '한도 ' + eok(I.houseMax) + '을 넘어요 — 동거주택상속공제는 ' + eok(I.houseMax) + '까지만 빼요' };
+    return null;
+  }
+  function capTxt(s, a, man) { var c = s && capOf(s, a); if (!c) return ''; return Math.round((+man || 0) * 1e4) > c.v ? '⚠ ' + c.o : c.t; }
+  function capHtml(s, a, man) { var c = capOf(s, a); return c ? '<div class="pk-wbl pk-wcap" id="pkWcap">' + esc(capTxt(s, a, man)) + '</div>' : ''; }
   var HREL = [['self', '증여자 본인'], ['spouse', '배우자'], ['adultChild', '성년 자녀'], ['minorChild', '미성년 자녀'], ['adultGrand', '성년 손자녀(세대생략)'], ['minorGrand', '미성년 손자녀(세대생략)'], ['relative', '기타친족(4촌 이내 혈족, 3촌 이내 인척)']];
   
   function ratPrev(a, i) { var t = 0; for (var j = 0; j < i; j++) t += +a['cRat' + j] || 0; return Math.round(t * 100) / 100; }
@@ -6072,7 +6087,7 @@ window.LANDQ = (function () {
     }
     else {
       var u = unit(s);
-      h += '<div class="pk-wi"><div class="pk-wm"><input type="number" inputmode="decimal" min="0" data-pkwi="0" value="' + esc(v == null ? '' : isEok(s) ? manToEok(v) : v) + '" placeholder="' + (s.req || s.unk ? '' : '0') + '"><span>' + esc(u) + '</span></div><div class="pk-we" id="pkWe">' + (u === '만원' || u === '억' ? manTxt(v) : '') + '</div>' +
+      h += '<div class="pk-wi"><div class="pk-wm"><input type="number" inputmode="decimal" min="0" data-pkwi="0" value="' + esc(v == null ? '' : isEok(s) ? manToEok(v) : v) + '" placeholder="' + (s.req || s.unk ? '' : '0') + '"><span>' + esc(u) + '</span></div><div class="pk-we" id="pkWe">' + (u === '만원' || u === '억' ? manTxt(v) : '') + '</div>' + capHtml(s, a, v) +
         (s.unk ? '<div class="pk-wbl">빈칸으로 [다음] = 「' + esc(s.unk) + '」</div>' : s.req ? '' : '<div class="pk-wbl">빈칸으로 [다음] = 0</div>') + '</div>' +   
         '<div class="pk-wn"><button type="button" class="pk-go" data-pkwn="1">다음</button>' + (s.unk ? '<button type="button" class="pk-wz0" data-pkwu="1">' + esc(s.unk) + '</button>' : '') + '</div><div class="pk-wer" id="pkWer"></div>';
     }
@@ -6254,7 +6269,7 @@ window.LANDQ = (function () {
     if (d.pkmore) { xp(true); var s = $('tabs'); if (s) s.scrollIntoView({ behavior: 'smooth', block: 'start' }); return; }
     if (d.pkxp) { xp(!XP); var r0 = XP ? $('tabs') : $('pkRoot'); if (r0) r0.scrollIntoView({ block: 'start' }); return; }
   });
-  document.addEventListener('input', function (e) { var t = e.target; if (!t || !t.dataset || t.dataset.pkwi === undefined) return; var s = step(W.cur); if ($('pkWe')) $('pkWe').textContent = s && unit(s) === '만원' ? manTxt(t.value) : s && isEok(s) ? manTxt(eokToMan(t.value)) : ''; if ($('pkWer')) $('pkWer').textContent = ''; }, true);
+  document.addEventListener('input', function (e) { var t = e.target; if (!t || !t.dataset || t.dataset.pkwi === undefined) return; var s = step(W.cur); if ($('pkWe')) $('pkWe').textContent = s && unit(s) === '만원' ? manTxt(t.value) : s && isEok(s) ? manTxt(eokToMan(t.value)) : ''; if ($('pkWer')) $('pkWer').textContent = ''; if ($('pkWcap') && s) $('pkWcap').textContent = capTxt(s, W.a, isEok(s) ? eokToMan(t.value) : t.value); }, true);
   
   document.addEventListener('beforeinput', function (e) { var t = e.target; if (!t || !t.dataset || t.dataset.pkwi === undefined || !e.data || e.data.indexOf(',') < 0) return; var s = step(W.cur); if (!s || !isEok(s)) return; e.preventDefault(); if ($('pkWer')) $('pkWer').textContent = '억 칸은 쉼표 없이 넣어 주세요 — 소수는 점(.)으로(예 5.5억)'; }, true);
   document.addEventListener('keydown', function (e) { var t = e.target; if (e.key !== 'Enter' || !t || !t.dataset || t.dataset.pkwi === undefined) return; e.preventDefault(); var b = $('pkWz').querySelector('[data-pkwn]'); if (b) b.click(); }, true);
@@ -6680,7 +6695,7 @@ window.LANDQ = (function () {
       b.IN('DEBT', '인수 채무(부담부증여)', num(o.debt), { law: '§47①' }); }
       b.IN('PRIOR', '10년 내 같은 사람 증여 합계', num(o.prior), { law: '§47②', d: '직계존속이면 그 배우자 포함' });
       b.IN('USED', '10년 안 다른 증여자에게서 쓴 공제(칸 A)', num(o.usedDed), { law: '§53 · 한도만 줄임' });
-      if (pdIn !== null) b.IN('PRIORDED', '합산분 때 쓴 공제(칸 B)', pdIn, { law: '§53, §58' });
+      if (pdIn !== null) b.IN('PRIORDEDIN', '합산분 때 쓴 공제(칸 B)', pdIn, { law: '§53, §58' });
       b.IN('PRIORTAX', '합산분 그때 산출세액(0 = 모름 → 계산)', num(o.priorTax) > 0 ? num(o.priorTax) : 0, { law: '§58' });
       if (has(o.priorSurcharge)) b.IN('PSURIN', '앞 증여 때 낸 할증', Math.max(0, num(o.priorSurcharge)), { law: '령 §46의3' });
       if (mbOK) { b.IN('MBON', '혼인·출산 증여재산공제 받음', YN(!!o.marriage), { fmt: 't', law: '§53의2', d: '직계존속에게서 받을 때만' }); b.IN('MBUSED', '  전에 받은 혼인·출산 공제', num(o.marriageUsed), { law: '§53의2③' }); }
@@ -6692,6 +6707,7 @@ window.LANDQ = (function () {
       var capT = key === 'spouse' ? '{$DSP}' : key === 'lineal' ? 'IF({MINOR}="예",{$DMINOR},{$DADULT})' : key === 'lineal_adult' ? '{$DADULT}' : key === 'lineal_minor' ? '{$DMINOR}' : key === 'relative' ? '{$DREL}' : '{$DOTHER}';
       b.F('CAP', '  증여재산공제 한도', capT, R.deductionCap, { law: rel ? C.REL[rel].law : '§53' });
       b.F('CAPLEFT', '  남은 한도(칸 A 뺌)', 'MAX(0,{CAP}-{USED})', null, { law: '§53' });
+      if (pdIn !== null) b.F('PRIORDED', '  합산분 때 쓴 공제(한도 안)', 'MIN({PRIORDEDIN},{CAPLEFT})', null, { law: '§53 후단', d: '넣은 값이 남은 한도보다 크면 한도까지만(2026-11-21)' });
       b.F('DEDGEN0', '  이번 공제(합산분 포함)', pdIn !== null ? 'IF({PRIORC}>0,MIN({PRIORDED},{PRIORC})+MIN(MAX(0,{CAP}-{USED}-{PRIORDED}),{GROSS}),{CAPLEFT})' : '{CAPLEFT}', null, { law: '§53', d: pdIn !== null ? '합산분 때 쓴 공제 + 남은 한도(이번 가액까지)' : '합산분 때 쓴 공제 모름 → 남은 한도 전부' });
       b.F('MB', '  혼인·출산 공제', mbOK ? 'IF({MBON}="예",MAX(0,{$DMB}-{MBUSED}),0)' : '0', null, { law: '§53의2' });
       b.F('DED', '공제 합계(과세가액 한도)', 'MIN({DEDGEN0}+{MB},{TOTAL})', R.deduction, { law: '§53, §53의2' });
