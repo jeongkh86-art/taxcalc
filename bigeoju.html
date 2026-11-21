@@ -4189,7 +4189,7 @@ var HTX = (function () {
       var AL = calc(Object.assign({}, I0, { outLand: null })), t10 = function (q) { if (!q || q.err) return null; var m = q.multi || q.res; return m ? (m.total10 != null ? m.total10 : m.total) : null; };
       var vA = t10(FO), vB = t10(AL);
       FO.outLandAlt = { sep: vA, asHouse: vB };
-      FO.dual.push('⚠ 주택 부수토지 밖 땅 : 따로 토지로 계산(기본) ' + won0(vA) + ' / 한 울타리 안 같은 생활영역(마당 등)이라 주택 부수토지로 보면 ' + (vB == null ? '계산 못 함' : won0(vB)) + '(배율 안 = 비과세 · 넘는 부분 = 「부수토지 배율 초과」) — 「주택」 = 사실상 주거용(소득세법 §88 7호) · 사회통념상 하나의 주택이면 대지 필지와 상관없이 부수토지(대법원 91누10367, 1992.08.18.) · 주택과 구분된 생활영역 땅은 부수토지 아님(조심 2023서7425, 2023.12.26.) · 추천 = 기본(따로 토지) — 개별주택가격에 안 든 땅은 공시상 주택 아님, 현황이 마당이면 사진·현황측량으로 다투어 볼 일');
+      (FO.flags = FO.flags || []).push('[확인 필요] 주택 부수토지 밖 땅 = 따로 토지로 계산(개별주택가격 산정 대지면적 밖) — 실제로 마당 등 주택과 같이 쓰는 땅이면 서류(사진, 현황측량)로 확인');   
     }
     return FO;
   }

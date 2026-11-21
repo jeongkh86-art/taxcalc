@@ -4156,7 +4156,7 @@ var HTX = (function () {
       var AL = calc(Object.assign({}, I0, { outLand: null })), t10 = function (q) { if (!q || q.err) return null; var m = q.multi || q.res; return m ? (m.total10 != null ? m.total10 : m.total) : null; };
       var vA = t10(FO), vB = t10(AL);
       FO.outLandAlt = { sep: vA, asHouse: vB };
-      FO.dual.push('⚠ 주택 부수토지 밖 땅 : 따로 토지로 계산(기본) ' + won0(vA) + ' / 한 울타리 안 같은 생활영역(마당 등)이라 주택 부수토지로 보면 ' + (vB == null ? '계산 못 함' : won0(vB)) + '(배율 안 = 비과세 · 넘는 부분 = 「부수토지 배율 초과」) — 「주택」 = 사실상 주거용(소득세법 §88 7호) · 사회통념상 하나의 주택이면 대지 필지와 상관없이 부수토지(대법원 91누10367, 1992.08.18.) · 주택과 구분된 생활영역 땅은 부수토지 아님(조심 2023서7425, 2023.12.26.) · 추천 = 기본(따로 토지) — 개별주택가격에 안 든 땅은 공시상 주택 아님, 현황이 마당이면 사진·현황측량으로 다투어 볼 일');
+      (FO.flags = FO.flags || []).push('[확인 필요] 주택 부수토지 밖 땅 = 따로 토지로 계산(개별주택가격 산정 대지면적 밖) — 실제로 마당 등 주택과 같이 쓰는 땅이면 서류(사진, 현황측량)로 확인');   
     }
     return FO;
   }
@@ -4988,7 +4988,7 @@ if(typeof module!=='undefined'&&module.exports)module.exports=SPR;
       '<tr><td>양도가액 / 취득가액</td><td>' + won(NA.sale) + ' / ' + won(NA.acq) + '</td></tr><tr><td>양도소득금액<small>' + ((NA.res.lt || {}).why || (NA.res.loss ? '양도차손' : '')) + '</small></td><td>' + won(NA.res.income || 0) + '</td></tr><tr class="hl"><td>세율<small>' + ((NA.res.rate || {}).n || (NA.res.loss ? '양도차손 — 세액 없음' : '—')) + '</small></td><td>' + (NA.res.rate ? NA.res.rate.pct + '%' : '—') + '</td></tr></table></div>'; }   
     if (o.outLand && o.outLand.res) { var OLc = o.outLand, OR = OLc.res; h += '<div class="card"><h3>주택 부수토지 밖 땅(따로 토지 · §100② 기준시가 안분)</h3><table><tr><th>항목</th><th>값</th></tr><tr><td>이 땅 몫<small>판 때 기준시가 ' + won(OLc.saleStd) + ' / ' + won(OLc.saleTot) + ' · 산 때 ' + (OLc.acqTot > 0 ? won(OLc.acqStd) + ' / ' + won(OLc.acqTot) : '판 때 비율') + '</small></td><td>' + (OLc.xs * 100).toFixed(2) + '% / ' + (OLc.xa * 100).toFixed(2) + '%</td></tr>' +
       '<tr><td>양도가액 / 취득가액 / 필요경비</td><td>' + won(OLc.sale) + ' / ' + won(OLc.acq) + ' / ' + won(OLc.exp) + '</td></tr><tr><td>양도소득금액<small>' + ((OR.lt || {}).why || (OR.loss ? '양도차손' : '')) + '</small></td><td>' + won(OR.income || 0) + '</td></tr><tr class="hl"><td>세율<small>' + ((OR.rate || {}).n || (OR.loss ? '양도차손 — 세액 없음' : '—')) + '</small></td><td>' + (OR.rate ? OR.rate.pct + '%' : '—') + '</td></tr>' +
-      (o.outLandAlt && o.outLandAlt.asHouse != null ? '<tr><td>⚠ 주택 부수토지로 보면(한 울타리 같은 생활영역)<small>밖 땅 칸 끄고 집 전체를 주택으로 · 대법원 91누10367</small></td><td>' + won(o.outLandAlt.asHouse) + '</td></tr>' : '') + '</table></div>'; }   
+      '</table></div>'; }   
     if (o.mixed) { var X = o.mixed; h += '<div class="card"><h3>겸용주택 주택 외 부분</h3><table><tr><th>항목</th><th>값</th></tr><tr><td>주택 외 몫<small>주택 ' + X.houseArea + '㎡ · 주택 외 ' + X.otherArea + '㎡ · 주택 가액 ' + X.pct.toFixed(2) + '%</small></td><td>' + (X.ratio * 100).toFixed(2) + '%</td></tr>' +
       '<tr><td>양도가액 / 취득가액</td><td>' + won(X.sale) + ' / ' + won(X.acq) + '</td></tr><tr><td>양도소득금액<small>' + X.res.lt.why + '</small></td><td>' + won(X.res.income) + '</td></tr><tr class="hl"><td>세율<small>' + X.res.rate.n + '</small></td><td>' + X.res.rate.pct + '%</td></tr></table></div>'; }
     if (o.relief) { var RL = o.relief; h += '<div class="card"><h3>조특법 감면</h3><table><tr><th>감면</th><th>감면세액</th></tr>';
