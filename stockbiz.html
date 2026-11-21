@@ -458,8 +458,8 @@ body .y4box .y4e{color:var(--pd-acc)!important}
 <div class="wrap">
   <div class="eyebrow">세금 계산기 · <span class="ex">주식평가 및 사업용비율</span> · 2026년 기준</div>
   <h1>주식평가 및 사업용비율</h1>
-  <ul class="lead"><li>크레탑, 감사보고서, 세무조정계산서 PDF → 비상장주식 1주 평가(상증법 §63), 법인 여러 개 = 서로 가진 주식까지 묶어 평가</li><li>재무상태표 항목별 장부가액 vs 적용가액, 사업용 vs 사업무관자산(상증령 §15⑤2호 가~마목)</li><li>가업상속공제 대상금액 → 평가서, 가업상속공제신고서, 부표1 PDF와 엑셀(수식)</li></ul>
-  <details class="why"><summary>근거, 계산 방법</summary><p class="law" id="lawBox">1주 평가 = 비상장평가 엔진(순손익가치, 순자산가치 가중평균, 순자산 80% 하한, 최대주주 할증) / 사업용자산비율 = 상속개시일 현재 적용가액(상증법 제4장 평가액) 기준, 사업무관자산 = 상증령 §15⑤2호 가목~마목 / 가업상속공제 대상 = 주식가액 × 사업관련 자산가액 ÷ 총자산가액(부표1 ⑦), 한도 = 가업 영위기간별(상증법 §18의2①) / 자료 = 크레탑, 감사보고서, 세무조정계산서(글자 PDF, 스캔본은 읽지 못함) / 여러 회사 = 보유 주식을 그 회사 평가액으로 넣어 묶어 계산(상호출자, 순환출자 = 1주 값 연립 풀이), 공제는 고른 가업 회사 하나</p></details>
+  <details class="why"><summary>근거, 계산 방법</summary><ul class="lead lead-in"><li>크레탑, 감사보고서, 세무조정계산서 PDF → 비상장주식 1주 평가(상증법 §63), 법인 여러 개 = 서로 가진 주식까지 묶어 평가</li><li>재무상태표 항목별 장부가액 vs 적용가액, 사업용 vs 사업무관자산(상증령 §15⑤2호 가~마목)</li><li>가업상속공제 대상금액 → 평가서, 가업상속공제신고서, 부표1 PDF와 엑셀(수식)</li></ul>
+  <p class="law" id="lawBox">1주 평가 = 비상장평가 엔진(순손익가치, 순자산가치 가중평균, 순자산 80% 하한, 최대주주 할증) / 사업용자산비율 = 상속개시일 현재 적용가액(상증법 제4장 평가액) 기준, 사업무관자산 = 상증령 §15⑤2호 가목~마목 / 가업상속공제 대상 = 주식가액 × 사업관련 자산가액 ÷ 총자산가액(부표1 ⑦), 한도 = 가업 영위기간별(상증법 §18의2①) / 자료 = 크레탑, 감사보고서, 세무조정계산서(글자 PDF, 스캔본은 읽지 못함) / 여러 회사 = 보유 주식을 그 회사 평가액으로 넣어 묶어 계산(상호출자, 순환출자 = 1주 값 연립 풀이), 공제는 고른 가업 회사 하나</p></details>
 
   
   <div id="pkRoot">
@@ -13081,18 +13081,75 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     [/상속인/, '상속인', '피상속인의 재산을 물려받는 사람(민법상 순위)']
   ];
   var css = document.createElement('style');
-  css.textContent = '.pk-easy{margin:6px 2px 0;font-size:16px;line-height:1.55;color:#4E5968}.pk-easy summary{display:inline;cursor:pointer;color:#7A848F;font-weight:500;font-size:16px;list-style:none;text-decoration:underline;text-decoration-color:#C9C3BA;text-underline-offset:3px}.pk-easy[open] summary{color:#4E5968}.pk-easy summary::-webkit-details-marker{display:none}.pk-easy ul{margin:8px 0 0;padding:10px 12px;list-style:none;border-left:3px solid #E4572E;background:#FAF8F5;border-radius:0 8px 8px 0}.pk-easy li{margin:0 0 6px;word-break:keep-all;overflow-wrap:anywhere}.pk-easy li:last-child{margin:0}.pk-easy b{color:#191F28;font-weight:700}.pk-wbl{margin:6px 2px 0;font-size:16px;line-height:1.5;color:#7A848F;word-break:keep-all}';   
+  css.textContent = '.pk-easy{margin:6px 2px 0;font-size:16px;line-height:1.55;color:#4E5968}.pk-easy summary{display:inline;cursor:pointer;color:#7A848F;font-weight:500;font-size:16px;list-style:none;text-decoration:underline;text-decoration-color:#C9C3BA;text-underline-offset:3px}.pk-easy[open] summary{color:#4E5968}.pk-easy summary::-webkit-details-marker{display:none}.pk-easy ul{margin:8px 0 0;padding:10px 12px;list-style:none;border-left:3px solid #E4572E;background:#FAF8F5;border-radius:0 8px 8px 0}.pk-easy li{margin:0 0 6px;word-break:keep-all;overflow-wrap:anywhere}.pk-easy li:last-child{margin:0}.pk-easy b{color:#191F28;font-weight:700}.pk-wbl{margin:6px 2px 0;font-size:16px;line-height:1.5;color:#7A848F;word-break:keep-all}.why .lead-in{margin:8px 0 6px;padding-left:18px;font-size:inherit;line-height:1.6;color:inherit}';      
   document.head.appendChild(css);
   function txt(e) { return e ? e.textContent : ''; }
+  
+  var SL_HELP = /괄호|모르면|없으면|포함|빼고|뺀 |제외|합계|합쳐|셈|잔금|등기|숫자 ?\d자리|예 ?\d|예 ?:|예\)|\(예 |고지서|등기부|대장|계약서|신고서|명세서|안내문|맨 끝|맨 아래|전체 입력|특수 사례|고르|\[다음\]|여러 개|본인 기준|집 전체|전체 가격|단위/;
+  var SL_HOW = /질문이 하나씩|입력 칸에 채워|같은 계산을 돌려|한 번 넣은 값으로|^\d{4}년 (?:세율|요율)/;   
+  var SL_WHY = /(?:에|에만|데|판정에) ?(?:씀|써요|쓰여요)$/;   
+  var SL_LAWN = /^[가-힣 ]*(?:법|법률|시행령|시행규칙|령|규칙)(?: 시행령| 시행규칙)?(?: 문언)?$/;
+  function slIsCite(p) { p = p.trim(); return /§|별표|부칙|p\.\s?\d|「2026 주택과 세금」/.test(p) || SL_LAWN.test(p) || /^(?:영|령|법|칙)\s/.test(p) || /^[①-⑳]+\s?(?:\d+호)?[가-힣]?(?:목)?(?:\s?(?:본문|단서|후단|전단))?$/.test(p) || /^\d+호[가-힣]?목?$/.test(p) || /^[가-힣]목$/.test(p); }
+  function slSplit(s, seps) {   
+    var out = [], d = 0, cur = '', pre = '', i = 0;
+    while (i < s.length) { var c = s[i];
+      if (c === '(' || c === '「' || c === '[') d++; else if ((c === ')' || c === '」' || c === ']') && d > 0) d--;
+      var hit = null; if (!d) for (var k = 0; k < seps.length; k++) if (s.substr(i, seps[k].length) === seps[k]) { hit = seps[k]; break; }
+      if (hit) { out.push([pre, cur]); pre = hit; cur = ''; i += hit.length; continue; }
+      cur += c; i++; }
+    out.push([pre, cur]); return out; }
+  function slGroup(inner) {   
+    var P = slSplit(inner, [' · ', ', ', ' / ']), any = P.some(function (x) { return slIsCite(x[1]); });
+    if (!any) return [inner, false];
+    var K = P.filter(function (x) { var t = x[1].trim(); return t && !slIsCite(t) && !(t.length <= 2 && /^[가-힣]$|^[가-힣]목?$/.test(t)); });
+    return [K.map(function (x, i) { return (i ? x[0] : '') + x[1]; }).join(''), true]; }
+  function slStrip(s) {   
+    var hit = false, out = '', i = 0;
+    while (i < s.length) { var c = s[i];
+      if (c === '(') { var d = 1, j = i + 1; while (j < s.length && d) { if (s[j] === '(') d++; else if (s[j] === ')') d--; j++; }
+        var g = slGroup(s.slice(i + 1, j - 1)); if (g[1]) { hit = true; if (g[0].trim()) out += '(' + g[0] + ')'; } else out += s.slice(i, j); i = j; continue; }
+      out += c; i++; }
+    var o2 = out.replace(/\s?(?:[가-힣]+(?:법|령|규칙)(?: 시행령| 시행규칙)?\s|시행령\s|시행규칙\s|영\s)?§\s?\d+(?:의\d+)?[①-⑳]*(?:\s?\d+호)?(?:[가-힣]목)?(?:\s?(?:본문|단서|후단|전단))?(?:\s?(?:,|·)\s?(?=§))?/g, '');
+    if (o2 !== out) hit = true;
+    o2 = o2.replace(/\(\s*\)/g, '').replace(/\s?=\s*$/, '').replace(/\s{2,}/g, ' ').replace(/\s+([,.)])/g, '$1').replace(/(?:\s?[,·]\s?)+$/, '').replace(/^\s?[,·]\s?/, '').trim();
+    return [o2, hit]; }
+  function slDef(s) { var m = /^([^=()]{1,20}?)\s=\s(.+)$/.exec(s); return m ? [m[1].trim(), m[2].trim()] : null; }
+  
+  function slim(t, terms) {
+    var P = slSplit(String(t || ''), [' · ']), keep = [], move = [];
+    var cov = function (x) { return terms.some(function (n) { var core = n.split(/[ ,]/)[0]; return x === n || x === core || (!/\s/.test(x) && x.length <= core.length + 3 && x.slice(-core.length) === core); }); };   
+    P.forEach(function (x) { var raw = x[1].trim(); if (!raw) return;
+      if (SL_HOW.test(raw)) return;
+      var r = slStrip(raw), s = r[0], cited = r[1]; if (!s) return;
+      var df = slDef(s), help = SL_HELP.test(s);
+      if (help) { keep.push(s); return; }
+      if (df && cov(df[0]) && !/→/.test(df[1]) && df[1].length <= 60) return;   
+      if (SL_WHY.test(s)) { move.push(['', s]); return; }
+      if (cited) { move.push(df ? df : ["", s]); return; }
+      keep.push(s); });
+    return { keep: keep.join(' · '), move: move }; }
+  
+  function slEsc(x) { return String(x).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
   function one(q) {
     if (q.getAttribute('data-easy')) return; q.setAttribute('data-easy', '1');
-    var h = q.nextElementSibling && /pk-wh|qa-h/.test(q.nextElementSibling.className) ? q.nextElementSibling : null;
-    var t = txt(q) + ' ' + txt(h), seen = {}, L = [];
+    var H = [], n = q.nextElementSibling;   
+    while (n && /(^|\s)(pk-wh|qa-h)(\s|$)/.test(n.className) && !/pk-wtp/.test(n.className)) { H.push(n); n = n.nextElementSibling; }
+    H.forEach(function (el) { [].forEach.call(el.querySelectorAll('.pk-lks'), function (x) { x.parentNode.removeChild(x); }); el.setAttribute('data-pklk', '1'); });   
+    var t = txt(q) + ' ' + H.map(txt).join(' '), seen = {}, L = [];
     D.forEach(function (d) { if (L.length < 4 && !seen[d[1]] && d[0].test(t)) { seen[d[1]] = 1; L.push(d); } });
-    if (!L.length) return;
+    var names = L.map(function (d) { return d[1]; }), mv = [];
+    H.forEach(function (el) {
+      if (el.querySelector('a,button,input,select,textarea')) return;   
+      var r = slim(el.textContent, names); mv = mv.concat(r.move);
+      if (r.keep) { if (r.keep !== el.textContent) el.textContent = r.keep; } else el.style.display = 'none';
+    });
+    if (!L.length && !mv.length) return;
+    var tn = names.slice(); mv.forEach(function (m) { if (m[0] && tn.length < 4 && tn.indexOf(m[0]) < 0) tn.push(m[0]); });
     var el = document.createElement('details'); el.className = 'pk-easy';
-    el.innerHTML = '<summary>용어 설명 : ' + L.map(function (d) { return d[1]; }).join(', ') + '</summary><ul>' + L.map(function (d) { return '<li><b>' + d[1] + '</b> : ' + d[2] + '</li>'; }).join('') + '</ul>';
-    (h || q).insertAdjacentElement('afterend', el);
+    el.innerHTML = '<summary>용어 설명' + (tn.length ? ' : ' + slEsc(tn.join(', ')) : '') + '</summary><ul>' +
+      L.map(function (d) { return '<li data-pklk="1"><b>' + d[1] + '</b> : ' + d[2] + '</li>'; }).join('') +
+      mv.map(function (m) { return '<li data-pklk="1">' + (m[0] ? '<b>' + slEsc(m[0]) + '</b> : ' : '') + slEsc(m[1]) + '</li>'; }).join('') + '</ul>';
+    (H.length ? H[H.length - 1] : q).insertAdjacentElement('afterend', el);
   }
   
   var EOKRE = /(^|[^\d,.(])(\d{1,3}(?:,\d{3})+|\d+)원/g;   
@@ -13108,7 +13165,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
   var busy = 0;
   new MutationObserver(function () { if (busy) return; busy = 1; setTimeout(function () { busy = 0; scan(); }, 0); }).observe(document.body, { childList: true, subtree: true });
   scan();
-  window.EASYWORD = { D: D, scan: scan, eokTxt: eokTxt };
+  window.EASYWORD = { D: D, scan: scan, eokTxt: eokTxt, slim: slim };
 })();
 
 </script>
