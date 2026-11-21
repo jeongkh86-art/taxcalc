@@ -3071,7 +3071,29 @@ var ACQ = (function () {
   var HXN = { inh: '상속 5년 안(영 §28의4⑥3호)', low: '시가표준액 1억원 이하 주택(⑥1호가 · 정비구역 등 제외)', off: '시가표준액 1억원 이하 오피스텔(⑥4호)', land: '시가표준액 1억원 이하 부속토지만(⑥5호)',
     small: '2024.1.10.~ 소형 신축·기축, 신축 오피스텔 등(⑥7~9호)', etc: '그 밖(가정어린이집·노인복지·사원임대·주택건설사업자 신축 보유·혼인 전 주택 등 ⑥1·2·6호)' };
 
+  
   function calc(Iin) {
+    if (Iin && !Iin._sub && !Iin._decl && Iin.cause === 'buy' && Iin.related && !(+Iin.part > 0) && !(Iin.fam && !Iin.famProof)) {   
+      var mv0 = Math.round(+Iin.mv || 0), pr0 = Math.round(+Iin.price || 0), gp0 = mv0 - pr0;
+      if (pr0 > 0 && gp0 > 0 && (gp0 >= R.undueAmt || gp0 * 100 >= mv0 * R.undueRate)) {
+        var d = calc0(Object.assign({}, Iin, { _decl: 1 }));
+        if (d.err) return d;
+        var m = calc0(Object.assign({}, Iin, { price: mv0, related: false, _decl: 1 }));
+        if (m.err) return m;
+        m.undue = { gap: gp0, total: m.total, base: m.base, rate: m.rate, add: m.total - d.total, adopted: 'mv', decl: { total: d.total, total10: d.total10, base: d.base, rate: d.rate } };
+        m.declared = d;
+        if (d.famLow) m.famLow = d.famLow;
+        m.dual = (m.dual || []).concat((d.dual || []).filter(function (s) { return /^배우자·직계존비속 저가 매매/.test(s); }));
+        m.dual.unshift('특수관계인 저가 취득 — 차액 ' + won0(gp0) + (gp0 >= R.undueAmt ? '(3억원 이상)' : '(시가인정액의 5% 이상)') + ' : 시가인정액 ' + won0(mv0) + ' 기준(본값 · 지방자치단체가 부당행위로 결정할 때) ' + won0(m.total) + ' / 신고가액(사실상취득가격) ' + won0(pr0) + ' 기준 ' + won0(d.total) + '(−' + won0(m.total - d.total) + ') — §10의3②, 영 §18의2 「결정할 수 있다」');
+        (m.notes = m.notes || []).unshift('취득당시가액 = 시가인정액 ' + won0(mv0) + '(특수관계인에게서 싸게 산 부당행위 · §10의3② · 영 §18의2) — 실제 낸 값 ' + won0(pr0));
+        m.baseSrc = 'undueMv';
+        return m;
+      }
+    }
+    return calc0(Iin);
+  }
+
+  function calc0(Iin) {
     var I = JSON.parse(JSON.stringify(Iin));
     ['price', 'std', 'mv'].forEach(function (k) { I[k] = Math.round(+I[k] || 0); });
     I.share = +I.share || 100; I.area = +I.area || 0;
@@ -3265,12 +3287,12 @@ var ACQ = (function () {
       var eduR = edu - mulDiv(edu, red.amt, acq0);
       out.dual.push('지방교육세 : 조문 문언(지방세법 §151①1호다목1)은 감면율을 정한 경우만 → 공제액 방식 감면은 본문) = ' + won0(edu) + ' / 감면 비율만큼 줄인 값(일부 계산기) = ' + won0(eduR) + '(차이 ' + won0(edu - eduR) + ') · 예규, 심판례 못 찾음 — 문언 기준 값으로 둠');
     }
-    var sub = function (o2) { o2 = Object.assign({}, Iin, o2, { _sub: 1 }); delete o2.pen; return calc(o2); };
+    var sub = function (o2) { o2 = Object.assign({}, Iin, o2, { _sub: 1 }); delete o2.pen; return calc0(o2); };
     if (!Iin._sub) {
       
       if (t2) { var h2 = sub({ temp2: false }); if (!h2.err) { t2.heavyRate = h2.rate; t2.extra = h2.total - total; t2.extraAcq = h2.acq - acq; } }
       
-      if (c === 'buy' && I.related && I.mv > I.price && !(+I.part > 0)) {
+      if (c === 'buy' && I.related && !Iin._decl && I.mv > I.price && !(+I.part > 0)) {
         var gap = I.mv - I.price, hit = gap >= R.undueAmt || gap * 100 >= I.mv * R.undueRate;
         if (hit) { var u = sub({ price: I.mv, related: false }); out.undue = { gap: gap, total: u.total, base: u.base, rate: u.rate, add: u.total - total };
           out.dual.push('특수관계인 저가 취득 — 차액 ' + won0(gap) + (gap >= R.undueAmt ? '(3억원 이상)' : '(시가인정액의 5% 이상)') + ' : 신고가액(사실상취득가격) 기준 ' + won0(total) + ' / 지방자치단체가 부당행위로 시가인정액 ' + won0(I.mv) + ' 기준 결정 시 ' + won0(u.total) + '(+' + won0(u.total - total) + ') — §10의3②, 영 §18의2 「결정할 수 있다」'); }

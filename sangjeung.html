@@ -1104,29 +1104,32 @@ var IGTC = (function () {
     o = o || {};
     var gross = Math.max(0, num(o.amount)), small = !!o.small;
     var ct = corpTax(gross, num(o.other), num(o.loss), small, o.sme);
-    var national = (typeof o.national === 'number' && o.national >= 0) ? o.national : ct.national;
+    
+    var FL = function (v) { return Math.floor(Math.max(0, +v || 0) + 1e-6); };
+    var national = (typeof o.national === 'number' && o.national >= 0) ? o.national : FL(ct.national);
     var net = Math.max(0, gross - national);
     var H = (o.holders || []).map(function (h) { return { ratio: Math.max(0, num(h.ratio)), rel: SH[h.rel] ? h.rel : 'other', prior: num(h.prior) }; });
     var famRatio = H.reduce(function (a, h) { return a + (SH[h.rel].fam ? h.ratio : 0); }, 0);
     var special = famRatio >= R.sp45.ctrl - 1e-12;
     var rows = H.map(function (h) {
       var s = SH[h.rel], ratio = h.ratio, isGift = special && s.fam && h.rel !== 'self';
-      var alloc = gross * ratio, deemed = net * ratio, corpShare = national * ratio;
+      var alloc = FL(gross * ratio), deemed = FL(net * ratio), corpShare = FL(national * ratio);
       var over = isGift && deemed >= R.sp45.threshold;
       var r = { rel: h.rel, relLabel: s.lab, ratio: ratio, prior: h.prior, alloc: alloc, deemed: isGift ? deemed : 0, corpShare: corpShare, target: isGift, over: over,
         ded: 0, base: 0, rateTax: 0, preSkipTax: 0, cap: 0, capApplied: false, limitedTax: 0, skipAdd: 0, priorCredit: 0, beforeCredit: 0, reportCredit: 0, payable: 0, directTax: 0 };
       if (!isGift) return r;
       var direct = credited(alloc, h.prior, h.rel, true);
-      r.directTax = direct.finalTax * (1 - G.R.report);
-      var capCalc = credited(over ? alloc : 0, h.prior, h.rel, false);
-      r.cap = Math.max(0, capCalc.finalTax - (over ? corpShare : 0));
-      var st = credited(over ? deemed : 0, h.prior, h.rel, true);
-      var pre = credited(over ? deemed : 0, h.prior, h.rel, false).finalTax;
-      r.ded = st.ded; r.base = st.base; r.priorCredit = st.priorCredit; r.rateTax = st.rawTax; r.rawStructTax = st.finalTax; r.preSkipTax = pre;
-      r.limitedTax = over ? Math.min(pre, r.cap) : 0; r.capApplied = over && pre > r.cap;
-      r.beforeCredit = pre > 0 ? r.limitedTax * st.finalTax / pre : 0;
+      r.directTax = FL(FL(direct.finalTax) * (1 - G.R.report));
+      
+      var capCalc = credited(over ? alloc : 0, h.prior, h.rel, true);
+      r.cap = Math.max(0, FL(capCalc.finalTax) - (over ? corpShare : 0));
+      var st = credited(over ? deemed : 0, h.prior, h.rel, true), stT = FL(st.finalTax);
+      var pre = FL(credited(over ? deemed : 0, h.prior, h.rel, false).finalTax);
+      r.ded = st.ded; r.base = st.base; r.priorCredit = st.priorCredit; r.rateTax = st.rawTax; r.rawStructTax = stT; r.preSkipTax = pre;
+      r.beforeCredit = over ? Math.min(stT, r.cap) : 0; r.capApplied = over && stT > r.cap;
+      r.limitedTax = stT > 0 ? FL(r.beforeCredit * pre / stT) : 0;
       r.skipAdd = r.beforeCredit - r.limitedTax;
-      r.reportCredit = Math.floor(r.beforeCredit * G.R.report + 1e-6); r.payable = r.beforeCredit - r.reportCredit;
+      r.reportCredit = Math.floor(r.beforeCredit * G.R.report + 1e-6); r.payable = Math.floor((r.beforeCredit - r.reportCredit) / 10 + 1e-9) * 10;
       var rk = G.rateTax(st.base, G.R.rate); r.marginalRate = st.base > 0 ? rk.rate : 0;
       return r;
     });
@@ -4187,7 +4190,9 @@ var HTX = (function () {
     if (I.fd && I.fd.on) o.filing = YS.fdCalc(I.fd, I, r, F, CK, DU);
     if (I.dt && I.dt.on && !(X.ntx && X.ntx.ok)) {
       var q2 = I.dt, gd = q2.giftD || I.acqDate, yrs = gd >= '2023-01-01' ? 10 : 5, within = addY(I.saleDate, -yrs) <= gd;
-      var JD = Object.assign({}, I, { acq: b3M(q2.donorAcq), acqDate: q2.donorAcqD || I.acqDate, exp: (q2.donorExp != null && q2.donorExp !== '') ? b3M(q2.donorExp) : b3M(I.exp),    gift: { on: false }, dt: null, others: b3M(q2.donorOther) ? [{ name: '증여자 다른 양도', income: b3M(q2.donorOther), k: 'b', saleDate: I.saleDate }] : [] });
+      var JD = Object.assign({}, I, { acq: b3M(q2.donorAcq), acqDate: q2.donorAcqD || I.acqDate, exp: (q2.donorExp != null && q2.donorExp !== '') ? b3M(q2.donorExp) : b3M(I.exp),    gift: { on: false }, dt: null, _nbHist: undefined, others: b3M(q2.donorOther) ? [{ name: '증여자 다른 양도', income: b3M(q2.donorOther), k: 'b', saleDate: I.saleDate }] : [] });
+      
+      if (JD.kind === 'nonbiz' || JD._nbArea) { var NHd = YS.nbHist(JD); if (NHd) JD._nbHist = NHd; }
       var od = calc0(JD);
       if (!od.err) {
         var donorTax = od.multi ? (od.multi.nat ? mulDiv(od.multi.nat, od.res.income || 0, (od.res.income || 0) + b3M(q2.donorOther)) : 0) : (od.res.nat || 0) - (od.res.red || 0);
@@ -4545,7 +4550,29 @@ var ACQ = (function () {
   var HXN = { inh: '상속 5년 안(영 §28의4⑥3호)', low: '시가표준액 1억원 이하 주택(⑥1호가 · 정비구역 등 제외)', off: '시가표준액 1억원 이하 오피스텔(⑥4호)', land: '시가표준액 1억원 이하 부속토지만(⑥5호)',
     small: '2024.1.10.~ 소형 신축·기축, 신축 오피스텔 등(⑥7~9호)', etc: '그 밖(가정어린이집·노인복지·사원임대·주택건설사업자 신축 보유·혼인 전 주택 등 ⑥1·2·6호)' };
 
+  
   function calc(Iin) {
+    if (Iin && !Iin._sub && !Iin._decl && Iin.cause === 'buy' && Iin.related && !(+Iin.part > 0) && !(Iin.fam && !Iin.famProof)) {   
+      var mv0 = Math.round(+Iin.mv || 0), pr0 = Math.round(+Iin.price || 0), gp0 = mv0 - pr0;
+      if (pr0 > 0 && gp0 > 0 && (gp0 >= R.undueAmt || gp0 * 100 >= mv0 * R.undueRate)) {
+        var d = calc0(Object.assign({}, Iin, { _decl: 1 }));
+        if (d.err) return d;
+        var m = calc0(Object.assign({}, Iin, { price: mv0, related: false, _decl: 1 }));
+        if (m.err) return m;
+        m.undue = { gap: gp0, total: m.total, base: m.base, rate: m.rate, add: m.total - d.total, adopted: 'mv', decl: { total: d.total, total10: d.total10, base: d.base, rate: d.rate } };
+        m.declared = d;
+        if (d.famLow) m.famLow = d.famLow;
+        m.dual = (m.dual || []).concat((d.dual || []).filter(function (s) { return /^배우자·직계존비속 저가 매매/.test(s); }));
+        m.dual.unshift('특수관계인 저가 취득 — 차액 ' + won0(gp0) + (gp0 >= R.undueAmt ? '(3억원 이상)' : '(시가인정액의 5% 이상)') + ' : 시가인정액 ' + won0(mv0) + ' 기준(본값 · 지방자치단체가 부당행위로 결정할 때) ' + won0(m.total) + ' / 신고가액(사실상취득가격) ' + won0(pr0) + ' 기준 ' + won0(d.total) + '(−' + won0(m.total - d.total) + ') — §10의3②, 영 §18의2 「결정할 수 있다」');
+        (m.notes = m.notes || []).unshift('취득당시가액 = 시가인정액 ' + won0(mv0) + '(특수관계인에게서 싸게 산 부당행위 · §10의3② · 영 §18의2) — 실제 낸 값 ' + won0(pr0));
+        m.baseSrc = 'undueMv';
+        return m;
+      }
+    }
+    return calc0(Iin);
+  }
+
+  function calc0(Iin) {
     var I = JSON.parse(JSON.stringify(Iin));
     ['price', 'std', 'mv'].forEach(function (k) { I[k] = Math.round(+I[k] || 0); });
     I.share = +I.share || 100; I.area = +I.area || 0;
@@ -4739,12 +4766,12 @@ var ACQ = (function () {
       var eduR = edu - mulDiv(edu, red.amt, acq0);
       out.dual.push('지방교육세 : 조문 문언(지방세법 §151①1호다목1)은 감면율을 정한 경우만 → 공제액 방식 감면은 본문) = ' + won0(edu) + ' / 감면 비율만큼 줄인 값(일부 계산기) = ' + won0(eduR) + '(차이 ' + won0(edu - eduR) + ') · 예규, 심판례 못 찾음 — 문언 기준 값으로 둠');
     }
-    var sub = function (o2) { o2 = Object.assign({}, Iin, o2, { _sub: 1 }); delete o2.pen; return calc(o2); };
+    var sub = function (o2) { o2 = Object.assign({}, Iin, o2, { _sub: 1 }); delete o2.pen; return calc0(o2); };
     if (!Iin._sub) {
       
       if (t2) { var h2 = sub({ temp2: false }); if (!h2.err) { t2.heavyRate = h2.rate; t2.extra = h2.total - total; t2.extraAcq = h2.acq - acq; } }
       
-      if (c === 'buy' && I.related && I.mv > I.price && !(+I.part > 0)) {
+      if (c === 'buy' && I.related && !Iin._decl && I.mv > I.price && !(+I.part > 0)) {
         var gap = I.mv - I.price, hit = gap >= R.undueAmt || gap * 100 >= I.mv * R.undueRate;
         if (hit) { var u = sub({ price: I.mv, related: false }); out.undue = { gap: gap, total: u.total, base: u.base, rate: u.rate, add: u.total - total };
           out.dual.push('특수관계인 저가 취득 — 차액 ' + won0(gap) + (gap >= R.undueAmt ? '(3억원 이상)' : '(시가인정액의 5% 이상)') + ' : 신고가액(사실상취득가격) 기준 ' + won0(total) + ' / 지방자치단체가 부당행위로 시가인정액 ' + won0(I.mv) + ' 기준 결정 시 ' + won0(u.total) + '(+' + won0(u.total - total) + ') — §10의3②, 영 §18의2 「결정할 수 있다」'); }
@@ -5128,7 +5155,8 @@ var IGBD = (function () {
   
   function inputs(a) {
     var V = Math.round(+a.V || 0), D = Math.min(Math.round(+a.D || 0), V), person = a.to !== 'corp', house = a.kind === 'house';
-    var date = a.date || today(), known = a.acqKnow !== 'n';
+    
+    var date = a.date || today(), sv = !!a.stdVal, known = sv || a.acqKnow !== 'n', acq0 = sv ? +a.stdAcq || 0 : +a.acq || 0, exp0 = sv ? 0 : +a.exp || 0;
     
     var G = person ? { fn: 'gift', o: { amount: V, debt: D, rel: a.rel || 'parent', minor: !!a.minor, parentDead: !!a.parentDead, prior: +a.prior || 0, priorTax: a.priorTax === '' || a.priorTax == null ? undefined : +a.priorTax, usedDed: +a.usedDed || 0 } }
       : { fn: 'corpGift', o: { amount: V - D, other: +a.other || 0, loss: +a.loss || 0, small: !!a.small, sme: a.sme !== false, holders: (a.holders || []).map(function (h) { return { rel: h.rel, ratio: +h.ratio || 0, prior: 0 }; }) } };
@@ -5136,7 +5164,7 @@ var IGBD = (function () {
     if (person) G0.o.debt = 0; else G0.o.amount = V;
     if (G.o.priorTax === undefined) delete G0.o.priorTax;
     
-    var X = { kind: a.kind, sale: D, acq: known ? Math.round((+a.acq || 0) * D / V) : 0, exp: known ? Math.round((+a.exp || 0) * D / V) : 0,
+    var X = { kind: a.kind, sale: D, acq: known ? Math.round(acq0 * D / V) : 0, exp: known ? Math.round(exp0 * D / V) : 0,
       acqDate: a.acqDate, saleDate: date, count: 1, efile: true, unreg: false, transit: false };   
     if (a.nb) X.nb = a.nb; if (a.relief) X.relief = a.relief;   
     if (house) {
@@ -5150,9 +5178,10 @@ var IGBD = (function () {
       cap: house ? !!a.cap : true, adj: house && !!a.adjSale, area: house ? (a.big85 === false ? 84 : 86) : 0 };
     if (house) { A.std = +a.std > 0 ? Math.round(+a.std) : V; if (person) { A.nH = +a.dh || 0; A.donorOne = (+a.cnt || 1) === 1 && !!DIRECT[a.rel || 'parent']; } }
     if (person) { A.fam = !!DIRECT[a.rel || 'parent']; A.famProof = A.fam && !!a.proof; }
-    else if (!house && a.metro) A.metro = 'est';
+    else if (a.metro) { if (house) A.corpNew = true; else A.metro = 'est'; }   
     var A0 = JSON.parse(JSON.stringify(A)); A0.debt = 0;
-    return { V: V, D: D, person: person, house: house, known: known, date: date, G: G, G0: G0, X: X, A: A, A0: A0 };
+    var XS = null; if (sv) { XS = JSON.parse(JSON.stringify(X)); XS.cost = { mode: 'std', saleStd: D, acqStd: Math.floor(acq0 * D / V) }; }   
+    return { V: V, D: D, person: person, house: house, known: known, stdVal: sv, date: date, G: G, G0: G0, X: X, XS: XS, A: A, A0: A0 };
   }
 
   function calc(a) {
@@ -5178,6 +5207,12 @@ var IGBD = (function () {
     if (direct && !a.proof) CK.push('채무 상환 능력(소득, 재산) 증명 못 함 → 취득세는 빚 부분도 증여로 봄(지방세법 §7⑪, ⑫ 단서)');
     if (a.debtKind === 'lease' || a.debtKind === 'both') CK.push('임대보증금 = 수증자가 임대인 지위를 이어받은 임대차계약서 필요 · 증여 뒤 보증금을 증여자가 대신 갚으면 그 금액만큼 다시 증여');
     if (a.debtKind === 'loan' || a.debtKind === 'both') CK.push('담보대출 = 채무자를 수증자로 바꾼(인수) 금융기관 서류 필요 · 이자, 원금을 증여자가 대신 내면 그 금액만큼 다시 증여');
+    var xs = P.XS ? E.HTX.calc(P.XS) : null, xsT = null;
+    if (xs && !(xs.err && xs.err.length)) { var xsr = xs.nbArea && xs.multi ? xs.multi : (xs.res || {}); xsT = xsr.total10 != null ? xsr.total10 : (xsr.total || 0); }
+    if (P.stdVal) {
+      NT.push('증여가액 = 기준시가 → 빚 부분 취득가액도 산 때 기준시가 ' + won(+a.stdAcq || 0) + ' × 빚 ' + won(D) + ' ÷ 증여가액 ' + won(V) + ' = ' + won(P.X.acq) + '(소득세법 시행령 §159①1호 괄호 · 사전-2023-법규재산-0150 2023.07.12.) — 실제 산 값은 쓰지 않음');
+      CK.push('[⚠ 두 값 · 양도세] 기준시가로 잡은 취득가액에 필요경비 개산공제 3%(영 §163⑥)를 더하는지 — 예규, 판례 못 찾음(조문 문언 : 소득세법 §97②2호는 환산·매매사례·감정, §114⑦ 추계만 적음) · 이 계산 = 필요경비 0(「2026 주택과 세금」 p.206 사례와 같은 방식)' + (xsT != null ? ' ' + won(xferT) + ' / 개산공제를 넣으면(엔진 기준시가 방식) ' + won(xsT) : '') + ' [확인 필요]');
+    }
     if (!P.known) {
       CK.push('취득가액 모름 → 환산취득가액(소득세법 시행령 §176의2②2호) × 채무 ÷ 증여가액(영 §159①1호) — 개산공제 3%(영 §163⑥)도 채무 비율로 넣음 [확인 필요 — 개산공제 안분 예규 못 찾음, 조문 문언 기준]');
       if (a.acqDate && a.acqDate < '1985-01-01') CK.push('1985.1.1. 전 취득 → 취득 기준시가 = 1985.1.1.(의제취득일) 현재 기준시가로 넣었는지 확인');
@@ -5187,7 +5222,7 @@ var IGBD = (function () {
     if (P.house && !(+a.std > 0)) DF.push('공시가격 모름 → 시가와 같다고 봄(증여분 취득세 3억원 중과, 1억원 이하 판정)');
     if (P.house && a.big85 == null) DF.push('전용면적 모름 → 85㎡ 넘는다고 봄(농어촌특별세 · 세금 많은 쪽)');
     if (!a.date) DF.push('증여일 = 오늘 ' + P.date);
-    if (P.known && !(+a.exp > 0)) DF.push('필요경비(취득세, 중개보수, 자본적지출) 0원 → 양도세가 많은 쪽');
+    if (P.known && !P.stdVal && !(+a.exp > 0)) DF.push('필요경비(취득세, 중개보수, 자본적지출) 0원 → 양도세가 많은 쪽');
     if (!P.house) DF.push('농지 아님(농지면 취득세율 다름 — 취득세 탭)');
     if (P.person && a.priorTax === '' && +a.prior > 0) DF.push('앞 증여 산출세액 모름 → 앞 증여 과세표준으로 계산');
     DF.push('증여자 = 거주자, 신고기한 안 신고(증여세 3% 공제), 양도세 전자신고(세액공제 2만원 · 양도세 탭 기본값과 같음), 조특법 감면 없음');
@@ -5202,7 +5237,7 @@ var IGBD = (function () {
     (ac.flags || []).forEach(function (f) { CK.push('[취득세] ' + f); });
     [ac.gift, ac.buy].forEach(function (o) { (o && o.flags || []).forEach(function (f) { if (/^끝수/.test(f) || CK.indexOf('[취득세] ' + f) >= 0) return; if (/배우자, 직계존비속에게서 산/.test(f)) return;    CK.push('[취득세] ' + f); }); });
     return { ok: true, P: P, V: V, D: D, ratio: D / V, person: P.person, house: P.house,
-      gift: g, gift0: g0, xfer: xo, acq: ac, acq0: ac0,
+      gift: g, gift0: g0, xfer: xo, xferStd: xs, xferStdTax: xsT, acq: ac, acq0: ac0,
       giftTax: giftT, xferTax: xferT, acqTax: acqT, total: total, plainGift: gift0, plainAcq: acq0, plain: plain, diff: total - plain,
       checks: CK, defaults: DF, noEngine: NO, notes: NT, won: won };
   }
@@ -5750,7 +5785,7 @@ window.LANDQ = (function () {
   function eokToMan(x) { x = String(x == null ? '' : x).trim(); if (x === '') return ''; if (!/^\d*\.?\d*$/.test(x) || x === '.') return NaN;
     var p = x.split('.'), i = p[0] || '0', f = p[1] || '', m = Number(i) * 10000 + Number((f + '0000').slice(0, 4)); if (f.length > 4 && +f.charAt(4) >= 5) m += 1; return m; }
   function manToEok(v) { if (v === '' || v == null) return ''; var n = Math.round(+v); if (!isFinite(n)) return ''; var e = Math.floor(n / 10000), r = n % 10000; return r ? e + '.' + ('000' + r).slice(-4).replace(/0+$/, '') : String(e); }
-  var EOKQ = { gAmt: 1, gPriorAmt: 1, cAmt: 1, cLoss: 1, iEst: 1, iDebt: 1, iSpAct: 1, iFin: 1, iHouseAmt: 1, iPriorAmt: 1, iPriorBase: 1, iNhBase: 1,
+  var EOKQ = { bStdA: 1, gAmt: 1, gPriorAmt: 1, cAmt: 1, cLoss: 1, iEst: 1, iDebt: 1, iSpAct: 1, iFin: 1, iHouseAmt: 1, iPriorAmt: 1, iPriorBase: 1, iNhBase: 1,
     bVal: 1, bDebt: 1, bAcq: 1, bCvA: 1, bCvS: 1, bStd: 1, bPriorAmt: 1 };   
   function isEok(s) { return !!(s && (EOKQ[s.id] || s.eok)); }   
   function esc(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;'); }
@@ -5760,7 +5795,8 @@ window.LANDQ = (function () {
   var G = function (a) { return a.mode === 'gift'; }, N = function (a) { return a.mode === 'inh'; }, C = function (a) { return a.mode === 'corp'; };
   
   var B = function (a) { return a.mode === 'burden'; }, BP = function (a) { return B(a) && a.bTo === 'person'; }, BC = function (a) { return B(a) && a.bTo === 'corp'; };
-  var BH = function (a) { return B(a) && a.bKind === 'house'; }, BK = function (a) { return B(a) && a.bAcqK === 'y'; }, BN = function (a) { return B(a) && a.bAcqK === 'n'; };
+  var BH = function (a) { return B(a) && a.bKind === 'house'; }, BK = function (a) { return B(a) && a.bStdV !== 'y' && a.bAcqK === 'y'; }, BN = function (a) { return B(a) && a.bStdV !== 'y' && a.bAcqK === 'n'; };
+  var BSV = function (a) { return B(a) && a.bStdV === 'y'; };   
   var CQ = function (a) { return C(a) || BC(a); };
   var BLIN = function (a) { return BP(a) && (a.bRel === 'parent' || a.bRel === 'grand'); };
   var BDIR = function (a) { return BP(a) && /^(spouse|parent|child|grand)$/.test(a.bRel || ''); };
@@ -5793,12 +5829,16 @@ window.LANDQ = (function () {
       o: [['house', '주택(아파트, 단독주택 등)'], ['land', '토지, 상가 등 건물(사업용인지 비사업용인지 다음 질문으로)']] },
     
     { id: 'bVal', t: 'm', on: B, req: '시가 = 증여세, 양도가액 나누기, 취득세 과세표준의 기준이라 0보다 큰 금액이 꼭 필요해요', q: '그 재산의 증여일 시가는 얼마예요?', h: '시가 = 매매사례가액, 감정가액 등(상증법 §60) · 없으면 공시가격 등 기준시가(§61) · 집 전체 값' },
+    { id: 'bStdV', t: 'b', stg: 'val', pdef: 'n', on: B, q: '그 시가가 공시가격 같은 기준시가예요?', h: '매매사례가액, 감정가액이 없어 공시가격 등 기준시가로 평가했으면 → 증여자 취득가액도 산 때 기준시가로 계산(실제 산 값은 안 씀)',
+      o: [['n', '아니요 — 매매사례가액, 감정가액 등 시가'], ['y', '예 — 공시가격 등 기준시가']] },
     { id: 'bDebt', t: 'm', on: B, req: '부담부증여 = 받는 쪽이 넘겨받는 빚이 있어야 해요(없으면 첫 질문에서 「증여」)', q: '받는 쪽이 같이 넘겨받는 빚은 얼마예요?', h: '그 재산에 담보된 대출, 전세·임대보증금(상증법 §47①) · 빚 부분 = 증여자가 판 것으로 보아 양도세(소득세법 §88 1호)' },
     { id: 'bDK', t: 'b', on: B, q: '어떤 빚이에요?', h: '세금 계산은 같음 · 채무로 인정받는 서류가 달라요', o: [['loan', '담보대출(근저당 채무)'], ['lease', '전세·임대보증금'], ['both', '둘 다']] },
     { id: 'bDate', t: 'd', on: B, unk: '오늘로 할게요', q: '증여일은 언제예요?', h: '증여일 = 빚 부분 양도일 · 보유기간, 세율, 조정대상지역 판정 기준' },
     { id: 'bAcqD', t: 'd', on: B, req: '산 날 = 보유기간, 비과세, 장기보유특별공제 판정에 꼭 필요해요', q: '증여자가 그 재산을 언제 샀어요?', h: '취득일 = 잔금일(잔금 전 등기면 등기일) · 상속받았으면 상속개시일, 증여받았으면 증여일' },
-    { id: 'bAcqK', t: 'b', on: B, q: '증여자가 산 값(실제 취득가액)을 알아요?', h: '모르면 환산취득가액 = 양도가액 × 산 때 기준시가 ÷ 증여일 기준시가(소득세법 시행령 §176의2②2호) + 개산공제 3% — 양도세 탭과 같은 계산',
+    { id: 'bAcqK', t: 'b', on: function (a) { return B(a) && a.bStdV !== 'y'; }, q: '증여자가 산 값(실제 취득가액)을 알아요?', h: '모르면 환산취득가액 = 양도가액 × 산 때 기준시가 ÷ 증여일 기준시가(소득세법 시행령 §176의2②2호) + 개산공제 3% — 양도세 탭과 같은 계산',
       o: [['y', '알아요(계약서 등)'], ['n', '몰라요(환산취득가액으로)']] },
+    { id: 'bStdA', t: 'm', on: BSV, req: '산 때 기준시가가 있어야 취득가액을 계산해요', q: function (a) { return '증여자가 산 ' + (a.bAcqD && a.bAcqD < '1985-01-01' ? '1985년 1월 1일(의제취득일)' : '해') + ' 그 재산의 기준시가(공시가격)는 얼마예요?'; },
+      h: '주택 = 산 해 공동주택가격, 개별주택가격 · 땅 = 개별공시지가 × 면적 · 건물 = 국세청 건물 기준시가 · 빚 부분 취득가액 = 이 값 × 빚 ÷ 증여가액' },
     { id: 'bAcq', t: 'm', on: BK, req: '산 값을 넣어 주세요(모르면 이전 질문에서 「몰라요」)', q: '얼마에 샀어요?', h: '전체 취득가액(지분 나누기 전) · 빚 부분만큼 엔진이 나눠요(× 채무 ÷ 증여가액, 시행령 §159①)' },
     { id: 'bExp', t: 'm', on: BK, unk: '모르겠어요 — 0원', q: '살 때, 고칠 때 든 필요경비는요?', h: '취득세, 중개보수, 법무사 비용, 자본적지출(확장, 샷시 등) 합계 · 빚 부분만큼 나눠 넣어요' },
     { id: 'bCvA', t: 'm', on: BN, req: '산 때 기준시가가 있어야 환산취득가액을 계산해요', q: function (a) { return (a.bAcqD && a.bAcqD < '1985-01-01' ? '1985년 1월 1일(의제취득일)' : '산 해') + ' 기준시가(공시가격)는 얼마예요?'; },
@@ -5826,7 +5866,7 @@ window.LANDQ = (function () {
       o: [['0', '없어요'], ['1', '1채'], ['2', '2채'], ['3', '3채 이상']] },
     { id: 'bProof', t: 'b', on: BDIR, q: '받는 사람이 그 빚을 자기 소득, 재산으로 갚을 수 있다고 증명할 수 있어요?', h: '배우자, 직계존비속 간 = 증명 못 하면 빚 부분도 증여로 보아 취득세(지방세법 §7⑪, ⑫ 단서) · 증여세는 채무 인수 사실 입증 필요(상증법 §47③)',
       o: [['y', '예 — 소득, 재산으로 증명 가능'], ['n', '아니요 / 모르겠어요']] },
-    { id: 'bMetro', t: 'b', on: function (a) { return BC(a) && a.bKind !== 'house'; }, q: '받는 법인이 과밀억제권역(서울 등) 안에서 설립된 지 5년이 안 됐어요?', h: '대도시 안 설립 5년 안 법인의 부동산 취득 = 취득세 중과(지방세법 §13②) · 법인 주택은 늘 12%(§13의2)',
+    { id: 'bMetro', t: 'b', pdef: 'n', on: BC, q: '받는 법인이 과밀억제권역(서울 등) 안에서 설립된 지 5년이 안 됐어요?', h: '대도시 안 설립 5년 안 법인의 부동산 취득 = 취득세 중과(지방세법 §13②) · 주택은 빚 뺀 무상분도 중과(표준세율 × 3 − 4%), 빚 부분(유상)은 법인이라 늘 12%(§13의2)',
       o: [['n', '아니요'], ['y', '예']] },
     
     { id: 'gRel', t: 'b', on: G, q: '받는 사람에게 주는 사람은 누구예요?', h: '관계에 따라 증여재산공제가 달라요(§53, 10년 합산 한도)',
@@ -5971,7 +6011,7 @@ window.LANDQ = (function () {
   function bdIn(a) {
     var M = function (x) { return x === '' || x == null ? 0 : Math.round(+x * 1e4); };
     var o = { to: a.bTo, kind: KD(a, 'b'), V: M(a.bVal), D: M(a.bDebt), debtKind: a.bDK, date: a.bDate || '', acqDate: a.bAcqD, acqKnow: a.bAcqK,
-      acq: M(a.bAcq), exp: M(a.bExp), cvA: M(a.bCvA), cvS: M(a.bCvS) };
+      acq: M(a.bAcq), exp: M(a.bExp), cvA: M(a.bCvA), cvS: M(a.bCvS), stdVal: a.bStdV === 'y', stdAcq: M(a.bStdA) };   
     LEput(o, a, 'b');   
     if (a.bKind === 'house') { o.cnt = +a.bCnt || 1; o.temp2 = a.bT2 === 'y'; o.adjAcq = a.bAdjA === 'y'; o.res = +a.bRes || 0; o.adjSale = a.bAdjS === 'y'; o.std = M(a.bStd); o.big85 = a.bArea === 'n' ? false : a.bArea === 'y' ? true : undefined; o.cap = a.bCap === 'y'; }
     if (a.bTo === 'person') {
@@ -6222,6 +6262,7 @@ window.LANDQ = (function () {
   function play(ans) {
     restart(); var guard = 0;
     while (!W.done && guard++ < 200) { var s = step(W.cur); if (!(s.id in ans) && s.land && s.src === 'lnJ') { go('skip'); continue; }   
+      if (!(s.id in ans) && s.pdef !== undefined) { go(s.pdef); continue; }   
       if (!(s.id in ans)) return { err: '답 없음 : ' + s.id }; go(ans[s.id] === null ? '' : String(ans[s.id])); }
     var R = W.R; if (!R) return { err: '결과 없음' };
     if (W.a.mode === 'burden') { var B0 = W.BD || {}, sh = $('pkWz').querySelector('.pk-wr1'); return { burden: true, err: B0.err, v: B0.total, shown: sh ? +sh.textContent.replace(/[^0-9]/g, '') : -1, BD: B0, R: R, input: window.IGLAST && window.IGLAST.o }; }

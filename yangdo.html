@@ -4032,7 +4032,9 @@ var HTX = (function () {
     if (I.fd && I.fd.on) o.filing = YS.fdCalc(I.fd, I, r, F, CK, DU);
     if (I.dt && I.dt.on && !(X.ntx && X.ntx.ok)) {
       var q2 = I.dt, gd = q2.giftD || I.acqDate, yrs = gd >= '2023-01-01' ? 10 : 5, within = addY(I.saleDate, -yrs) <= gd;
-      var JD = Object.assign({}, I, { acq: b3M(q2.donorAcq), acqDate: q2.donorAcqD || I.acqDate, exp: (q2.donorExp != null && q2.donorExp !== '') ? b3M(q2.donorExp) : b3M(I.exp),    gift: { on: false }, dt: null, others: b3M(q2.donorOther) ? [{ name: '증여자 다른 양도', income: b3M(q2.donorOther), k: 'b', saleDate: I.saleDate }] : [] });
+      var JD = Object.assign({}, I, { acq: b3M(q2.donorAcq), acqDate: q2.donorAcqD || I.acqDate, exp: (q2.donorExp != null && q2.donorExp !== '') ? b3M(q2.donorExp) : b3M(I.exp),    gift: { on: false }, dt: null, _nbHist: undefined, others: b3M(q2.donorOther) ? [{ name: '증여자 다른 양도', income: b3M(q2.donorOther), k: 'b', saleDate: I.saleDate }] : [] });
+      
+      if (JD.kind === 'nonbiz' || JD._nbArea) { var NHd = YS.nbHist(JD); if (NHd) JD._nbHist = NHd; }
       var od = calc0(JD);
       if (!od.err) {
         var donorTax = od.multi ? (od.multi.nat ? mulDiv(od.multi.nat, od.res.income || 0, (od.res.income || 0) + b3M(q2.donorOther)) : 0) : (od.res.nat || 0) - (od.res.red || 0);
