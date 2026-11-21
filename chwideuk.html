@@ -2838,7 +2838,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
 })();
 
 </script>
-<div id="pubFoot" style="margin:28px auto 0;padding:14px 16px 22px;max-width:1100px;font:14px/1.6 Freesentation,-apple-system,BlinkMacSystemFont,'Apple SD Gothic Neo','Malgun Gothic','Noto Sans KR',sans-serif;color:#6B7684;text-align:center;border-top:1px solid #E5E8EB">본 자료 = 일반적 정보 제공 목적, 실제 적용 시 개별 사안별 법률적 검토 및 전문가 자문 필수<br>계산은 이 기기 안에서만 하며 입력값은 보내지 않습니다(「주소로 찾기」에 넣은 주소만 공시가격, 조정대상지역 확인을 위해 브이월드로 보냄). · 판 2026-11-21</div><script>try{if(window.self!==window.top)document.getElementById("pubFoot").style.display="none";}catch(e){}</script>
+<div id="pubFoot" style="margin:28px auto 0;padding:14px 16px 22px;max-width:1100px;font:14px/1.6 Freesentation,-apple-system,BlinkMacSystemFont,'Apple SD Gothic Neo','Malgun Gothic','Noto Sans KR',sans-serif;color:#6B7684;text-align:center;border-top:1px solid #E5E8EB">본 자료 = 일반적 정보 제공 목적, 실제 적용 시 개별 사안별 법률적 검토 및 전문가 자문 필수<br>계산은 이 기기 안에서만 하며 입력값은 보내지 않습니다(「주소로 찾기」에 넣은 주소만 공시가격, 조정대상지역 확인을 위해 브이월드로 보냄). · 판 2026-11-22</div><script>try{if(window.self!==window.top)document.getElementById("pubFoot").style.display="none";}catch(e){}</script>
 <script id="gsgJs">(function () {
   'use strict';
   var TAB = "acq", KEY = "66360EF1-780E-4AB9-A5AA-A119D3364B46";
@@ -2866,7 +2866,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
         /* 2026-11-19 부담부증여 질문 — 시가(공시가격은 시가 없을 때) · 주택 공시가격(취득세 3억원 판정) · 환산취득가액 산 해, 증여일 기준시가(양도세 탭 cvA, cvS 와 같은 연도 규칙) */
         if (id === 'bVal') return { want: 'any', year: 0, why: '시가(매매사례, 감정가액)가 없을 때 = 공시가격(상증법 §61 · 시가가 먼저)' };
         if (id === 'bStd') return { want: 'house', year: pubYear(a.bDate), why: '취득세 증여분 3억원 중과 판정 = 증여일 현재 공시가격' };
-        if (id === 'bCvA') { var dm = a.bAcqD && a.bAcqD < '1985-01-01'; return { want: 'any', year: dm ? 1985 : pubYear(a.bAcqD), acq: dm ? '1985-01-01' : (a.bAcqD || ''), at: dm ? '1985-01-01' : (a.bAcqD || ''), why: dm ? '의제취득일 1985.1.1. 현재 기준시가' : '산 날 현재 고시된 기준시가(소득세법 §99①)' }; }
+        if (id === 'bCvA' || id === 'bStdA') { var dm = a.bAcqD && a.bAcqD < '1985-01-01';   /* 2026-11-22 bStdA(시가 = 기준시가 평가 → 산 때 기준시가) 도 같은 연도 규칙 */ return { want: 'any', year: dm ? 1985 : pubYear(a.bAcqD), acq: dm ? '1985-01-01' : (a.bAcqD || ''), at: dm ? '1985-01-01' : (a.bAcqD || ''), why: dm ? '의제취득일 1985.1.1. 현재 기준시가' : '산 날 현재 고시된 기준시가(소득세법 §99①)' }; }
         if (id === 'bCvS') return { want: 'any', year: pubYear(a.bDate), at: a.bDate || '', why: '증여일 현재 고시된 기준시가(소득세법 §99①)' };
         return id === 'gAmt' || id === 'cAmt' ? { want: 'any', year: 0, why: '시가(매매사례, 감정가액)가 없을 때 = 공시가격(상증법 §61 · 시가가 먼저)' } : id === 'iEst' ? { want: 'any', year: 0, add: 1, why: '시가가 없을 때 = 공시가격(상증법 §61) · 재산이 여럿이면 [더하기]' } : id === 'iHouseAmt' ? { want: 'house', year: 0, why: '상속주택 가액' } : null; } },
     /* 2026-11-20 통합 세금 탭(igx · 손잡이 IGWZ) — 거래 6개 : n 일반 증여 · l 저가양수도 · b 부담부증여 · wa/wb 교환(내 것/상대 것) · v 이혼 · s 증여 후 양도
@@ -2875,7 +2875,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
       _d: { n: 'nDate', l: 'lDate', b: 'bDate', wa: 'wDate', wb: 'wDate', v: 'vDate', s: 'sGDate' },
       _a: { l: 'lAcqD', b: 'bAcqD', wa: 'waAcqD', wb: 'wbAcqD', v: 'vAcqD' },
       _w: { n: '증여일', l: '거래일', b: '증여일', wa: '교환일', wb: '교환일', v: '넘기는 날', s: '증여일' },
-      _p: function (id) { var m = /^(wa|wb|[nlbvs])(Val|Std|CvA|CvS|AdjA|AdjS|AdjS2)$/.exec(id); return m ? { t: m[1], f: m[2] } : null; },
+      _p: function (id) { var m = /^(wa|wb|[nlbvs])(Val|Std|StdA|CvA|CvS|AdjA|AdjS|AdjS2)$/.exec(id); if (!m && id === 'sBAdjA') return { t: 's', f: 'BAdjA' }; return m ? { t: m[1], f: m[2] } : null; },   /* 2026-11-22 bStdA(산 때 기준시가) · sBAdjA(증여자가 살 때 조정대상지역) 붙임 */
       more: function (id, a) { var P = this._p(id); if (!P || !/^(CvA|CvS|Std)$/.test(P.f) || !/^[lb]$/.test(P.t)) return []; var t = P.t, D = a[this._d[t]] === '' ? TODAY : a[this._d[t]], A = a[this._a[t]], L = [], dm = A && A < '1985-01-01';
         if (P.f !== 'CvA' && A && !dm) L.push({ id: t + 'CvA', year: pubYear(A), lab: '산 해' });
         if (P.f !== 'CvS' && D) L.push({ id: t + 'CvS', year: pubYear(D), lab: this._w[t] + ' 기준시가' });
@@ -2884,6 +2884,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
       adj: function (id, a) { var P = this._p(id); if (!P) return null;
         /* 2026-11-20 지적 「증여일을 오늘로 할게요 누르면 판정이 안 됨」 — 「오늘로 할게요」 답 = '' 라 날짜 없음으로 보던 것 → 답이 '' 면 오늘(엔진 IGX6 today() 와 같은 날) */
         var dt = function (k) { return a[k] === '' ? TODAY : (a[k] || ''); }, tl = function (k, l) { return a[k] === '' ? l + ' 오늘' : l; };   /* 2026-11-20 손체크 P11 — 「증여일(오늘)(2026.11.20.)」 괄호 겹침 → 「증여일 오늘(2026.11.20.)」 */
+        if (P.f === 'BAdjA') return { date: a.sAcqD || '', lab: '증여자가 산 날', yes: 'y', no: 'n' };
         if (P.f === 'AdjA' && this._a[P.t]) return { date: a[this._a[P.t]] || '', lab: '산 날', yes: 'y', no: 'n' };
         if (P.f === 'AdjS' && P.t === 's') return { date: a.sGDate || '', lab: '증여일', yes: 'y', no: 'n' };
         if (P.f === 'AdjS2' && P.t === 's') return { date: dt('sSDate'), lab: tl('sSDate', '파는 날'), yes: 'y', no: 'n' };
@@ -2893,16 +2894,25 @@ https://github.com/nodeca/pako/blob/main/LICENSE
       pick: function (id, a) { var P = this._p(id); if (!P) return null; var t = P.t, D = a[this._d[t]] === '' ? TODAY : a[this._d[t]], A = a[this._a[t]];
         if (P.f === 'Val') return { want: 'any', year: 0, why: '시가(매매사례, 감정가액)가 없을 때 = 공시가격(상증법 §61 · 시가가 먼저)' };
         if (P.f === 'Std') return { want: 'house', year: pubYear(D), why: '취득세 3억원 중과, 1억원 이하 판정 = ' + this._w[t] + ' 현재 공시가격' };
-        if (P.f === 'CvA' && /^[lb]$/.test(t)) { var dm = A && A < '1985-01-01'; return { want: 'any', year: dm ? 1985 : pubYear(A), acq: dm ? '1985-01-01' : (A || ''), at: dm ? '1985-01-01' : (A || ''), why: dm ? '의제취득일 1985.1.1. 현재 기준시가' : '산 날 현재 고시된 기준시가(소득세법 §99①)' }; }
+        if ((P.f === 'CvA' && /^[lb]$/.test(t)) || (P.f === 'StdA' && t === 'b')) { var dm = A && A < '1985-01-01'; return { want: 'any', year: dm ? 1985 : pubYear(A), acq: dm ? '1985-01-01' : (A || ''), at: dm ? '1985-01-01' : (A || ''), why: dm ? '의제취득일 1985.1.1. 현재 기준시가' : '산 날 현재 고시된 기준시가(소득세법 §99①)' }; }
         if (P.f === 'CvS' && /^[lb]$/.test(t)) return { want: 'any', year: pubYear(D), at: D || '', why: this._w[t] + ' 현재 고시된 기준시가(소득세법 §99①)' };
         return null; } },
+    /* 2026-11-22 스스로 풀 질문 ㉯ — 건강보험료 탭 재산 질문(aHp · bHp 주택 공시가격, aLb · bLb 토지·건물 시가표준액)에도 찾기 · 계산(재산세 과세표준 → 점수)은 탭 엔진 GBR 그대로 */
+    gbr: { h: function () { return window.GBRWZ; },
+      pick: function (id) { if (/^[ab]Hp$/.test(id)) return { want: 'house', year: NOW, add: 1, why: '건강보험료 재산 = 그 해 6월 1일 재산세 과세표준의 기준 공시가격 · 집이 여럿이면 [더하기]' };
+        if (/^[ab]Lb$/.test(id)) return { want: 'land', year: NOW, add: 1, why: '토지 = 개별공시지가 × 면적 · 상가 등 건물 시가표준액은 홈택스, 위택스에서 따로 더해요' }; return null; } },
     cgt: { h: function () { return window.YSWZ; },
       more: function (id, a) { if (id === 'cvA' && a.saleD) return [{ id: 'cvS', year: pubYear(a.saleD), lab: '파는 해' }];
         if (id === 'cvS' && a.acqD && a.acqD >= '1985-01-01') return [{ id: 'cvA', year: pubYear(a.acqD), lab: '산 해' }]; return []; },
       adj: function (id, a) { return id === 'adjAcq' ? { date: a.acqD || '', lab: '산 날', yes: 'y', no: 'n' } : id === 'adjSale' ? { date: a.saleD || '', lab: '파는 날', yes: 'y', no: 'n' } : null; },
       l90: function (id) { return id === 'l90Pub'; },
       pick: function (id, a) { if (id === 'cvA') { var dm = a.acqD && a.acqD < '1985-01-01'; return { want: 'any', year: dm ? 1985 : pubYear(a.acqD), acq: dm ? '1985-01-01' : (a.acqD || ''), at: dm ? '1985-01-01' : (a.acqD || ''), why: dm ? '의제취득일 1985.1.1. 현재 기준시가' : '산 날 현재 고시된 기준시가(소득세법 §99①)' }; }
-        if (id === 'cvS') return { want: 'any', year: pubYear(a.saleD), at: a.saleD || '', why: '파는 날 현재 고시된 기준시가(소득세법 §99①)' }; return null; } }
+        if (id === 'cvS') return { want: 'any', year: pubYear(a.saleD), at: a.saleD || '', why: '파는 날 현재 고시된 기준시가(소득세법 §99①)' };
+        /* 2026-11-22 스스로 풀 질문 ㉯ — 자경·대토 감면 편입 농지 기준시가(조특령 §66⑦ = 개별공시지가 × 면적) : 산 때, 편입일, 판 때 */
+        if (id === 'lr9A') return { want: 'land', year: pubYear(a.acqD), why: '산 날 현재 개별공시지가 × 면적(조특령 §66⑦)' };
+        if (id === 'lr9B') return { want: 'land', year: pubYear(a.lnZd), why: '주거·상업·공업지역 편입일 현재 개별공시지가 × 면적(조특령 §66⑦)' };
+        if (id === 'lr9C') return { want: 'land', year: pubYear(a.saleD), why: '판 날 현재 개별공시지가 × 면적(조특령 §66⑦)' };
+        return null; } }
   }[TAB];
   if (!CFG) return;
   /* ── JSONP(브이월드는 CORS 머리글이 없어 script 로 부름) ── */
