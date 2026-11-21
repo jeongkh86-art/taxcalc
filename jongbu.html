@@ -2015,6 +2015,260 @@ adrMsg('가액(만원)을 손으로 넣으면 바로 계산 · 주소 불러오�
 <script>
 
 (function () {
+  if (typeof window === 'undefined' || window.FLOWKIT) return;
+  var $ = function (id) { return document.getElementById(id); };
+  var won = function (v) { return (v == null || v === '' || !isFinite(v)) ? '' : Math.round(v).toLocaleString('ko-KR') + '원'; };
+  function esc(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;'); }
+  
+  function bare(n) {
+    var s = String(n == null ? '' : n).replace(/<[^>]+>/g, '');
+    for (var k = 0; k < 4; k++) s = s.replace(/\s*\(([^()]*)\)/g, function (m, x) { return /§|법\s|령\s|시행령|조특법|지특법|지방세법|소득세법|상증법|농특세법|국기법|지방세기본법/.test(x) ? '' : m; });
+    return s.replace(/\s*[,·]\s*$/, '').trim();
+  }
+
+  
+  var BASE_CSS = '#txMap{font-family:inherit;color:var(--ink);z-index:40}#txMap .tx-bar{display:none}' +
+    '#txMap .tx-h{font-size:12pt;font-weight:800;margin:0 0 8px;padding-bottom:6px;border-bottom:2px solid var(--ink)}#txMap ol{list-style:none;margin:0;padding:0;position:relative}' +
+    '#txMap li{position:relative;padding:6px 6px 6px 26px;border-radius:8px;font-size:12pt;line-height:1.3}' +
+    "#txMap li::before{content:'';position:absolute;left:8px;top:11px;width:10px;height:10px;border-radius:50%;border:2px solid var(--rule);background:var(--card)}" +
+    "#txMap li::after{content:'';position:absolute;left:13px;top:23px;bottom:-7px;width:2px;background:var(--rule)}#txMap li:last-child::after{display:none}" +
+    '#txMap li .n{display:block;color:var(--ink3)}#txMap li .v{display:block;font-weight:700;color:var(--ink3);font-feature-settings:"tnum";overflow-wrap:anywhere}' +
+    '#txMap li.f::before{background:var(--ink);border-color:var(--ink)}#txMap li.f .n{color:var(--ink2)}#txMap li.f .v{color:var(--ink)}' +
+    '#txMap li.now{background:var(--verbg)}#txMap li.now::before{background:var(--ver);border-color:var(--ver)}#txMap li.now .n{color:var(--ver);font-weight:800}' +
+    "#txMap li.now .n::after{content:'지금 여기';margin-left:6px;font-size:12pt;font-weight:700;color:#fff;background:var(--ver);border-radius:4px;padding:0 5px}" +
+    '#txMap li.tot .v{font-size:14pt}#txMap li .pr{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin:4px 0 2px}' +
+    '#txMap li .pr span{display:block;border:1px solid var(--rule);border-radius:6px;padding:3px 6px;background:var(--card)}' +
+    '#txMap li .pr em{display:block;font-style:normal;font-size:12pt;color:var(--ink3);line-height:1.25}#txMap li .pr b{display:block;font-size:12pt;color:var(--ink);overflow-wrap:anywhere}' +
+    '@media(min-width:600px){body{padding-right:262px}#txMap{position:fixed;top:12px;right:12px;width:240px;max-height:calc(100vh - 24px);overflow:auto;background:var(--card);border:1px solid var(--rule);border-radius:12px;padding:12px 10px}}' +
+    '@media(max-width:599.98px){#txMap{position:sticky;top:0;background:var(--paper);border-bottom:1px solid var(--rule)}' +
+    '#txMap .tx-bar{display:flex;align-items:center;gap:8px;width:100%;background:var(--card);color:var(--ink);border:0;border-radius:0;padding:9px 14px;font-size:12pt;font-weight:700;letter-spacing:0;text-align:left;cursor:pointer}' +
+    '#txMap .tx-bar .a{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}#txMap .tx-bar .a b{color:var(--ver)}#txMap .tx-bar .a i{font-style:normal;color:var(--ink3);font-weight:500}' +
+    '#txMap .tx-bar .c{flex:0 0 auto;color:var(--ink3);font-weight:500}#txMap .tx-bd{display:none;max-height:70vh;overflow:auto;padding:8px 12px 10px;background:var(--card)}#txMap.open .tx-bd{display:block}}';
+  var EXTRA_CSS = '#txMap li .s,#txMap li .lw{display:none!important}' +
+    '#txMap li.bs .v{font-weight:600;font-size:12pt;line-height:1.35}#txMap li.bs.f .v{color:var(--ink2)}' +
+    '#txMap li.pv .v{color:var(--ink2)}' +
+    '.pk-wauto{margin:0 0 10px;padding:8px 10px;border:1px dashed var(--rule);border-radius:8px;background:var(--card);font-size:12pt;line-height:1.45;color:var(--ink2)}' +
+    '.pk-wauto div{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.pk-wauto div+div{margin-top:4px}.pk-wauto span{flex:1 1 200px;min-width:0;overflow-wrap:anywhere}' +
+    '.pk-wauto b{color:var(--ink)}.pk-wauto button{flex:0 0 auto;font:inherit;font-size:12pt;padding:2px 10px;border:1px solid var(--rule);border-radius:6px;background:var(--paper);color:var(--ink);cursor:pointer}' +
+    '.fk-law{margin:8px 0 0;padding:0;list-style:none;font-size:12pt;line-height:1.5}.fk-law li{padding:2px 0;border-bottom:1px dotted var(--rule)}.fk-law b{font-weight:600}';
+  function css(full) {
+    if (!$('fkCss')) { var s = document.createElement('style'); s.id = 'fkCss'; s.textContent = EXTRA_CSS; document.head.appendChild(s); }
+    if (full && !$('fkCssBase') && !$('txMapCss')) { var b = document.createElement('style'); b.id = 'fkCssBase'; b.textContent = BASE_CSS; document.head.insertBefore(b, document.head.firstChild ? document.head.firstChild.nextSibling : null); }
+  }
+  
+  function mount() {
+    css(true);
+    var m = $('txMap');
+    if (!m) {
+      m = document.createElement('div'); m.id = 'txMap'; m.setAttribute('aria-label', '세금 구조도');
+      m.innerHTML = '<button type="button" class="tx-bar" id="txBar"><span class="a" id="txBarT"></span><span class="c" id="txBarC">펼치기</span></button><div class="tx-bd"><div class="tx-h" id="txHead">계산 흐름</div><ol id="txList"></ol></div>';
+      document.body.insertBefore(m, document.body.firstChild);
+      var open = false;
+      $('txBar').onclick = function () { open = !open; m.classList.toggle('open', open); $('txBarC').textContent = open ? '접기' : '펼치기'; };
+    }
+    return m;
+  }
+
+  
+  function fmtV(v, f) { if (f) return f(v); return typeof v === 'number' ? won(v) : (v == null ? '' : String(v)); }
+  function draw(o) {
+    var map = $('txMap'), L = $('txList'); if (!map || !L) return;
+    var S = o.S || [], ids = S.map(function (x) { return x.id; }), cur = o.cur, h = '', barNow = '', barNext = '';
+    var fill = o.done ? S.length : (o.fill == null ? 0 : o.fill);
+    if (cur !== 'basic' && (!cur || ids.indexOf(cur) < 0)) cur = o.done ? (o.tot && ids.indexOf(o.tot) >= 0 ? o.tot : ids[ids.length - 1]) : (ids[Math.min(fill, ids.length - 1)] || '');
+    if (o.basic) {
+      var bOn = cur === 'basic', bv = (o.basic.items || []).filter(function (x) { return x !== '' && x != null; }).join(', ');
+      h += '<li class="bs' + (bv ? ' f' : '') + (bOn ? ' now' : '') + '" data-tx="basic"><span class="n">기본 사실</span><span class="v">' + (bv ? esc(bv) : '&nbsp;') + '</span></li>';
+      if (bOn) { barNow = '<b>기본 사실</b>' + (bv ? ' ' + esc(bv) : ''); barNext = S[0] ? bare(S[0].n) : ''; }
+    }
+    S.forEach(function (x, i) {
+      var f = i < fill, v = f ? fmtV(x.v, o.fmt) : '', nm = bare(x.n);
+      var pr = x.pair ? '<span class="pr">' + x.pair.map(function (p) { return '<span><em>' + esc(bare(p[0])) + '</em><b>' + (f && p[1] !== '' && p[1] != null ? esc(fmtV(p[1], o.fmt)) : '&nbsp;') + '</b></span>'; }).join('') + '</span>' : '';
+      h += '<li class="' + (f ? 'f' : '') + (f && !o.done ? ' pv' : '') + (x.id === cur ? ' now' : '') + (x.id === o.tot ? ' tot' : '') + '" data-tx="' + esc(x.id) + '"><span class="n">' + esc(nm) + '</span>' + pr +
+        (x.pair && !v ? '' : '<span class="v">' + (v ? esc(v) : '&nbsp;') + '</span>') + '</li>';
+      var bv = v || (f && x.pair && x.pair.length ? x.pair.map(function (p) { return fmtV(p[1], o.fmt); }).join(' / ') : '');   
+      if (x.id === cur) { barNow = '<b>' + esc(nm) + '</b>' + (bv ? ' ' + esc(bv) : ''); barNext = S[i + 1] ? bare(S[i + 1].n) : ''; }
+    });
+    L.innerHTML = h;
+    if (o.head != null && $('txHead')) $('txHead').textContent = o.head;
+    if ($('txBarT')) $('txBarT').innerHTML = barNow + (barNext ? ' <i>→ 다음 ' + esc(barNext) + '</i>' : '');
+    map.dataset.now = cur || ''; map.dataset.flow = ids.join(','); map.dataset.fill = String(fill);
+  }
+  
+  function lawList(S) {
+    var L = (S || []).filter(function (x) { return x && (x.law || x.s); });
+    if (!L.length) return '';
+    return '<div class="fk-lawh"><b>계산 흐름 단계별 근거</b></div><ul class="fk-law">' + L.map(function (x) {
+      return '<li><b>' + esc(bare(x.n)) + '</b> : ' + esc([x.s, x.law].filter(function (y) { return y; }).join(', ').replace(/<[^>]+>/g, '')) + '</li>'; }).join('') + '</ul>';
+  }
+
+  
+  function tx(x, a) { return typeof x === 'function' ? x(a) : x; }
+  function cands(s) {
+    var o = [];
+    if (s.t === 'b' || s.t === 'c' || Array.isArray(s.o) || typeof s.o === 'function') { try { (tx(s.o, {}) || []).forEach(function (p) { o.push(Array.isArray(p) ? p[0] : p); }); } catch (e) {} }
+    if (s.t === 'm' || s.t === 'n' || s.t === 'p' || s.t === 'ym' || s.t === 'num') o = o.concat(['', '0', '1', '3', '50', '5000', '30000', '120000', '900000']);
+    if (s.t === 'd' || s.t === 'date') o = o.concat(['', '1984-06-01', '2010-03-01', '2017-09-01', '2020-08-20', '2022-07-01', '2025-11-01', '2026-03-01']);
+    if (!o.length) o = ['', 'y', 'n', 'u', '1', '2', '3'];
+    return o;
+  }
+  
+  function deps(WS, tries) {
+    var C = {}, ID = {}, D = {}; WS.forEach(function (s) { C[s.id] = cands(s); ID[s.id] = 1; D[s.id] = {}; });
+    var seed = 7; function rnd() { seed = (seed * 1103515245 + 12345) % 2147483648; return seed / 2147483648; }
+    for (var t = 0; t < (tries || 400); t++) {
+      var A = {}; WS.forEach(function (s) { if (rnd() < 0.8) { var c = C[s.id]; A[s.id] = c[Math.floor(rnd() * c.length)]; } });
+      WS.forEach(function (s) {
+        var P = typeof Proxy === 'function' ? new Proxy(A, { get: function (o, k) { if (typeof k === 'string' && ID[k] && k !== s.id) D[s.id][k] = 1; return o[k]; },
+          has: function (o, k) { if (typeof k === 'string' && ID[k] && k !== s.id) D[s.id][k] = 1; return k in o; } }) : A;
+        ['on', 'q', 'h', 'o', 'auto', 'u', 'unk'].forEach(function (f) { if (typeof s[f] === 'function') { try { s[f](P); } catch (e) {} } });
+      });
+    }
+    var R = {}; Object.keys(D).forEach(function (k) { R[k] = Object.keys(D[k]); }); return R;
+  }
+  
+  function order(WS, rank, D) {
+    D = D || deps(WS);
+    
+    var ER = {}, IDS = {}; WS.forEach(function (s) { IDS[s.id] = 1; });
+    function er(id, seen) { if (ER[id] != null) return ER[id]; seen = seen || {}; if (seen[id]) return +rank(id) || 0; seen[id] = 1;
+      var r = +rank(id) || 0; (D[id] || []).forEach(function (k) { if (IDS[k]) r = Math.max(r, er(k, seen)); }); return (ER[id] = r); }
+    WS.forEach(function (s) { er(s.id); });
+    rank = function (id) { return ER[id]; };
+    var left = WS.map(function (s, i) { return { s: s, i: i, r: +rank(s.id) || 0 }; }), out = [], done = {};
+    while (left.length) {
+      var ready = left.filter(function (x) { return (D[x.s.id] || []).every(function (k) { return done[k] || !left.some(function (y) { return y.s.id === k; }); }); });
+      if (!ready.length) ready = left.slice();   
+      ready.sort(function (p, q) { return p.r - q.r || p.i - q.i; });
+      var pick = ready[0]; out.push(pick.s); done[pick.s.id] = 1; left.splice(left.indexOf(pick), 1);
+    }
+    out.eff = ER; out.deps = D;
+    return out;
+  }
+  
+  function restage(STG, RANK, eff) {
+    var used = {}; Object.keys(STG).forEach(function (k) { used[STG[k]] = 1; });
+    var inv = {}; Object.keys(RANK).forEach(function (k) { if (used[k] && inv[RANK[k]] == null) inv[RANK[k]] = k; });
+    Object.keys(eff || {}).forEach(function (id) { if (STG[id] != null && RANK[STG[id]] !== eff[id] && inv[eff[id]] != null) STG[id] = inv[eff[id]]; });
+    return STG;
+  }
+
+  
+  function skip(ctx, n) {
+    var W = ctx.W; W.auto = W.auto || {}; W.noAuto = W.noAuto || {}; W.autoNew = [];
+    var guard = 0;
+    while (n && guard++ < 200) {
+      var s = ctx.step(n); if (!s || typeof s.auto !== 'function' || W.noAuto[n]) break;
+      var v; try { v = s.auto(ctx.live()); } catch (e) { v = undefined; }
+      if (v === undefined) break;
+      W.a[n] = v; W.auto[n] = 1; W.autoNew.push(n);
+      W.path = W.path.filter(function (x) { return x !== n; }); W.path.push(n);
+      n = ctx.next(n);
+    }
+    return n;
+  }
+  
+  function note(ctx, ansTxt, edAttr) {
+    var W = ctx.W, L = (W.autoNew || []).filter(function (id) { return W.auto && W.auto[id] && W.a[id] !== undefined; });
+    if (!L.length) return '';
+    var a = ctx.live();
+    return '<div class="pk-wauto">' + L.map(function (id) { var s = ctx.step(id), q = String(tx(s.q, a)).replace(/<[^>]+>/g, '');
+      return '<div><span>앞에서 답함 : ' + esc(q) + ' → <b>' + esc(String(ansTxt(s, W.a[id], a)).replace(/<[^>]+>/g, '')) + '</b>' + (s.autoWhy ? ' (' + esc(tx(s.autoWhy, a)) + ')' : '') + '</span><button type="button" ' + edAttr + '="' + esc(id) + '" data-fkauto="1">고치기</button></div>'; }).join('') + '</div>';
+  }
+  
+  function unauto(W, id) { W.noAuto = W.noAuto || {}; W.auto = W.auto || {}; if (W.auto[id]) { W.noAuto[id] = 1; delete W.auto[id]; } W.autoNew = []; }
+
+  
+  var IGR = { basic: 0, val: 1, debt: 2, prior: 3, taxable: 4, ded: 5, dedP: 5, dedM: 6, dedS: 6, dedF: 7, dedH: 8, dedL: 9, fee: 9.5, base: 10, rate: 11, calc: 12, ctax: 12.5, sur: 13, credit: 14, report: 15, sh: 15.5,
+    pay: 16, pay10: 16.5, gift: 20, acq1: 20.5, xfer: 21, acq: 22, gift2: 22.5, total: 23 };   
+  var IGQ = { mode: 'basic', gRel: 'basic', gDead: 'basic', gMinor: 'basic', gAmt: 'val', gPrior: 'prior', gPriorAmt: 'prior', gPriorTax: 'credit', gUsed: 'ded', gMb: 'dedM', gMbUsed: 'dedM',
+    cAmt: 'val', cOther: 'ctax', cLoss: 'ctax', cSmall: 'ctax', cSme: 'ctax', cN: 'sh',
+    iEst: 'val', iDebt: 'debt', iFun: 'debt', iSp: 'basic', iSpAct: 'dedS', iKids: 'basic', iPar: 'basic', iMore: 'dedP', iMinY: 'dedP', iOld: 'dedP', iDisY: 'dedP', iFin: 'dedF', iHouse: 'dedH', iHouseAmt: 'dedH',
+    iPrior: 'prior', iPriorAmt: 'prior', iPriorBase: 'dedL', iPriorTax: 'credit', iPriorNh: 'credit', iNhBase: 'credit', iNhTax: 'credit' };
+  function igStage(id) {
+    if (IGQ[id]) return IGQ[id];
+    if (/^c(Rel|Rat)\d$/.test(id)) return 'sh';
+    var m = /^(wa|wb|n|l|w|v|s|b)([A-Z0-9].*)$/.exec(id); if (!m) return 'basic';
+    var p = m[1], x = m[2];
+    if (/^(To|Kind|Rel|Dead|Minor|Date|AcqD|GDate|SDate|Cnt|DCnt|Type)$/.test(x)) return 'basic';
+    if (/^(Val|Price|Amt|Cash|Sale)$/.test(x)) return 'val';
+    if (/^(Debt|DK)$/.test(x)) return 'debt';
+    if (/^(Prior|PriorAmt)$/.test(x)) return 'prior';
+    if (x === 'PriorTax') return 'credit';
+    if (/^(Paid|Reason)$/.test(x)) return p === 'w' ? 'gift2' : 'gift';
+    if (/^(Std|Area|Cap|DH|Proof|Metro|CorpNew)$/.test(x) || (x === 'AdjS' && (p === 'n' || p === 's'))) return p === 's' ? 'acq1' : 'acq';
+    return 'xfer';
+  }
+  function igRowStage(k) {
+    k = String(k || '');
+    if (/고지·납부/.test(k)) return 'pay10'; if (/납부할 세액|세금 합계|^\s*합계/.test(k)) return 'pay';
+    if (/신고세액공제/.test(k)) return 'report'; if (/납부세액공제|증여세액공제/.test(k)) return 'credit'; if (/할증/.test(k)) return 'sur';
+    if (/특정법인|지배주주|증여의제|주주/.test(k)) return 'sh';
+    if (/법인세|법인 실부담|사업연도 소득/.test(k)) return 'ctax';
+    if (/산출세액/.test(k)) return 'calc'; if (/세율/.test(k)) return 'rate'; if (/과세표준/.test(k)) return 'base';
+    if (/감정평가/.test(k)) return 'fee'; if (/종합한도|공제 합계/.test(k)) return 'dedL'; if (/동거주택/.test(k)) return 'dedH'; if (/금융재산/.test(k)) return 'dedF'; if (/배우자상속공제/.test(k)) return 'dedS';
+    if (/일괄공제|기초공제|인적공제|자녀공제|미성년|연로|장애/.test(k)) return 'dedP'; if (/혼인|출산/.test(k)) return 'dedM'; if (/증여재산공제/.test(k)) return 'ded';
+    if (/과세가액/.test(k)) return 'taxable'; if (/합산|사전증여/.test(k)) return 'prior'; if (/채무|공과금|장례/.test(k)) return 'debt';
+    return 'val';
+  }
+  function uniq(rows) { var seen = {}; rows.forEach(function (r) { var n = seen[r.st] || 0; r.id = r.st + (n ? n : ''); seen[r.st] = n + 1; }); return rows; }
+  function igLines(L) {
+    return uniq((L || []).map(function (l) {
+      var v = l.pct ? (Math.round(l.v * 1000) / 10) + '%' : l.rate ? Math.round(l.v * 100) + '%' : won(l.v);
+      return { st: igRowStage(l.k), n: String(l.k).replace(/^\s+/, ''), v: v };
+    }));
+  }
+  
+  function igSum(r) {
+    if (!r || r.err) return null;
+    var rows = [], P = r.P || {};
+    var V = r.V != null ? r.V : P.V;
+    if (P.Va != null && P.Vb != null) { rows.push({ st: 'val', n: '내 부동산 시가', v: won(P.Va) }); rows.push({ st: 'val', n: '상대 부동산 시가', v: won(P.Vb) }); }
+    else if (V != null) rows.push({ st: 'val', n: r.deal === 'gsell' ? '증여재산 시가' : '재산 시가', v: won(V) });
+    if (P.price != null) rows.push({ st: 'val', n: '거래 가격', v: won(P.price) });
+    if (r.D != null) rows.push({ st: 'debt', n: '넘겨받는 채무', v: won(r.D) });
+    if (r.parts && r.parts.length) {
+      
+      var K = function (k) { return /양도/.test(k) ? 'xfer' : /취득세/.test(k) ? (r.deal === 'gsell' ? 'acq1' : 'acq') : (r.deal === 'swap' ? 'gift2' : 'gift'); };
+      r.parts.forEach(function (p) { rows.push({ st: K(p.k), n: p.k, v: won(p.v) }); });
+    } else {
+      if (r.giftTax != null) rows.push({ st: 'gift', n: r.person === false ? '법인세 + 주주 증여세' : '증여세', v: won(r.giftTax) });
+      if (r.xferTax != null) rows.push({ st: 'xfer', n: '양도세(지방소득세 포함)', v: won(r.xferTax) });
+      if (r.acqTax != null) rows.push({ st: 'acq', n: '취득세(지방교육세, 농특세 포함)', v: won(r.acqTax) });
+    }
+    if (r.total != null) rows.push({ st: 'total', n: '세금 합계', v: won(r.total) });
+    return uniq(rows);
+  }
+  
+  function igCur(rows, stage) {
+    if (!stage || stage === 'basic') return 'basic';
+    var r = IGR[stage] == null ? 0 : IGR[stage];
+    for (var i = 0; i < rows.length; i++) if ((IGR[rows[i].st] == null ? 0 : IGR[rows[i].st]) >= r) return rows[i].id;
+    return rows.length ? rows[rows.length - 1].id : 'basic';
+  }
+  
+  function igBasic(id, v, label) {
+    var t = String(label == null ? '' : label).replace(/<[^>]+>/g, ''); if (t.indexOf(' — ') >= 0) t = t.split(' — ')[0]; t = t.replace(/\s*\([^)]*\)/g, '').trim();
+    if (/Minor$/.test(id)) return v === 'y' ? '미성년' : v === 'n' ? '성년' : t;
+    if (/Dead$/.test(id)) return v === 'y' ? '그 부모 돌아가심' : v === 'n' ? '그 부모 살아 계심' : t;
+    if (id === 'iSp') return v === 'y' ? '배우자 있음' : '배우자 없음';
+    if (id === 'iKids') return '자녀 ' + v + '명';
+    if (id === 'iPar') return '부모 ' + t;
+    if (/DCnt$/.test(id)) return '주는 사람 집 ' + t;
+    if (/Cnt$/.test(id) && /^\d/.test(t)) return '집 ' + t;
+    if (/(Date|AcqD)$/.test(id) && /^\d{4}-\d{2}-\d{2}$/.test(String(v))) return String(v).replace(/-/g, '.') + '.';
+    return t;
+  }
+  var ig = { basic: igBasic, R: IGR, stage: igStage, rowStage: igRowStage, lines: igLines, sum: igSum, cur: igCur };
+
+  try { if (document.head) css(false); } catch (e) {}   
+  window.FLOWKIT = { css: css, mount: mount, draw: draw, bare: bare, lawList: lawList, deps: deps, order: order, restage: restage, skip: skip, note: note, unauto: unauto, won: won, esc: esc, ig: ig };
+})();
+
+</script>
+<script>
+
+(function () {
   var $ = function (id) { return document.getElementById(id); };
   var UI = window.JBSUI;
   var won = function (v) { return Math.round(v).toLocaleString('ko-KR') + '원'; };
@@ -2106,9 +2360,14 @@ adrMsg('가액(만원)을 손으로 넣으면 바로 계산 · 주소 불러오�
     { id: 'lown', on: function (a) { return HL(a) && P(a); }, t: 'b', q: '땅은 누구 이름이에요?', o: [['me', '본인'], ['sp', '배우자']] },
     { id: 'prev', on: function (a) { return P(a) && HH(a); }, t: 'm', q: '작년(2025년분) 재산세 + 종부세는 모두 얼마였어요?', h: '세부담 상한(직전 연도 × 150% · §10)에만 씀 · 고지서 합계(본인 몫)', unk: '모르겠어요(상한 안 봄)' }
   ]);
-  var STG = { who: 'rate', what: 'hsum', n: 'rate', own1: 'hsum', jsh: 'hsum', jrel: 'ded', csh: 'hsum', hap: 'ded', cmar: 'ded', cage: 'ded', cinc: 'ded', coth: 'ded', cothp: 'ded', cbirth: 'cr', cacq: 'cr', el: 'ded', split: 'hsum', ex: 'rate', exk: 'rate', adj: 'fmv', resid: 'ded', nonres: 'ded', birth: 'cr', acq: 'cr', move: 'cr', comb: 'lcomb', sep: 'lsep', bldg: 'prop', lown: 'lcomb', prev: 'cap' };
-  [1, 2, 3, 4, 5, 6].forEach(function (k) { STG['p' + k] = 'hsum'; STG['pp' + k] = 'hsum'; STG['o' + k] = 'hsum'; });
-  var W = { a: {}, path: [], cur: 'who', done: false, L: null, sig: '', stale: false, M: null, SP: [] };
+  
+  var STG = { who: 'basic', what: 'basic', n: 'basic', own1: 'basic', split: 'basic', lown: 'basic', jrel: 'hsum', jsh: 'hsum', csh: 'hsum',
+    hap: 'ded', cmar: 'ded', cage: 'ded', cinc: 'ded', coth: 'ded', cothp: 'ded', el: 'ded', ex: 'ded', exk: 'ded', nonres: 'ded', adj: 'rate',
+    resid: 'cr', birth: 'cr', acq: 'cr', move: 'cr', cbirth: 'cr', cacq: 'cr', prev: 'cap', comb: 'lcomb', sep: 'lsep', bldg: 'prop' };
+  [1, 2, 3, 4, 5, 6].forEach(function (k) { STG['p' + k] = 'hsum'; STG['pp' + k] = 'prop'; STG['o' + k] = 'hsum'; });   
+  var RANK = { basic: 0, hsum: 1, ded: 2, fmv: 3, hbase: 4, rate: 5, calc: 6, ptc: 7, cr: 8, cap: 9, jbsH: 10, agriH: 11, payH: 12, lcomb: 13, lsep: 14, agriL: 15, pay: 16, prop: 17, local: 18, total: 19 };
+  if (window.FLOWKIT) { WS = FLOWKIT.order(WS, function (id) { return RANK[STG[id]] || 0; }); FLOWKIT.restage(STG, RANK, WS.eff); }
+  var W = { a: {}, path: [], cur: WS[0].id, auto: {}, noAuto: {}, autoNew: [], done: false, L: null, sig: '', stale: false, M: null, SP: [] };
   var SPXS = {}, XP = false;
   function step(id) { for (var i = 0; i < WS.length; i++) if (WS[i].id === id) return WS[i]; return null; }
   function on(s, a) { return !s.on || !!s.on(a); }
@@ -2116,6 +2375,7 @@ adrMsg('가액(만원)을 손으로 넣으면 바로 계산 · 주소 불러오�
   function live() { var L = {}; WS.forEach(function (s) { if (on(s, L) && W.a[s.id] !== undefined) L[s.id] = W.a[s.id]; }); return L; }
   function vis() { var L = live(); return WS.filter(function (s) { return on(s, L); }); }
   function next(id) { var V = vis(), i = -1; V.forEach(function (s, j) { if (s.id === id) i = j; }); return V[i + 1] ? V[i + 1].id : null; }
+  var CTX = { W: W, step: function (id) { return step(id); }, next: function (id) { return next(id); }, live: function () { return live(); } };   
   function optLab(s, v, a) { var o = tx(s.o, a) || []; for (var i = 0; i < o.length; i++) if (o[i][0] === v) return o[i][1]; return v; }
 
   
@@ -2179,6 +2439,9 @@ adrMsg('가액(만원)을 손으로 넣으면 바로 계산 · 주소 불러오�
     var a = live(), M = vals(a), E = function (x) { return (+x || 0) * 1e4; };
     var objs = M.v.objs.map(function (o) { return { type: o.type, price: E(o.p) || (o.type === 'house' ? 1e9 : 0), land: E(o.l), share: o.sh / 100, owner: o.owner, elect: o.el !== false, ex: o.ex || '', adj: o.adj, resid: o.resid }; });
     if (!objs.length) objs = [{ type: 'house', price: 1e9, share: 1, owner: 'me' }];
+    
+    if (HL(a) && a.comb === undefined) objs.push({ type: 'comb', price: 6e8, land: 0, share: 1, owner: 'me' });
+    if (HL(a) && a.sep === undefined) objs.push({ type: 'sep', price: 9e9, land: 0, share: 1, owner: 'me' });
     return { base: { owner: M.v.owner, age: M.v.age, hold: M.v.hold, resid: M.v.resid, prev: M.v.prev ? M.v.prev * 1e4 : null }, objs: objs, sp: { age: M.v.bage, hold: M.v.bhold, resid: M.v.bresid } };
   }
 
@@ -2280,6 +2543,7 @@ adrMsg('가액(만원)을 손으로 넣으면 바로 계산 · 주소 불러오�
     if (window.TXMAP) window.TXMAP.upd();
     if (W.done) { result(); return; }
     var s = step(W.cur), a = live(), v = W.a[s.id], h = top();
+    if (window.FLOWKIT) h += FLOWKIT.note(CTX, ansTxt, 'data-pkwed');   
     h += '<div class="pk-wq">' + tx(s.q, a) + '</div>' + (s.h ? '<div class="pk-wh">' + tx(s.h, a) + '</div>' : '');
     if (s.t === 'b') h += '<div class="pk-wo">' + tx(s.o, a).map(function (o) { return '<button type="button" class="' + (v === o[0] ? 'on' : '') + '" data-pkwv="' + o[0] + '"><span>' + o[1] + '</span></button>'; }).join('') + '</div>';
     else {
@@ -2355,13 +2619,14 @@ adrMsg('가액(만원)을 손으로 넣으면 바로 계산 · 주소 불러오�
     return K;
   }
   function answers() { var a = live(); return '<div class="pk-wa"><h4>내 답 — 누르면 그 질문으로</h4><ul>' + W.path.filter(function (id) { return a[id] !== undefined; }).map(function (id) { var s = step(id);
-    return '<li><span>' + strip(tx(s.q, a)) + ' <b>' + ansTxt(s, a[id], a) + '</b></span><button type="button" data-pkwed="' + id + '">고치기</button></li>'; }).join('') + '</ul></div>'; }
+    return '<li><span>' + strip(tx(s.q, a)) + ' <b>' + ansTxt(s, a[id], a) + '</b>' + (W.auto && W.auto[id] ? ' (앞에서 답함)' : '') + '</span><button type="button" data-pkwed="' + id + '">고치기</button></li>'; }).join('') + '</ul></div>'; }
   function btns() { return '<div class="pk-wbt"><button type="button" class="pk-go2" data-pkmore="1">전체 입력에서 고치기</button><button type="button" class="pk-go2" data-pkwre="1">처음부터</button></div>'; }
 
   
   function go(v) {
     var id = W.cur; W.a[id] = v;
     var n = next(id); W.path = W.path.filter(function (x) { return x !== id; }); W.path.push(id);
+    if (window.FLOWKIT) n = FLOWKIT.skip(CTX, n);   
     if (n) W.cur = n; else { W.done = true; calc(); }
     draw(); var r = $('pkRoot'); if (r && r.getBoundingClientRect().top < 0) r.scrollIntoView({ block: 'start' });
   }
@@ -2382,9 +2647,11 @@ adrMsg('가액(만원)을 손으로 넣으면 바로 계산 · 주소 불러오�
     if (s.t === 'm') { if (x === '' || !(+x > 0)) return { err: '금액을 넣어 주세요(' + (isEok(s) ? '억' : '만원') + ' · 0보다 크게)' }; return { v: +x }; }
     return { err: '' };
   }
-  function goBack() { if (W.done) { W.done = false; W.cur = W.path.pop(); } else if (W.path.length) W.cur = W.path.pop(); draw(); }
-  function edit(id) { var i = W.path.indexOf(id); if (i < 0) return; W.path = W.path.slice(0, i); W.cur = id; W.done = false; W.stale = false; draw(); var r = $('pkRoot'); if (r) r.scrollIntoView({ block: 'start' }); }
-  function restart() { W.a = {}; W.path = []; W.cur = 'who'; W.done = false; W.L = null; W.stale = false; SPXS = {}; draw(); }
+  function goBack() { if (W.done) { W.done = false; W.cur = W.path.pop(); } else if (W.path.length) W.cur = W.path.pop();
+    while (W.auto && W.auto[W.cur] && W.path.length) W.cur = W.path.pop();   
+    W.autoNew = []; draw(); }
+  function edit(id) { var i = W.path.indexOf(id); if (i < 0) return; if (window.FLOWKIT) FLOWKIT.unauto(W, id); W.path = W.path.slice(0, i); W.cur = id; W.done = false; W.stale = false; draw(); var r = $('pkRoot'); if (r) r.scrollIntoView({ block: 'start' }); }
+  function restart() { W.a = {}; W.path = []; W.cur = WS[0].id; W.auto = {}; W.noAuto = {}; W.autoNew = []; W.done = false; W.L = null; W.stale = false; SPXS = {}; draw(); }
   function xp(v) {
     XP = !!v; if (XP) SPXS = {};
     var w = document.querySelector('.wrap'); if (w) w.classList.toggle('pk-simple', !XP);
@@ -2414,7 +2681,9 @@ adrMsg('가액(만원)을 손으로 넣으면 바로 계산 · 주소 불러오�
   var ex = $('exSel'); if (ex) ex.addEventListener('change', function () { restart(); });
 
   
-  function mapIn() { if (XP || W.done) return null; return { I: preview(), now: STG[W.cur] || '' }; }
+  function mapIn() { if (XP || W.done) return null; return { I: preview(), now: STG[W.cur] || '', basic: basicItems(), rank: RANK }; }
+  
+  function basicItems() { var a = live(); return W.path.filter(function (id) { return STG[id] === 'basic' && a[id] !== undefined; }).map(function (id) { var t = ansTxt(step(id), a[id], a); t = String(t).replace(/<[^>]+>/g, ''); if (t.indexOf(' — ') >= 0) t = t.split(' — ')[1]; return t.replace(/\s*\([^)]*\)/g, '').trim(); }); }
   function xlCtx() {
     if (!W.CO) return { R: W.L, via: '질문형(바로 계산)', sp: W.SP || [], D: (W.M && W.M.D) || [] };
     return { R: merge(W.L, W.CO), via: '질문형(바로 계산) · 본인 세대 + 공유자(' + W.CO.rel + ')', sp: W.SP || [], D: (W.M && W.M.D) || [], K: coK(W.CO) };
@@ -2429,7 +2698,7 @@ adrMsg('가액(만원)을 손으로 넣으면 바로 계산 · 주소 불러오�
   }
   
   function ya() { if (!XP && !SPXS.yrs) { SPXS.yrs = true; spxDraw(); } if (W.done) calc(); draw(); }
-  window.JBSWZ = { ya: ya, xlCtx: xlCtx, sepOf: sepOf, cos: cos, merge: merge, WS: WS, SPX: SPX, W: W, live: live, vals: vals, go: go, back: goBack, edit: edit, restart: restart, xp: xp, isXP: function () { return XP; }, spxSet: spxSet, mapIn: mapIn, stale: stale, draw: draw, calc: calc };
+  window.JBSWZ = { STG: STG, RANK: RANK, basicItems: basicItems, step: step, next: next, vis: vis, ya: ya, xlCtx: xlCtx, sepOf: sepOf, cos: cos, merge: merge, WS: WS, SPX: SPX, W: W, live: live, vals: vals, go: go, back: goBack, edit: edit, restart: restart, xp: xp, isXP: function () { return XP; }, spxSet: spxSet, mapIn: mapIn, stale: stale, draw: draw, calc: calc };
   var q = typeof URLSearchParams === 'function' ? new URLSearchParams(location.search) : null;
   xp(!!(q && q.get('xp')));
 })();
@@ -2453,21 +2722,22 @@ adrMsg('가액(만원)을 손으로 넣으면 바로 계산 · 주소 불러오�
     var I = window.JBSUI.input(); I.objs = [{ type: 'house', price: 1e9, share: 1, owner: 'me' }];
     try { var r = JBS.report(I); return { S: r.steps || [], ok: false }; } catch (e) { return { S: [], ok: false }; }
   }
+  
   function draw() {
-    var R = stepsNow(), S = R.S, ids = S.map(function (x) { return x.id; }), h = '', barNow = '', barNext = '';
-    var nw = R.now !== undefined ? R.now : st.now;
-    var cur = nw && ids.indexOf(nw) >= 0 ? nw : (R.ok ? 'total' : ids[0]);
-    S.forEach(function (x, i) {
-      var v = R.ok ? fmt(x.v) : '';
-      var pr = x.pair ? '<span class="pr">' + x.pair.map(function (p) { return '<span><em>' + p[0] + '</em><b>' + (R.ok ? fmt(p[1]) : '&nbsp;') + '</b></span>'; }).join('') + '</span>' : '';
-      h += '<li class="' + (R.ok ? 'f' : '') + (x.id === cur ? ' now' : '') + (x.id === 'total' ? ' tot' : '') + '" data-tx="' + x.id + '"><span class="n">' + x.n + '</span>' + pr + (x.pair && !v ? '' : '<span class="v">' + (v || '&nbsp;') + '</span>') +
-        (R.ok && x.s ? '<span class="s">' + x.s + '</span>' : '') + (x.law ? '<span class="lw">' + x.law + '</span>' : '') + '</li>';
-      if (x.id === cur) { barNow = '<b>' + x.n + '</b>' + (v ? ' ' + v : ''); barNext = S[i + 1] ? S[i + 1].n : ''; }
-    });
-    $('txList').innerHTML = h;
-    $('txHead').textContent = R.two ? '계산 흐름 — 본인, 배우자' : '계산 흐름(2026년분)';
-    $('txBarT').innerHTML = barNow + (barNext ? ' <i>→ 다음 ' + barNext + '</i>' : '');
-    map.dataset.now = cur; map.dataset.flow = ids.join(',');
+    var R = stepsNow(), S = R.S, ids = S.map(function (x) { return x.id; });
+    var WZ = window.JBSWZ, wzOn = WZ && WZ.isXP && !WZ.isXP(), Z = WZ && WZ.mapIn ? WZ.mapIn() : null;
+    var head = R.two ? '계산 흐름 — 본인, 배우자' : '계산 흐름(2026년분)';
+    if (!window.FLOWKIT) return;
+    if (Z) {
+      var rk = Z.rank || {}, nw = Z.now, cur;
+      if (nw === 'basic' || !nw) cur = 'basic';
+      else if (ids.indexOf(nw) >= 0) cur = nw;
+      else { cur = ''; for (var i = 0; i < ids.length; i++) if ((rk[ids[i]] || 0) >= (rk[nw] || 0)) { cur = ids[i]; break; } if (!cur) cur = ids[ids.length - 1]; }
+      FLOWKIT.draw({ S: S, basic: { items: Z.basic }, cur: cur, fill: cur === 'basic' ? 0 : ids.indexOf(cur), done: false, head: head, tot: 'total', fmt: fmt });
+    } else {
+      var nw2 = R.now !== undefined ? R.now : st.now;
+      FLOWKIT.draw({ S: S, basic: wzOn && WZ.basicItems ? { items: WZ.basicItems() } : null, cur: R.ok ? 'total' : (nw2 && ids.indexOf(nw2) >= 0 ? nw2 : ids[0]), done: R.ok, fill: 0, head: head, tot: 'total', fmt: fmt });
+    }
   }
   var T = null; function upd() { clearTimeout(T); T = setTimeout(function () { try { draw(); } catch (e) { if (window.console) console.warn('txmap', e); } }, 200); }
   window.TXMAP = { upd: upd, draw: draw };
