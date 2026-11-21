@@ -5096,6 +5096,7 @@ var IGBD = (function () {
     
     var X = { kind: a.kind, sale: D, acq: known ? Math.round((+a.acq || 0) * D / V) : 0, exp: known ? Math.round((+a.exp || 0) * D / V) : 0,
       acqDate: a.acqDate, saleDate: date, count: 1, efile: true, unreg: false, transit: false };   
+    if (a.nb) X.nb = a.nb; if (a.relief) X.relief = a.relief;   
     if (house) {
       var res = Math.max(0, +a.res || 0);
       X.count = +a.cnt || 1; X.temp2 = X.count === 2 && !!a.temp2; X.resY = Math.floor(res); X.resM = Math.round((res % 1) * 12);
@@ -5126,7 +5127,7 @@ var IGBD = (function () {
     
     var p10 = function (o) { return o.payable10 != null ? o.payable10 : fl(o.payableTax); };
     var giftT = P.person ? p10(g) : fl(g.totalBurden), gift0 = P.person ? p10(g0) : fl(g0.totalBurden);
-    var xferT = xr.total10 != null ? xr.total10 : (xr.total || 0), acqT = ac.total10 != null ? ac.total10 : ac.total, acq0 = ac0.total10 != null ? ac0.total10 : ac0.total;
+    var xM = xo.nbArea && xo.multi ? xo.multi : null, xferT = xM ? (xM.total10 != null ? xM.total10 : xM.total) : xr.total10 != null ? xr.total10 : (xr.total || 0),  acqT = ac.total10 != null ? ac.total10 : ac.total, acq0 = ac0.total10 != null ? ac0.total10 : ac0.total;
     var total = giftT + xferT + acqT, plain = gift0 + acq0;
     
     var CK = [], DF = [], NO = [], NT = [];
@@ -6532,7 +6533,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports.IGBD = IGBD;
     var S = num(r.sale != null ? r.sale : I.sale), A = num(r.acq != null ? r.acq : I.acq), Ex = num(r.exp != null ? r.exp : I.exp), W0 = r.whole != null ? r.whole : S;
     M.block('Y', '양도소득세(증여자 · 채무 부분 = 유상 양도)', function (b) {
       b.sec('입력 (양도가액 = 인수 채무 · 취득가액, 필요경비 = 전체 × 채무 ÷ 시가 · 소득세법 시행령 §159①)');
-      b.F('S', '양도가액(= 인수 채무)', '{N:D}', S, { law: '소득세법 §88 1호 후단, 시행령 §159①' });
+      if (o.nbArea && o.multi) b.IN('S', '양도가액(= 인수 채무) — 기준면적 안 사업용 부분(엔진 면적 비율 안분 · 2026-11-21)', S, { law: '소득세법 §104⑤ 후단' });
+      else b.F('S', '양도가액(= 인수 채무)', '{N:D}', S, { law: '소득세법 §88 1호 후단, 시행령 §159①' });
       b.IN('A', '취득가액(채무 비율 안분)', A, { law: '시행령 §159①1호', d: X.known ? '실제 취득가액 × 채무 ÷ 시가' : '환산취득가액 × 채무 ÷ 시가' });
       b.IN('E', '필요경비(채무 비율 안분)', Ex, { law: '소득세법 §97①2호, 3호' });
       b.JD('EX', '비과세 여부', YN(!!r.exempt), { fmt: 't', law: '소득세법 §89①3호, 시행령 §154①' });
@@ -6621,10 +6623,10 @@ if (typeof module !== 'undefined' && module.exports) module.exports.IGBD = IGBD;
       b.IN('A0', '취득세(전부 무상분)', X.plainAcq, { d: '엔진 값(채무 0)' });
       b.F('PL', '일반 증여 합계', '{G0}+{A0}', X.plain, { big: 1 });
     });
-    var gT = X.person ? '{G:PAY10}' : 'INT(' + M.corpTot + '+0.000001)';
-    M.sum('TOT', '부담부증여 세금 합계(증여세, 양도세, 취득세)', gT + '+{Y:TOT10}+' + '(' + sm('TOTAL10') + ')', X.total, { big: 1 });
+    var gT = X.person ? '{G:PAY10}' : 'INT(' + M.corpTot + '+0.000001)', xMu = X.xfer && X.xfer.nbArea && X.xfer.multi;   
+    M.sum('TOT', '부담부증여 세금 합계(증여세, 양도세, 취득세)', gT + '+' + (xMu ? String(X.xferTax) : '{Y:TOT10}') + '+' + '(' + sm('TOTAL10') + ')', X.total, { big: 1 });
     M.sum('GIFT', X.person ? '  증여세(낼 세액)' : '  법인세 + 주주 증여세', gT, X.giftTax);
-    M.sum('XFER', '  양도세(채무 부분, 지방소득세 포함 · 낼 세액)', '{Y:TOT10}', X.xferTax);
+    M.sum('XFER', '  양도세(채무 부분, 지방소득세 포함 · 낼 세액)' + (xMu ? ' — 기준면적 넘는 부분 합산 = 엔진 값(소득세법 §104⑤ 후단)' : ''), xMu ? String(X.xferTax) : '{Y:TOT10}', X.xferTax);
     M.sum('ACQ', '  취득세(무상분 + 유상분 · 낼 세액)', sm('TOTAL10'), X.acqTax);
     M.sum('PLAIN', '채무 없이 일반 증여할 때', '{P:PL}', X.plain);
     M.sum('DIFF', '  차이(부담부 − 일반)', '{T:TOT}-{T:PLAIN}', X.diff);
@@ -6909,7 +6911,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
         /* 2026-11-19 부담부증여 질문 — 시가(공시가격은 시가 없을 때) · 주택 공시가격(취득세 3억원 판정) · 환산취득가액 산 해, 증여일 기준시가(양도세 탭 cvA, cvS 와 같은 연도 규칙) */
         if (id === 'bVal') return { want: 'any', year: 0, why: '시가(매매사례, 감정가액)가 없을 때 = 공시가격(상증법 §61 · 시가가 먼저)' };
         if (id === 'bStd') return { want: 'house', year: pubYear(a.bDate), why: '취득세 증여분 3억원 중과 판정 = 증여일 현재 공시가격' };
-        if (id === 'bCvA') { var dm = a.bAcqD && a.bAcqD < '1985-01-01'; return { want: 'any', year: dm ? 1985 : pubYear(a.bAcqD), why: dm ? '의제취득일 1985.1.1. 현재 기준시가' : '산 날 현재 고시된 기준시가(소득세법 §99①)' }; }
+        if (id === 'bCvA') { var dm = a.bAcqD && a.bAcqD < '1985-01-01'; return { want: 'any', year: dm ? 1985 : pubYear(a.bAcqD), acq: dm ? '1985-01-01' : (a.bAcqD || ''), why: dm ? '의제취득일 1985.1.1. 현재 기준시가' : '산 날 현재 고시된 기준시가(소득세법 §99①)' }; }
         if (id === 'bCvS') return { want: 'any', year: pubYear(a.bDate), why: '증여일 현재 고시된 기준시가(소득세법 §99①)' };
         return id === 'gAmt' || id === 'cAmt' ? { want: 'any', year: 0, why: '시가(매매사례, 감정가액)가 없을 때 = 공시가격(상증법 §61 · 시가가 먼저)' } : id === 'iEst' ? { want: 'any', year: 0, add: 1, why: '시가가 없을 때 = 공시가격(상증법 §61) · 재산이 여럿이면 [더하기]' } : id === 'iHouseAmt' ? { want: 'house', year: 0, why: '상속주택 가액' } : null; } },
     /* 2026-11-20 통합 세금 탭(igx · 손잡이 IGWZ) — 거래 6개 : n 일반 증여 · l 저가양수도 · b 부담부증여 · wa/wb 교환(내 것/상대 것) · v 이혼 · s 증여 후 양도
@@ -6932,17 +6934,19 @@ https://github.com/nodeca/pako/blob/main/LICENSE
         if (P.f === 'AdjS2' && P.t === 's') return { date: dt('sSDate'), lab: tl('sSDate', '파는 날'), yes: 'y', no: 'n' };
         if (P.f === 'AdjS' && this._d[P.t]) return { date: dt(this._d[P.t]), lab: tl(this._d[P.t], this._w[P.t]), yes: 'y', no: 'n' };
         return null; },
+      l90: function (id) { return /^(wa|wb|[lbv])90Pub$/.test(id); },
       pick: function (id, a) { var P = this._p(id); if (!P) return null; var t = P.t, D = a[this._d[t]] === '' ? TODAY : a[this._d[t]], A = a[this._a[t]];
         if (P.f === 'Val') return { want: 'any', year: 0, why: '시가(매매사례, 감정가액)가 없을 때 = 공시가격(상증법 §61 · 시가가 먼저)' };
         if (P.f === 'Std') return { want: 'house', year: pubYear(D), why: '취득세 3억원 중과, 1억원 이하 판정 = ' + this._w[t] + ' 현재 공시가격' };
-        if (P.f === 'CvA' && /^[lb]$/.test(t)) { var dm = A && A < '1985-01-01'; return { want: 'any', year: dm ? 1985 : pubYear(A), why: dm ? '의제취득일 1985.1.1. 현재 기준시가' : '산 날 현재 고시된 기준시가(소득세법 §99①)' }; }
+        if (P.f === 'CvA' && /^[lb]$/.test(t)) { var dm = A && A < '1985-01-01'; return { want: 'any', year: dm ? 1985 : pubYear(A), acq: dm ? '1985-01-01' : (A || ''), why: dm ? '의제취득일 1985.1.1. 현재 기준시가' : '산 날 현재 고시된 기준시가(소득세법 §99①)' }; }
         if (P.f === 'CvS' && /^[lb]$/.test(t)) return { want: 'any', year: pubYear(D), why: this._w[t] + ' 현재 고시된 기준시가(소득세법 §99①)' };
         return null; } },
     cgt: { h: function () { return window.YSWZ; },
       more: function (id, a) { if (id === 'cvA' && a.saleD) return [{ id: 'cvS', year: pubYear(a.saleD), lab: '파는 해' }];
         if (id === 'cvS' && a.acqD && a.acqD >= '1985-01-01') return [{ id: 'cvA', year: pubYear(a.acqD), lab: '산 해' }]; return []; },
       adj: function (id, a) { return id === 'adjAcq' ? { date: a.acqD || '', lab: '산 날', yes: 'y', no: 'n' } : id === 'adjSale' ? { date: a.saleD || '', lab: '파는 날', yes: 'y', no: 'n' } : null; },
-      pick: function (id, a) { if (id === 'cvA') { var dm = a.acqD && a.acqD < '1985-01-01'; return { want: 'any', year: dm ? 1985 : pubYear(a.acqD), why: dm ? '의제취득일 1985.1.1. 현재 기준시가' : '산 날 현재 고시된 기준시가(소득세법 §99①)' }; }
+      l90: function (id) { return id === 'l90Pub'; },
+      pick: function (id, a) { if (id === 'cvA') { var dm = a.acqD && a.acqD < '1985-01-01'; return { want: 'any', year: dm ? 1985 : pubYear(a.acqD), acq: dm ? '1985-01-01' : (a.acqD || ''), why: dm ? '의제취득일 1985.1.1. 현재 기준시가' : '산 날 현재 고시된 기준시가(소득세법 §99①)' }; }
         if (id === 'cvS') return { want: 'any', year: pubYear(a.saleD), why: '파는 날 현재 고시된 기준시가(소득세법 §99①)' }; return null; } }
   }[TAB];
   if (!CFG) return;
@@ -6964,7 +6968,10 @@ https://github.com/nodeca/pako/blob/main/LICENSE
   function search(q) {
     var one = function (cat) { return jsonp('https://api.vworld.kr/req/search?' + qs({ service: 'search', request: 'search', version: '2.0', size: 5, page: 1, query: q, type: 'address', category: cat, format: 'json', errorformat: 'json' }))
       .then(function (d) { var r = (d && d.response) || {}; if (r.status === 'ERROR') throw new Error((r.error && r.error.text) || '검색 오류'); return ((r.result || {}).items) || []; }); };
-    return one('road').then(function (L) { return L.length ? L : one('parcel'); });
+    /* 2026-11-21 지번 주소(「연남동 239-1」)를 도로명으로 먼저 찾으면 「동교로 239-1 (연남동)」처럼 다른 땅이 걸리던 것 → 지번 모양이면 지번 먼저 */
+    var jb = /(동|리|가)\s*(산\s*)?\d+(-\d+)?\s*$/.test(q) && !/(로|길)\s*\d+(-\d+)?\s*$/.test(q);
+    var A1 = jb ? 'parcel' : 'road', A2 = jb ? 'road' : 'parcel';
+    return one(A1).then(function (L) { return L.length ? L : one(A2); });
   }
   function ned(ep, p) {
     return jsonp('https://api.vworld.kr/ned/data/' + ep + '?' + qs(Object.assign({ format: 'json', numOfRows: 50, pageNo: 1 }, p))).then(function (d) {
@@ -6994,7 +7001,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
   function yearOpts(sel) { var h = ''; for (var y = NOW; y >= 1990; y--) h += '<option value="' + y + '"' + (y === sel ? ' selected' : '') + '>' + y + '년</option>'; return h; }
   function curStep() { var H = CFG.h(); if (!H || !H.W) return null; var W = H.W; if (W.done) return null; var id = W.cur, p = CFG.pick(id, W.a || {}); return p ? { id: id, p: p } : null; }
   function mount() {
-    var box = $('pkWz'); if (!box) return; var S = curStep(); var old = box.querySelector('.gsg:not(.gsj)');
+    var box = $('pkWz'); if (!box) return; var S = curStep(); var old = box.querySelector('.gsg:not(.gsj):not(.gs9)');
     if (!S) { if (old) old.remove(); return; }
     if (old && old.getAttribute('data-step') === S.id) return;
     if (old) old.remove();
@@ -7006,7 +7013,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
       (S.p.want === 'land' ? '' : '<div class="gsg-r"><select class="gsg-k" aria-label="무슨 부동산">' + KINDS.map(function (k) { return '<option value="' + k[0] + '"' + (k[0] === MEM.kind ? ' selected' : '') + '>' + k[1] + '</option>'; }).join('') + '</select></div>') +
       '<div class="gsg-r"><input class="gsg-dh gsg-d" type="text" inputmode="numeric" placeholder="동" value="' + esc(MEM.dong) + '"><input class="gsg-dh gsg-h" type="text" inputmode="numeric" placeholder="호" value="' + esc(MEM.ho) + '">' +
       '<select class="gsg-y" aria-label="기준 연도">' + yearOpts(y0 || NOW) + '</select><button type="button" data-gsg="find">찾기</button></div>' +
-      '<div class="gsg-n">아파트, 연립, 다세대 = 동, 호까지 · ' + esc(S.p.why) + (S.p.year === 1985 ? ' · 브이월드 자료는 1990년부터라 1985년 값은 직접 넣어 주세요(지금 고른 해 = 참고)' : '') + '</div>' +
+      '<div class="gsg-n">아파트, 연립, 다세대 = 동, 호까지 · ' + esc(S.p.why) + (S.p.year === 1985 ? ' · 브이월드 자료는 1990년부터라 1985년 값은 직접 넣어 주세요(지금 고른 해 = 참고) · 주택, 1990.8.30. 전에 산 땅은 [찾기] 뒤 「공시 전 환산」으로 계산' : '') + '</div>' +
       '<div class="gsg-n">주소는 국토교통부 브이월드로만 보내고 이 사이트는 저장하지 않아요</div><div class="gsg-out"></div></div>';
     wi.insertAdjacentElement('afterend', g);
     if (MEM.item && S.p.year) { open(g); find(g, S); }
@@ -7104,7 +7111,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     return Promise.all([yearVals(it, y, d, h, want, k)].concat(Y.map(function (yy) { return yearVals(it, yy, d, h, 'any', k).catch(function () { return { V: [], N: [] }; }); }))).then(function (RR) {
       var V = RR[0].V, N = RR[0].N, OY = {}; Y.forEach(function (yy, i) { OY[yy] = RR[i + 1].V; });
       V.forEach(function (x) { x.more = M.map(function (m) { var L = m.year === y ? V : OY[m.year] || []; var z = mate(x, L); if (z && m.house && z.kind !== 'house') z = null; return z ? { id: m.id, lab: m.lab, year: m.year, v: z.v } : null; }).filter(Boolean); });
-      if (!V.length && !N.length && k !== 'ot') N.push(y + '년 ' + (want === 'land' ? '공시지가' : '공시가격') + ' 자료가 없어요' + (y < 2006 ? ' — 개별주택가격 2005년, 공동주택가격 2006년부터 · 그 전은 국세청 기준시가(홈택스)나 환산 기준시가(소득세법 시행령 §164)를 직접' : ' — 다른 해를 고르거나 직접 넣어 주세요'));
+      if (!V.length && !N.length && k !== 'ot') N.push(y + '년 ' + (want === 'land' ? '공시지가' : '공시가격') + ' 자료가 없어요' + (y < 2006 ? ' — 개별주택가격 2005년, 공동주택가격 2006년부터 · 그 전은 국세청 기준시가(홈택스)나 환산 기준시가(소득세법 시행령 §164)' + (S.p.acq ? ' · 아래 「공시 전 환산」' : '를 직접') : ' — 다른 해를 고르거나 직접 넣어 주세요'));
       g.__V = V;
       out(g, '<div class="gsg-n">' + esc(ad) + '</div>' + KN + OT + N.map(function (t) { return '<div class="gsg-e">' + esc(t) + '</div>'; }).join('') +
         V.map(function (x, i) { var mo = x.more || [];
@@ -7116,8 +7123,171 @@ https://github.com/nodeca/pako/blob/main/LICENSE
               '<div class="gsg-n">건물 값은 이 사이트에서 못 찾아요 — 상속·증여세, 양도세 = 홈택스 「기준시가 조회 → 건물」 · 취득세, 재산세 = 위택스 건물 시가표준액</div>' : '') + '</div>'; }).join('') +
         BL + (V.length ? '<div class="gsg-n">공시가격 = 브이월드 국토교통부 자료 · 부동산공시가격알리미와 같은 값 · 지분이면 전체 값 그대로(지분은 다음 질문)</div>' : '') +
         (M.length && V.length && !V.some(function (x) { return (x.more || []).length; }) ? '<div class="gsg-n">' + esc(M.map(function (m) { return m.lab + '(' + m.year + '년)'; }).join(', ')) + ' 값은 못 찾았어요 — 그 질문에서 직접 넣어 주세요</div>' : ''));
+      preMount(g, S, it, d, h, k);   /* 2026-11-21 공시 전 취득 환산(시행령 §164④⑦) */
     });
   }
+  /* ── 2026-11-21 공시 전 취득 환산 ──
+     주택(개별주택가격 2005년, 공동주택가격 2006년 처음 공시) 공시 전 취득 = 소득세법 시행령 §164⑦
+       최초 공시 주택가격 × (취득 당시 토지 기준시가 + 건물 기준시가) ÷ (최초 공시 당시 토지 기준시가 + 건물 기준시가)
+     1990.8.30. 전 취득 토지 = 시행령 §164④(1990.1.1. 개별공시지가 × 취득 당시 등급가액 ÷ 분모)
+     계산 = 탭 안 주택양도세 엔진 HTX.bk.ratio · HTX.bk.land1990 · HTX.bk.areaStd 그대로(이 파일은 값 모으기, 화면만)
+     브이월드에서 찾는 값 = 최초 공시 주택가격, 그 해 · 산 때 개별공시지가, 1990년 개별공시지가, 땅 면적 / 못 찾는 값 = 건물 기준시가(홈택스), 토지등급가액(토지대장 + 등급가액표 · 정본 필요) */
+  var GOV24 = 'https://www.gov.kr/mw/AA020InfoCappView.do?HighCtgCD=A01010&CappBizCD=13100000026';   /* 정부24 토지(임야)대장 등본 발급(열람) · 2026-11-21 열어 확인 · 인터넷 열람 무료, 회원 또는 비회원(간편인증 등) */
+  var D90 = '1990-08-30';
+  function eng() { var H = typeof HTX !== 'undefined' ? HTX : window.HTX; return H && H.bk && H.bk.ratio && H.bk.land1990 && H.bk.areaStd ? H.bk : null; }
+  function numOf(t) { t = String(t == null ? '' : t).replace(/[,\s원㎡]/g, ''); return /^\d+(\.\d+)?$/.test(t) ? +t : NaN; }
+  function cm(v) { return v == null || isNaN(v) ? '' : Math.round(v * 100) / 100 === Math.round(v) ? Math.round(v).toLocaleString('ko-KR') : String(v); }
+  function wn(v) { return '<span>' + cm(v) + '</span>원'; }   /* 결과 줄 숫자 = span(원 → 억 자동 바꾸기 막음) */
+  function dotY(d) { return d ? d.replace(/^(\d{4})-0?(\d+)-0?(\d+)$/, '$1.$2.$3.') : ''; }
+  /* 그 날 현재 고시된 개별공시지가(§164③ 새 기준시가 고시 전 = 직전) : 그 해 공시일이 그 날 뒤면 전년 */
+  function landAt(pnu, date) {
+    var y = +date.slice(0, 4); if (y < 1990) return Promise.resolve(null);
+    var one = function (yy) { return ned('getIndvdLandPriceAttr', { pnu: pnu, stdrYear: yy }).then(function (R) { return R.rows.length ? latest(R.rows) : null; }).catch(function () { return null; }); };
+    return one(y).then(function (r) {
+      if (r && (!r.pblntfDe || r.pblntfDe <= date)) return { per: +r.pblntfPclnd, year: y, de: r.pblntfDe || '' };
+      if (y - 1 < 1990) return null;
+      return one(y - 1).then(function (r2) { return r2 ? { per: +r2.pblntfPclnd, year: y - 1, de: r2.pblntfDe || '' } : null; });
+    });
+  }
+  function areaNow(pnu) { var one = function (yy) { return ned('getLandCharacteristics', { pnu: pnu, stdrYear: yy }).then(function (R) { return R.rows.length ? +latest(R.rows).lndpclAr : 0; }).catch(function () { return 0; }); };
+    return one(NOW).then(function (a) { return a > 0 ? a : one(NOW - 1); }); }
+  /* 최초 공시 주택가격 : 단독 = 개별주택가격 2005~, 공동 = 공동주택가격 2006~ 중 첫 해(이 집 값이 처음 있는 해) */
+  function firstHouse(it, d, h, k) {
+    var y0 = k === 'apt' ? 2006 : 2005, Y = [y0, y0 + 1, y0 + 2, y0 + 3, y0 + 4];
+    var step = function (i) { if (i >= Y.length) return Promise.resolve(null); var y = Y[i];
+      if (k === 'house') return ned('getIndvdHousingPriceAttr', { pnu: it.id, stdrYear: y }).then(function (R) { if (!R.rows.length) return step(i + 1);
+          var hs = {}; R.rows.forEach(function (r) { var kk = (r.bildRegstrEsntlNo || '') + '|' + (r.dongCode || ''); if (!hs[kk] || String(r.lastUpdtDt) > String(hs[kk].lastUpdtDt)) hs[kk] = r; });
+          return { year: y, L: Object.keys(hs).map(function (kk) { var r = hs[kk]; return { v: +r.housePc, area: +r.calcPlotAr || +r.ladRegstrAr || 0, t: y + '년 개별주택가격' + (Object.keys(hs).length > 1 ? ' · 건물 연면적 ' + r.buldAllTotAr + '㎡' : '') }; }) }; });
+      return yearVals(it, y, d, h, 'house', 'apt').then(function (R) { return R.V.length ? { year: y, L: R.V.map(function (x) { return { v: x.v, area: 0, t: x.t }; }) } : step(i + 1); });
+    };
+    return step(0);
+  }
+  var PCSS = '#pkWz .gsg-pre{margin-top:10px;border:1px solid var(--pd-acc,#1E3A8A);border-radius:8px;padding:12px;background:#fff}#pkWz .gsg-pre>b{display:block;font-size:17px;color:#111827;margin-bottom:4px}#pkWz .gsg-pre .gsg-f{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin:8px 0 0}#pkWz .gsg-pre .gsg-f label{flex:1 1 100%;font-size:16px;color:#111827}#pkWz .gsg-pre .gsg-f input,#pkWz .gsg-pre .gsg-f select{flex:1 1 160px;min-width:0;min-height:44px;font:inherit;font-size:16px;border:1px solid var(--pd-line2,#D1D5DB);border-radius:6px;padding:6px 10px;box-sizing:border-box;font-variant-numeric:tabular-nums}#pkWz .gsg-pre .gsg-f span{font-size:15px;color:var(--pd-ink3,#6B7280)}#pkWz .gsg-pre .gsg-res{margin-top:10px}';
+  (function () { var s2 = document.createElement('style'); s2.id = 'gsgPreCss'; s2.textContent = PCSS; document.head.appendChild(s2); })();
+  function fld(key, lab, val, unit, note) { return '<div class="gsg-f"><label>' + esc(lab) + '</label><input type="text" inputmode="decimal" data-gspk="' + key + '" value="' + esc(cm(val)) + '" aria-label="' + esc(lab) + '"><span>' + esc(unit) + '</span>' + (note ? '<div class="gsg-n" style="flex:1 1 100%;margin:0">' + esc(note) + '</div>' : '') + '</div>'; }
+  function lnk(t, u) { return '<a class="gsg-o" style="text-decoration:none;margin-top:8px" href="' + u + '" target="_blank" rel="noopener">' + esc(t) + ' (새 창)</a>'; }
+  function g90Fields(per90, de90) {
+    return fld('pub', '1990.1.1. 기준 개별공시지가(㎡당)', per90, '원/㎡', per90 ? '브이월드 1990년 값' + (de90 ? '(공시일 ' + dotY(de90) + ')' : '') : '브이월드에 1990년 값이 없어요 — 직접') +
+      fld('gA', '산 날(1985.1.1. 전이면 1985.1.1.) 현재 토지등급가액(㎡당)', null, '원/㎡', '토지대장의 그때 「토지등급」 → 토지등급가액표의 가액 · 정본 필요 — 토지대장, 토지등급가액표') +
+      fld('gP', '1990.8.30. 직전에 결정된 토지등급가액(㎡당)', null, '원/㎡', '보통 1989.12.31. 현재 등급(시행규칙 §80⑦)') +
+      fld('g8', '1990.8.30. 현재 토지등급가액(㎡당)', null, '원/㎡', '분모 = (이 값 + 직전 값) ÷ 2, 이 값을 넘지 못함(시행규칙 §80⑥)') +
+      '<div class="gsg-f"><label>1990.8.30. 직전 등급가액과 산 날 직전에 결정된 등급가액이 같아요?</label><select data-gspk="same"><option value="n">아니요(다른 등급 기간)</option><option value="y">예(같은 등급 기간 · 비율 100% 상한)</option></select></div>' +
+      lnk('정부24 토지(임야)대장 열람 — 토지등급 연혁', GOV24) + '<div class="gsg-n">인터넷 열람 무료 · 회원 로그인 또는 비회원 신청(간편인증 또는 인증서가 필요할 수 있음) · 토지등급가액표(등급 → ㎡당 가액)는 이 사이트에 없어요(정본 확인 전)</div>';
+  }
+  function preMount(g, S, it, d, h, k) {
+    var acq = S.p.acq; if (!acq || !/^\d{4}-\d{2}-\d{2}$/.test(acq)) return;
+    var old = g.querySelector('.gsg-pre'); if (old) old.remove();
+    var house = k === 'house' || k === 'apt', land = k === 'land';
+    if (!(house && acq < (k === 'apt' ? '2006-05-01' : '2005-05-01')) && !(land && acq < D90)) return;
+    /* 공시 전 해에 「집 값이 없어요 — 종류를 다시 골라」 안내가 뜨면 헷갈림 → 공시 전 안내로 바꿈 */
+    if (house) [].forEach.call(g.querySelectorAll('.gsg-out .gsg-e'), function (e) { if (/개별주택가격이 없어요|공동주택가격을 못 찾았어요|자료가 없어요/.test(e.textContent)) { e.className = 'gsg-n'; e.textContent = '산 날(' + dotY(acq) + ')은 주택가격 공시 전이에요(개별주택가격 2005년, 공동주택가격 2006년부터) — 아래 「공시 전 환산」으로 산 때 기준시가를 계산해요'; } });
+    var box = document.createElement('div'); box.className = 'gsg-pre'; box.innerHTML = '<b>공시 전 환산 — 찾는 중…</b>'; g.querySelector('.gsg-out').appendChild(box);
+    var pnu = it.id, pre90 = acq < D90;
+    var P90 = pre90 ? landAt(pnu, '1990-12-31').then(function (r) { return r && r.year === 1990 ? r : null; }) : Promise.resolve(null);
+    if (land) {
+      Promise.all([P90, areaNow(pnu)]).then(function (R) { var r9 = R[0];
+        box.__q = { mode: 'land', area: R[1] };
+        box.innerHTML = '<b>1990.8.30. 전에 산 땅 — 산 때 기준시가 계산(소득세법 시행령 §164④)</b><div class="gsg-n">1990.1.1. 기준 개별공시지가 × 산 때 토지등급가액 ÷ ((1990.8.30. 현재 등급가액 + 직전 등급가액) ÷ 2) × 면적 · 기준일 ' + dotY(acq) + '</div>' +
+          fld('area', '땅 면적', R[1] || null, '㎡', R[1] ? '브이월드 토지특성(지금 면적 · 그때와 다르면 토지대장 면적으로)' : '면적을 못 읽었어요 — 토지대장 면적') + g90Fields(r9 && r9.per, r9 && r9.de) +
+          '<div class="gsg-r" style="margin-top:8px"><button type="button" data-gsp="calc">계산하기</button></div><div class="gsg-res"></div>';
+      });
+      return;
+    }
+    Promise.all([firstHouse(it, d, h, k), P90]).then(function (R) {
+      var F = R[0], r9 = R[1];
+      if (!F) { box.innerHTML = '<b>공시 전 환산(시행령 §164⑦)</b><div class="gsg-e">이 주소에서 최초 공시 주택가격을 못 찾았어요 — 최초 공시 주택가격을 아래에 직접 넣어 주세요</div>'; F = { year: k === 'apt' ? 2006 : 2005, L: [{ v: null, area: 0, t: '' }] }; }
+      var D0 = F.year + '-04-30';   /* 주택가격 공시일 = 4월 30일로 봄 [확인 필요 — 그 해 실제 공시일] */
+      if (acq >= D0) { box.remove(); return; }
+      var X = F.L[0];
+      return Promise.all([pre90 ? Promise.resolve(null) : landAt(pnu, acq), landAt(pnu, D0), X.area > 0 ? Promise.resolve(X.area) : (k === 'apt' ? Promise.resolve(0) : areaNow(pnu))]).then(function (Q) {
+        var LA = Q[0], L0 = Q[1], ar = Q[2];
+        box.__q = { mode: 'house', pre90: pre90, F: F };
+        box.innerHTML = '<b>공시 전에 산 주택 — 산 때 기준시가 환산(소득세법 시행령 §164⑦)</b>' +
+          '<div class="gsg-n">최초 공시 주택가격 × (산 때 땅 기준시가 + 건물 기준시가) ÷ (최초 공시 때 땅 기준시가 + 건물 기준시가) · 산 때 = ' + dotY(acq) + (acq === '1985-01-01' ? '(의제취득일)' : '') + ' · 최초 공시 = ' + F.year + '년(공시일 4월 30일로 봄 — 확인 필요)</div>' +
+          (k === 'apt' ? '<div class="gsg-n">2006년 전 국세청이 고시한 공동주택(아파트 등) 기준시가가 산 날에 이미 있었으면 그 값이 산 때 기준시가예요(환산 안 함) — 홈택스 「기준시가 조회」</div>' : '') +
+          (F.L.length > 1 ? '<div class="gsg-f"><label>어느 집이에요?</label><select data-gspk="pick">' + F.L.map(function (x, i) { return '<option value="' + i + '">' + esc(x.t) + ' ' + esc(wonT(x.v)) + '</option>'; }).join('') + '</select></div>' : '') +
+          fld('p0', '최초 공시 주택가격(' + F.year + '년)', X.v, '원', X.t ? X.t + ' · 브이월드' : '') +
+          fld('area', k === 'apt' ? '대지권 면적(땅 지분 면적)' : '땅 면적(주택 부수토지)', ar || null, '㎡', k === 'apt' ? '등기부 대지권 비율 × 대지 면적 — 브이월드에 없어 직접' : (ar ? '브이월드 ' + (X.area > 0 ? '개별주택가격 산정 대지면적' : '토지특성 면적') : '토지대장 면적')) +
+          (pre90 ? '<div class="gsg-n" style="margin-top:8px"><b style="display:inline">산 때 땅 = 1990.8.30. 전</b> → 시행령 §164④로 ㎡당 기준시가 계산(아래)</div>' + g90Fields(r9 && r9.per, r9 && r9.de)
+            : fld('la', '산 때 개별공시지가(㎡당)', LA && LA.per, '원/㎡', LA ? LA.year + '년 값(공시일 ' + dotY(LA.de) + ' · 산 날 현재 고시된 값)' : '못 찾았어요 — 직접')) +
+          fld('l0', '최초 공시 때 개별공시지가(㎡당)', L0 && L0.per, '원/㎡', L0 ? L0.year + '년 값(공시일 ' + dotY(L0.de) + ' · 주택가격 공시일 현재 고시된 값 — 확인 필요)' : '못 찾았어요 — 직접') +
+          fld('ba', '산 때 건물 기준시가', null, '원', '국세청 건물 기준시가(2000.12.31. 전 취득 = 2001.1.1. 기준시가 × 산정기준율 · 시행규칙 §80③) — 브이월드에 없어 직접') +
+          fld('b0', '최초 공시 때 건물 기준시가', null, '원', '그 해 국세청 건물 기준시가 — 직접') +
+          lnk('홈택스 건물 기준시가(양도) 계산', HTX_URL + '4712090500') +
+          '<div class="gsg-r" style="margin-top:8px"><button type="button" data-gsp="calc">환산하기</button></div><div class="gsg-res"></div>';
+      });
+    }).catch(function (e) { box.innerHTML = '<b>공시 전 환산</b><div class="gsg-e">불러오기 실패 — ' + esc(e.message) + '</div>'; });
+  }
+  function preCalc(box) {
+    var B = eng(), q = box.__q || {}, res = box.querySelector('.gsg-res'), V = function (k) { var e = box.querySelector('[data-gspk="' + k + '"]'); return e ? numOf(e.value) : NaN; };
+    var bad = function (t) { res.innerHTML = '<div class="gsg-e">' + esc(t) + '</div>'; box.__v = null; };
+    if (!B) return bad('계산 엔진(주택양도세 엔진)을 못 불렀어요 — 화면을 새로 열어 주세요');
+    var area = V('area'); if (!(area > 0)) return bad('땅 면적(㎡)을 넣어 주세요');
+    var per = null, l9 = null, L = [];
+    if (q.mode === 'land' || q.pre90) {
+      var pub = V('pub'), gA = V('gA'), gP = V('gP'), g8 = V('g8');
+      if (!(pub > 0 && gA > 0 && gP > 0 && g8 > 0)) return bad('1990년 개별공시지가와 등급가액 세 칸을 모두 넣어 주세요(㎡당 원)');
+      l9 = B.land1990({ pub: pub, gAcq: gA, gPrev: gP, g908: g8, same: (box.querySelector('[data-gspk="same"]') || {}).value === 'y', area: area });
+      per = l9.perM2;
+      L.push('산 때 땅 ㎡당 = 1990.1.1. 개별공시지가 ' + wn(pub) + ' × 등급가액 <span>' + cm(gA) + '</span> ÷ 분모 <span>' + cm(l9.den) + '</span>((1990.8.30. 현재 <span>' + cm(g8) + '</span> + 직전 <span>' + cm(gP) + '</span>) ÷ 2, 1990.8.30. 현재 값 한도) = ' + wn(per) + '(시행령 §164④ · 시행규칙 §80⑥)');
+    }
+    if (q.mode === 'land') { var std = l9.std; L.push('산 때 기준시가 = ' + wn(per) + ' × ' + cm(area) + '㎡ = ' + wn(std) + '(원 미만 버림)');
+      box.__v = std; res.innerHTML = '<div class="gsg-v"><b>산 때 기준시가(시행령 §164④)</b><div class="gsg-big">' + won(std) + eokT(std) + '</div>' + L.map(function (t) { return '<div class="gsg-m">' + t + '</div>'; }).join('') + '<div class="gsg-n">토지등급가액 = 정본 필요(토지대장, 토지등급가액표) — 값이 맞는지 서류로 확인</div><div class="gsg-r"><button type="button" data-gsp="put">이 값 넣기</button></div></div>'; return; }
+    var p0 = V('p0'), l0 = V('l0'), ba = V('ba'), b0 = V('b0'); if (!q.pre90) per = V('la');
+    if (!(p0 > 0)) return bad('최초 공시 주택가격(원)을 넣어 주세요');
+    if (!(per > 0 && l0 > 0)) return bad('산 때, 최초 공시 때 개별공시지가(㎡당 원)를 넣어 주세요');
+    if (!(ba >= 0 && b0 >= 0) || isNaN(ba) || isNaN(b0)) return bad('산 때, 최초 공시 때 건물 기준시가(원)를 넣어 주세요 — 홈택스 건물 기준시가 계산');
+    var LA = B.areaStd([[per, area]]), LZ = B.areaStd([[l0, area]]);
+    if (LA + ba === LZ + b0) return bad('산 때와 최초 공시 때 땅 + 건물 기준시가 합계가 같아요(' + wonT(LA + ba) + ') → 시행령 §164⑦ 괄호 = 제8항 준용(보유기간, 기준시가 상승률로 계산 · 시행규칙 §80) — 이 화면에서 계산하지 않아요, 직접 넣어 주세요');
+    if (!(LZ + b0 > 0)) return bad('최초 공시 때 합계가 0이에요');
+    var v = B.ratio(p0, [LA, ba], [LZ, b0]);
+    L.push('산 때 땅 = ' + wn(per) + ' × ' + cm(area) + '㎡ = ' + wn(LA) + ', 건물 ' + wn(ba) + ' → 합계 ' + wn(LA + ba));
+    L.push('최초 공시 때 땅 = ' + wn(l0) + ' × ' + cm(area) + '㎡ = ' + wn(LZ) + ', 건물 ' + wn(b0) + ' → 합계 ' + wn(LZ + b0));
+    L.push(wn(p0) + ' × <span>' + cm(LA + ba) + '</span> ÷ <span>' + cm(LZ + b0) + '</span> = ' + wn(v) + '(원 미만 버림)');
+    box.__v = v;
+    res.innerHTML = '<div class="gsg-v"><b>산 때 기준시가(시행령 §164⑦ 환산)</b><div class="gsg-big">' + won(v) + eokT(v) + '</div>' + L.map(function (t) { return '<div class="gsg-m">' + t + '</div>'; }).join('') +
+      '<div class="gsg-n">계산 = 주택양도세 엔진(HTX.bk.ratio) · 건물 기준시가, 최초 공시일, 대지권 면적은 서류로 확인</div><div class="gsg-r"><button type="button" data-gsp="put">이 값 넣기</button></div></div>';
+  }
+  document.addEventListener('click', function (e) {
+    var t = e.target.closest && e.target.closest('.gsg-pre [data-gsp]'); if (!t) return; e.preventDefault(); e.stopPropagation();
+    var box = t.closest('.gsg-pre'), g = t.closest('.gsg');
+    if (t.getAttribute('data-gsp') === 'calc') { preCalc(box); return; }
+    if (t.getAttribute('data-gsp') === 'put' && box.__v > 0) put(g, { v: box.__v });
+  }, true);
+  document.addEventListener('change', function (e) { var t = e.target; if (!t || !t.matches || !t.matches('.gsg-pre [data-gspk="pick"]')) return; var box = t.closest('.gsg-pre'), x = box.__q && box.__q.F && box.__q.F.L[+t.value]; if (!x) return; var p = box.querySelector('[data-gspk="p0"]'); if (p) p.value = cm(x.v); if (x.area > 0) { var a = box.querySelector('[data-gspk="area"]'); if (a) a.value = cm(x.area); } }, true);
+  document.addEventListener('change', function (e) { var t = e.target; if (!t || !t.matches || !t.matches('.gsg-pre input[data-gspk]')) return; var v = numOf(t.value); if (!isNaN(v)) t.value = cm(v); }, true);   /* 넣은 숫자에 쉼표 */
+  document.addEventListener('keydown', function (e) { var t = e.target; if (e.key !== 'Enter' || !t || !t.closest || !t.closest('.gsg-pre')) return; e.preventDefault(); e.stopPropagation(); var b = t.closest('.gsg-pre').querySelector('[data-gsp="calc"]'); if (b) b.click(); }, true);
+  /* 1990.8.30. 전 취득 땅 질문(양도세 탭 l90Pub · 엔진 HTX.bk.land1990) — 「주소로 1990년 개별공시지가 찾기」 → ㎡당 값을 칸에, 땅 면적은 다음 질문(l90Area)에 미리 · 토지대장 열람 링크 */
+  function mount90() {
+    var box = $('pkWz'); if (!box) return; var H = CFG.h(), W = H && H.W, on = CFG.l90 && W && !W.done && CFG.l90(W.cur), old = box.querySelector('.gs9');
+    if (!on) { if (old) old.remove(); return; } if (old) return;
+    var wi = box.querySelector('.pk-wi'); if (!wi) return;
+    var g = document.createElement('div'); g.className = 'gsg gs9';
+    g.innerHTML = '<button type="button" class="gsg-o" data-gs9="open">주소로 1990년 개별공시지가 찾기</button><div class="gsg-p" hidden><div class="gsg-r"><input class="gsg-a gs9-a" type="text" enterkeyhint="search" placeholder="도로명 또는 지번 주소" value="' + esc(MEM.addr) + '"><button type="button" data-gs9="find">찾기</button></div>' +
+      '<div class="gsg-n">1990년 개별공시지가(1990.8.30. 처음 고시 · 1990.1.1. 기준) · 주소는 국토교통부 브이월드로만 보내고 이 사이트는 저장하지 않아요</div><div class="gsg-out"></div></div>' + lnk('정부24 토지(임야)대장 열람 — 토지등급 연혁', GOV24);
+    wi.insertAdjacentElement('afterend', g);
+  }
+  function find90(g) {
+    var a = g.querySelector('.gs9-a').value.trim(); if (!a && !MEM.item) { out(g, '<div class="gsg-e">주소를 넣어 주세요</div>'); return; }
+    out(g, '<div class="gsg-n">찾는 중…</div>');
+    var p0 = (!a || a === MEM.addr) && MEM.item ? Promise.resolve([MEM.item]) : search(a);
+    p0.then(function (L) { if (!L.length) { out(g, '<div class="gsg-e">주소를 못 찾았어요 — 도로명 또는 지번으로</div>'); return; }
+      var it = L[0]; MEM.item = it; MEM.addr = a || MEM.addr;
+      return Promise.all([landAt(it.id, '1990-12-31'), areaNow(it.id)]).then(function (R) { var r = R[0] && R[0].year === 1990 ? R[0] : null, ar = R[1];
+        g.__r = { per: r && r.per, area: ar };
+        out(g, '<div class="gsg-n">' + esc((it.address.road || '') + (it.address.parcel ? ' · ' + it.address.parcel : '')) + '</div>' + (r ? '<div class="gsg-v"><b>1990년 개별공시지가(공시일 ' + esc(dotY(r.de)) + ')</b><div class="gsg-big"><span>' + Math.round(r.per).toLocaleString('ko-KR') + '</span>원/㎡</div>' + (ar ? '<div class="gsg-m">땅 면적 ' + cm(ar) + '㎡(브이월드 지금 면적 · 다음 질문에 미리 채움)</div>' : '') + '<div class="gsg-r"><button type="button" data-gs9="put">이 값 넣기</button></div></div>' : '<div class="gsg-e">이 주소에 1990년 개별공시지가가 없어요(분할, 합병된 땅이면 그때 지번으로) — 토지대장, 개별공시지가 열람으로 직접</div>'));
+      });
+    }).catch(function (e) { out(g, '<div class="gsg-e">불러오기 실패 — ' + esc(e.message) + '</div>'); });
+  }
+  document.addEventListener('click', function (e) {
+    var t = e.target.closest && e.target.closest('.gs9 [data-gs9]'); if (!t) return; e.preventDefault(); e.stopPropagation(); var g = t.closest('.gs9'), c = t.getAttribute('data-gs9');
+    if (c === 'open') { g.querySelector('.gsg-p').hidden = false; t.hidden = true; if (MEM.item) find90(g); else try { g.querySelector('.gs9-a').focus(); } catch (x) {} return; }
+    if (c === 'find') { if (g.querySelector('.gs9-a').value.trim() !== MEM.addr) MEM.item = null; find90(g); return; }
+    if (c === 'put' && g.__r && g.__r.per > 0) { var inp = $('pkWz').querySelector('[data-pkwi="0"]'); if (!inp) return; inp.value = String(g.__r.per); inp.dispatchEvent(new Event('input', { bubbles: true }));
+      var H = CFG.h(), W = H && H.W, aid = W && String(W.cur).replace(/Pub$/, 'Area'); if (W && W.a && g.__r.area > 0 && !(+W.a[aid] > 0)) W.a[aid] = g.__r.area;
+      var ok = g.querySelector('.gsg-ok') || document.createElement('div'); ok.className = 'gsg-ok'; ok.textContent = '넣었어요 : ' + g.__r.per.toLocaleString('ko-KR') + '원/㎡' + (g.__r.area > 0 ? ', 땅 면적 ' + cm(g.__r.area) + '㎡(다음 질문에 미리 채움)' : '') + ' — [다음]을 눌러 주세요'; g.querySelector('.gsg-out').appendChild(ok); }
+  }, true);
+  document.addEventListener('keydown', function (e) { var t = e.target; if (e.key !== 'Enter' || !t || !t.classList || !t.classList.contains('gs9-a')) return; e.preventDefault(); e.stopPropagation(); var b = t.closest('.gs9').querySelector('[data-gs9="find"]'); if (b) b.click(); }, true);
   function put(g, x, add, all) {
     var box = $('pkWz'), inp = box && box.querySelector('[data-pkwi="0"]'); if (!inp) return;
     var unitEl = inp.parentNode && inp.parentNode.querySelector('span'), eok = unitEl && /억/.test(unitEl.textContent), man = Math.floor(x.v / 10000);
@@ -7144,7 +7314,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
       if (!(bm > 0)) { try { bi.focus(); } catch (z) {} var er = g.querySelector('.gsg-ok') || document.createElement('div'); er.className = 'gsg-ok'; er.textContent = '건물 값을 억 단위로 넣어 주세요(예 3.5)'; g.querySelector('.gsg-out').appendChild(er); return; }
       put(g, { v: Math.floor(xv.v / 10000) * 10000 + bm * 10000, sum: '땅 ' + manToEok(Math.floor(xv.v / 10000)) + '억 + 건물 ' + manToEok(bm) + '억' }, 0); return; }
   }, true);
-  document.addEventListener('keydown', function (e) { var t = e.target; if (e.key !== 'Enter' || !t || !t.closest || !t.closest('.gsg-p') || t.closest('.gsj')) return; e.preventDefault(); e.stopPropagation(); var b = t.classList.contains('gsg-b') ? t.parentNode.querySelector('[data-gsgsum]') : t.closest('.gsg').querySelector('[data-gsg="find"]'); if (b) b.click(); }, true);
+  document.addEventListener('keydown', function (e) { var t = e.target; if (e.key !== 'Enter' || !t || !t.closest || !t.closest('.gsg-p') || t.closest('.gsj') || t.closest('.gsg-pre') || t.closest('.gs9')) return; e.preventDefault(); e.stopPropagation(); var b = t.classList.contains('gsg-b') ? t.parentNode.querySelector('[data-gsgsum]') : t.closest('.gsg').querySelector('[data-gsg="find"]'); if (b) b.click(); }, true);
   document.addEventListener('change', function (e) { var t = e.target; if (t && t.classList && t.classList.contains('gsg-k')) MEM.kind = t.value; if (!t || !t.classList || !(t.classList.contains('gsg-y') || t.classList.contains('gsg-k'))) return; var g = t.closest('.gsg'), S = curStep(); if (S && (MEM.item || g.querySelector('.gsg-a').value.trim())) find(g, S); }, true);
   /* ── 2026-11-19 「주소랑 날짜로 조정대상지역 자동 판정」 — 조정대상지역 질문에 「주소로 판정하기」 · 국토교통부 지정·해제 공고 이력(ADJ) × 그 질문의 날짜 · 판정은 브라우저 안에서(주소 검색만 브이월드) ── */
   var ADJ = null; try { ADJ = typeof ADJD === 'string' ? (ADJD.charAt(0) === '{' ? JSON.parse(ADJD) : null) : ADJD; } catch (e) { ADJ = null; }
@@ -7233,7 +7403,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     if (t.hasAttribute('data-gsjans') && g.__ans) { var b = $('pkWz').querySelector('.pk-wo [data-pkwv="' + g.__ans + '"]'); if (b) b.click(); }
   }, true);
   document.addEventListener('keydown', function (e) { var t = e.target; if (e.key !== 'Enter' || !t || !t.classList || !t.classList.contains('gsj-a')) return; e.preventDefault(); e.stopPropagation(); var b = t.closest('.gsj').querySelector('[data-gsj="run"]'); if (b) b.click(); }, true);
-  function watch() { var box = $('pkWz'); if (!box) return setTimeout(watch, 500); new MutationObserver(function () { mount(); mountAdj(); }).observe(box, { childList: true, subtree: true }); mount(); mountAdj(); }
+  function watch() { var box = $('pkWz'); if (!box) return setTimeout(watch, 500); new MutationObserver(function () { mount(); mountAdj(); mount90(); }).observe(box, { childList: true, subtree: true }); mount(); mountAdj(); mount90(); }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', watch); else watch();
 })();
 </script>
