@@ -1039,7 +1039,7 @@ button.sm{font-size:16px!important}
     </div></div>
     <div class="sec"><h2>회사 이익 <small>NCTI 참고 추정</small></h2><div class="row">
       <div class="fld"><label>그해 법인세 차감 전 이익</label><input id="cf_inc" inputmode="decimal" placeholder="억"></div>
-      <div class="fld"><label>한국 법인세 실효세율(%) <span class="dfl">법인세비용 ÷ 세전이익, 지방세 포함</span></label><input id="cf_ktx" inputmode="decimal" placeholder="%"></div>
+      <div class="fld"><label>한국 법인세 실효세율(%) <span class="dfl">법인세비용 ÷ 세전이익, 지방세 포함 · 비우면 계산기가 계산</span></label><input id="cf_ktx" inputmode="decimal" placeholder="비우면 자동"></div>
     </div></div>
     <div class="calc"><button data-run="cfc">계산하기</button></div>
     <div id="o-cfc"></div>
@@ -5026,6 +5026,86 @@ if(typeof module!=='undefined'&&module.exports)module.exports=SPR;
 
 
 
+var CIT = (function () {
+  var R = {
+    cur: [[0, 0.10, 0], [200000000, 0.20, 20000000], [20000000000, 0.22, 420000000], [300000000000, 0.25, 9420000000]],
+    y2023: [[0, 0.09, 0], [200000000, 0.19, 20000000], [20000000000, 0.21, 420000000], [300000000000, 0.24, 9420000000]],
+    local: 0.10,
+    smallFrom: 2025
+  };
+  
+  function table(o) {
+    o = o || {};
+    if (o.T) return o.T;
+    var y = +o.year;
+    return (y >= 2023 && y <= 2025) ? R.y2023 : R.cur;
+  }
+  function isSmall(o) { return !!(o && o.small) && !(+o.year && +o.year < R.smallFrom); }
+  function locRate(o) { return (o && o.local != null && o.local !== false) ? (o.local === true ? R.local : +o.local) : 0; }
+  
+  function row(x, o) {
+    var T = table(o), r = T[0];
+    for (var i = 0; i < T.length; i++) if (x > T[i][0]) r = T[i];
+    var sm = isSmall(o) && T[1];
+    if (sm && r === T[0]) r = T[1];
+    return { rate: r[1], deduct: sm ? Math.max(0, r[2] - T[1][2]) : r[2] };
+  }
+  function tax(x, o) {
+    if (!(x > 0)) return 0;
+    var r = row(x, o);
+    return x * r.rate - r.deduct;
+  }
+  
+  function brackets(o) {
+    var T = table(o), u = (o && o.unit) || 1;
+    var rows = T.map(function (r, i) { return { limit: T[i + 1] ? (u === 1 ? T[i + 1][0] : T[i + 1][0] / u) : Infinity, rate: r[1] }; });
+    return isSmall(o) ? rows.slice(1) : rows;
+  }
+  function steps(x, o) {
+    var B = brackets(o), out = [], prev = 0, sub = 0;
+    if (x > 0) {
+      for (var i = 0; i < B.length; i++) {
+        if (x > prev) { var amt = Math.min(x, B[i].limit) - prev, t = amt * B[i].rate; out.push({ from: prev, limit: B[i].limit, amount: amt, rate: B[i].rate, tax: t }); sub += t; prev = B[i].limit; }
+        else break;
+      }
+    }
+    return { steps: out, subtotal: sub, withLocal: sub * (1 + R.local) };
+  }
+  
+  
+  function xlTax(ref, o) {
+    var T = table(o), sm = isSmall(o) && T[1], cut = sm ? T[1][2] : 0, rows = sm ? T.slice(1) : T, f = '', cl = '';
+    for (var i = 0; i < rows.length; i++) {
+      var d = Math.max(0, rows[i][2] - cut), term = ref + '*' + rows[i][1] + (d ? '-' + d : '');
+      if (i === rows.length - 1) { f += term; break; }
+      f += 'IF(' + ref + '<=' + rows[i + 1][0] + ',' + term + ','; cl += ')';
+    }
+    return f + cl;
+  }
+  
+  function marginal(x, o) {
+    var r = row(x, o).rate, l = locRate(o);
+    return l ? r * (1 + l) : r;
+  }
+  return { R: R, table: table, row: row, tax: tax, xlTax: xlTax, brackets: brackets, steps: steps, marginal: marginal };
+})();
+if (typeof module !== 'undefined' && module.exports) module.exports.CIT = CIT;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -6243,7 +6323,8 @@ var TREATY = [{"n": "가봉", "d": 15.0, "i": 10.0, "dt": "25% 이상 직접 소
     H += table(['', '값'], [tr(['자녀 지분(간주 포함)', pct(own / 100) + (p && !parUS ? ' — 부모 ' + pct(p / 100) + ' 는 비거주 외국인 분이라 뺌' : '')]), tr(['미국주주(10% 이상)', ush ? '해당' : '해당 없음']), tr(['미국주주 보유 합계', pct(usTot / 100)]), tr(['CFC(50% 초과)', cfc ? '해당' : '해당 없음']), tr(['Form 5471', cat.length ? cat.join('<br>') : '대상 없음'], 'tot')]);
     if (!cfc && p && !parUS && c + fam + p > 50) H += '<p class="err">⚠ 부모가 미국 거주자(영주권, 183일)가 되면 부모 지분이 합산돼 CFC가 될 수 있음</p>';
     if (cfc && ush) {
-      var inc = eok('cf_inc'), kt = raw('cf_ktx') === '' ? null : v('cf_ktx') / 100;
+      var inc = eok('cf_inc'), ktIn = raw('cf_ktx') !== '', kt = ktIn ? v('cf_ktx') / 100 : null;
+      if (!ktIn && inc > 0 && typeof CIT !== 'undefined') kt = Math.floor(CIT.tax(inc)) * (1 + 0.10) / inc;   
       if (!inc) H += '<p class="err">NCTI 추정 = 세전이익 입력 필요</p>';
       else {
         var share = inc * c / 100, ktax = kt == null ? 0 : share * kt, ti = share - ktax;   
@@ -6258,7 +6339,7 @@ var TREATY = [{"n": "가봉", "d": 15.0, "i": 10.0, "dt": "25% 이상 직접 소
           tr(['개인 그대로 : 연방, 최소세, 주세(한국 법인세 공제 없음)', W(ind)], 'sub'),
           tr(['§962 선택 : 21% × (1 − 40%) − 한국세 90%', W(c962)]),
           tr(['고세율 예외 선택(한국 실효세율 > 18.9%)', kt == null ? '실효세율 입력 필요' : hte ? '가능 → 포함액 0' : '불가(' + pct(kt) + ')'], 'tot')]);
-        H += '<p class="src">' + u.line + '</p><p class="err">⚠ 참고 추정 : 포함액 = 세전이익 − 한국 법인세(미국 세법 조정 안 함) · NIIT 3.8% 는 뺌(CFC 포함액 NIIT 적용은 선택에 따라 다름) [확인 필요] · §962 는 나중 실제 배당 때 다시 과세 · 고세율 예외 OBBBA 뒤 유효 여부 [확인 필요]</p>';
+        H += (!ktIn ? '<p class="err">가정 : 한국 법인세 실효세율 ' + pct(kt) + ' = 계산기가 계산(과세표준 = 세전이익, 세무조정·이월결손금·세액공제 없음, 일반 법인 현행 세율 + 지방소득세 10%) · 실제 법인세비용을 알면 칸에 넣으세요</p>' : '') + '<p class="src">' + u.line + '</p><p class="err">⚠ 참고 추정 : 포함액 = 세전이익 − 한국 법인세(미국 세법 조정 안 함) · NIIT 3.8% 는 뺌(CFC 포함액 NIIT 적용은 선택에 따라 다름) [확인 필요] · §962 는 나중 실제 배당 때 다시 과세 · 고세율 예외 OBBBA 뒤 유효 여부 [확인 필요]</p>';
       }
     }
     $('o-cfc').innerHTML = card('미국 자녀의 한국 법인 주식', H + sttWarn() + law(CFC_LAW));
@@ -6350,7 +6431,7 @@ var TREATY = [{"n": "가봉", "d": 15.0, "i": 10.0, "dt": "25% 이상 직접 소
       ['c', '자녀 직접 지분율', 'num', '%'], ['fam', '자녀와 같이 미국 거주하는 배우자, 자녀 지분율 합계', 'num', '%'],
       ['par', '부모(주식 보유자) 미국 세법상 거주 여부', [['비거주 외국인(한국 거주)', 'nra'], ['미국 거주자, 시민권자', 'us']]], ['p', '부모 지분율', 'num', '%'],
       ['oth', '그 밖의 미국인 10% 이상 주주 지분율 합계', 'num', '%'], ['off', '자녀의 그 회사 임원, 이사 여부', YN],
-      ['inc', '그해 법인세 차감 전 이익', 'num', '억'], ['kt', '한국 법인세 실효세율(지방세 포함)', 'num', '%'], ['stt', '사는 미국 주(State)', 'stt'], ['fs', '미국 신고 유형', [['독신', 's'], ['부부합산', 'j']]]],
+      ['inc', '그해 법인세 차감 전 이익', 'num', '억'], ['kt', '한국 법인세 실효세율(지방세 포함) — 모르면 「모르겠어요」, 계산기가 계산', 'num', '%'], ['stt', '사는 미국 주(State)', 'stt'], ['fs', '미국 신고 유형', [['독신', 's'], ['부부합산', 'j']]]],
       go: function (a) { sv('cf_child', a.ch || 'us'); sv('cf_childPct', a.c || ''); sv('cf_fam', a.fam || ''); sv('cf_par', a.par || 'nra'); sv('cf_parPct', a.p || ''); sv('cf_oth', a.oth || ''); sv('cf_officer', a.off === '1'); sv('cf_inc', a.inc || ''); sv('cf_ktx', a.kt || ''); if (a.stt !== undefined) { sv('m_stt', a.stt); sttNote(); } sv('m_fs', a.fs || 's'); return 'cfc'; } },
     { g: '미국 신고, 절세', k: 'tips', l: '절세 포인트', q: [], go: function () { return 'tips'; } }
   ];

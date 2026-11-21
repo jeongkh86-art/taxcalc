@@ -145,6 +145,7 @@ html.fwait body{visibility:hidden}
 #pkRoot .pk-wo.ic button{flex-direction:column;justify-content:center;text-align:center;padding:12px 6px;gap:4px}
 #pkRoot .pk-wo button svg{width:54px;height:54px;flex:0 0 auto}
 #pkRoot .pk-wo button.on{border-color:var(--ver);background:var(--verbg)}
+.pk-wo button small.pk-wos{display:block;font-size:12pt;font-weight:400;color:#6B7684;line-height:1.45;margin-top:4px;text-align:left;white-space:normal}.pk-wo button:has(small.pk-wos){flex-direction:column;align-items:flex-start;gap:0}
 #pkRoot .pk-wo button:active{transform:scale(.98)}
 #pkRoot .pk-wi input{width:100%;font:inherit;font-size:22px;padding:13px 12px;border:2px solid var(--rule);border-radius:12px;background:#fff;min-width:0}
 #pkRoot .pk-wi input[type=number]{text-align:right}
@@ -464,6 +465,7 @@ body .y4box .y4e{color:var(--pd-acc)!important}
       <div class="fld"><label>그중 상속인 아닌 사람 몫 과세표준 <span class="cfm">선택</span></label><input id="i_nhBase" type="number" value="0"><span class="dfl">손자녀, 사위 등(상속인·수유자 아님) · §28② 후단 상속인별 한도용 · 없으면 0</span></div>
       <div class="fld"><label>그중 상속인 아닌 사람 몫 산출세액 <span class="cfm">선택</span></label><input id="i_nhTax" type="number" value="0"><span class="dfl">위 몫의 증여세 산출세액 · 없으면 0</span></div>
       <div class="fld"><label>합산 신고된 배우자 증여가액 <span class="cfm">선택</span></label><input id="i_jtOther" type="number" value="0"><span class="dfl">위 사전증여가 돌아가신 분 배우자 증여와 합산 신고(§47②)됐으면 그 배우자 증여가액 · 아래 두 칸 = 합산 신고 값 → 피상속인 몫으로 나눔(§28① · 재산세과-1658) · 없으면 0</span></div>
+      <div class="fld"><label>두 분 증여 순서 <span class="cfm">선택</span></label><select id="i_jtOrd"><option value="same" selected>같은 날(동시) — 공제 안분</option><option value="dead">돌아가신 분 증여가 먼저</option><option value="spouse">배우자 증여가 먼저</option></select><span class="dfl">증여재산공제는 먼저 받은 증여부터 뺌(상증령 §46①) → 돌아가신 분 몫 과세표준(§24 3호, §28②)이 달라짐</span></div>
       <div class="fld"><label>합산 신고 산출세액(전체) <span class="cfm">선택</span></label><input id="i_jtTax" type="number" placeholder="비우면 위 산출세액 칸"></div>
       <div class="fld"><label>합산 신고 과세표준(전체) <span class="cfm">선택</span></label><input id="i_jtBase" type="number" placeholder="비우면 합산 가액 − 5천만원"></div>
     </div>
@@ -978,9 +980,19 @@ var IGTC = (function () {
     var J = o.priorJoint; if (!J || !(num(o.prior) > 0) || !(has(J.tax) || has(J.base) || num(J.other) > 0)) return { o: o, info: null };
     var p = Math.max(0, num(o.prior)), ot = Math.max(0, num(J.other)), tot = p + ot, sh = tot > 0 ? p / tot : 1, n = Object.assign({}, o);
     var ded = has(J.ded) ? Math.max(0, num(J.ded)) : G.R.giftDed.adult, jb = has(J.base) ? Math.max(0, num(J.base)) : Math.max(0, tot - Math.min(tot, ded));
-    n.priorBase = Math.floor(jb * sh + 1e-6); delete n.priorDed;
-    if (has(J.tax)) n.priorTax = Math.floor(Math.max(0, num(J.tax)) * sh + 1e-6);
-    return { o: n, info: { share: sh, other: ot, jointTax: has(J.tax) ? num(J.tax) : null, jointBase: jb, baseAssumed: !has(J.base), tax: has(J.tax) ? n.priorTax : null, base: n.priorBase } };
+    
+    var ord = J.order === 'dead' || J.order === 'spouse' ? J.order : 'same', dTot = Math.max(0, tot - Math.min(tot, jb)), dDead, dSp;
+    if (ord === 'dead') { dDead = Math.min(p, dTot); dSp = Math.min(ot, dTot - dDead); }
+    else if (ord === 'spouse') { dSp = Math.min(ot, dTot); dDead = Math.min(p, dTot - dSp); }
+    else { dDead = null; dSp = null; }
+    n.priorBase = ord === 'same' ? Math.floor(jb * sh + 1e-6) : Math.max(0, p - dDead); delete n.priorDed;
+    var taxSeq = null;
+    if (has(J.tax)) {
+      n.priorTax = Math.floor(Math.max(0, num(J.tax)) * sh + 1e-6);
+      if (ord === 'dead') taxSeq = Math.min(num(J.tax), Math.max(0, baseTax(n.priorBase).tax));
+      else if (ord === 'spouse') taxSeq = Math.max(0, num(J.tax) - Math.max(0, baseTax(Math.max(0, ot - dSp)).tax));
+    }
+    return { o: n, info: { share: sh, other: ot, order: ord, dedTotal: dTot, dedDead: ord === 'same' ? Math.max(0, p - n.priorBase) : dDead, dedSpouse: ord === 'same' ? null : dSp, jointTax: has(J.tax) ? num(J.tax) : null, jointBase: jb, baseAssumed: !has(J.base), tax: has(J.tax) ? n.priorTax : null, taxSeq: taxSeq, base: n.priorBase } };
   }
   function inherit(o) {
     o = o || {}; var JP = jointPrep(o); o = JP.o;
@@ -1060,7 +1072,9 @@ var IGTC = (function () {
     L.push({ k: '× 세율', v: b.rate, rate: true, deduct: b.deduct, law: '§26' });
     L.push({ k: '= 산출세액' + (belowMin ? '(과세표준 50만원 미만 — 부과 안 함)' : ''), v: calculated, law: belowMin ? '§25②' : '§26' });
     if (surcharge) L.push({ k: '+ 세대생략 할증(' + Math.round(sRate * 100) + '%)', v: surcharge, law: '§27' });
-    if (JP.info) L.push({ k: '  사전증여 = 배우자 증여와 합산 신고분 → 피상속인 몫 안분(' + Math.round(JP.info.share * 10000) / 100 + '%)', v: JP.info.tax != null ? JP.info.tax : JP.info.base, law: '§28① · 재산세과-1658', sub: (JP.info.jointTax != null ? '합산 산출세액 ' + w(JP.info.jointTax) + ' → ' + w(JP.info.tax) + ', ' : '') + '합산 과세표준 ' + w(JP.info.jointBase) + (JP.info.baseAssumed ? '(모름 → 합산 가액 − 성년 공제)' : '') + ' → ' + w(JP.info.base) + '(§24 3호, §28② 안분 · 근거 못 찾음 — 조문 문언 기준)' });
+    if (JP.info) { var JI = JP.info, ordLab = JI.order === 'dead' ? '피상속인 증여가 먼저 → 공제를 피상속인 몫에서 먼저 뺌' : JI.order === 'spouse' ? '배우자 증여가 먼저 → 공제를 배우자 몫에서 먼저 빼고 남은 공제만 피상속인 몫' : '같은 날(동시) 증여 → 공제를 증여가액 비율로 안분';   
+      L.push({ k: '  사전증여 = 배우자 증여와 합산 신고분 → 피상속인 몫(증여가액 비율 ' + Math.round(JI.share * 10000) / 100 + '%)', v: JI.tax != null ? JI.tax : JI.base, law: '§28① · 재산세과-81', sub: (JI.jointTax != null ? '합산 산출세액 ' + w(JI.jointTax) + ' → 피상속인 몫 ' + w(JI.tax) + '(증여가액 비율 안분), ' : '') + '증여재산공제 ' + w(JI.dedTotal) + ' 배분 = ' + ordLab + '(상증령 §46①) → 피상속인 몫 공제 ' + w(JI.dedDead) + ', 과세표준 ' + w(JI.base) + '(합산 과세표준 ' + w(JI.jointBase) + (JI.baseAssumed ? ' · 모름 → 합산 가액 − 성년 공제' : '') + ' · §24 3호, §28②)' });
+      if (JI.taxSeq != null && JI.taxSeq !== JI.tax) L.push({ k: '  ⚠ 증여세액공제 산출세액을 증여 순서로 나누면', v: JI.taxSeq, law: '§28① · 서울고법 2026누3401 은 배척', sub: (JI.order === 'spouse' ? '합산 산출세액 − 먼저 받은 배우자 증여 단독 산출세액' : '먼저 받은 피상속인 증여 단독 산출세액') + ' · 본값 = 증여가액 비율 안분 ' + w(JI.tax) + '(재산세과-81, 2013.03.18. · 서울고법 2026누3401, 2026.10.08.)' }); }
     if (gIn > 0) L.push({ k: '− 증여세액공제' + (gBlocked ? '(과세가액 5억원 이하 — 공제 안 됨)' : ''), v: giftCredit, law: gSplit ? '§28② 후단, 영 §20의4' : '§28', sub: gBlocked ? '' : gSplit ? '상속인 몫 한도 ' + w(gCapH) + '(§28② 후단) + 상속인 아닌 사람 몫 한도 ' + w(gCapN) : '한도 ' + w(gCap) });
     L.push({ k: '− 신고세액공제(' + Math.round(G.R.report * 100) + '%)', v: reportCredit, law: '§69' });
     L.push({ k: '= 납부할 세액', v: payable, law: '', big: true });
@@ -5083,7 +5097,7 @@ if (typeof module !== 'undefined') module.exports = ACQ;
       kids: cnt('i_kids'), parents: cnt('i_par'), minorYears: cnt('i_minY'), elderly: cnt('i_old'), disabledYears: cnt('i_disY'), financial: man('i_fin') || 0, house: man('i_house') || 0,
       appraisalFee: man('i_fee') || 0, prior: man('i_prior') || 0, priorBase: man('i_priorBase'), priorTax: man('i_priorTax') || 0,
       priorNonHeir: (man('i_nhBase') || man('i_nhTax')) ? { base: man('i_nhBase') || 0, tax: man('i_nhTax') || 0 } : null,
-      priorJoint: man('i_jtOther') ? { other: man('i_jtOther'), tax: man('i_jtTax'), base: man('i_jtBase') } : null } };      
+      priorJoint: man('i_jtOther') ? { other: man('i_jtOther'), tax: man('i_jtTax'), base: man('i_jtBase'), order: $('i_jtOrd') ? $('i_jtOrd').value : 'same' } : null } };         
   }
   function stepRows(L) {
     return L.map(function (l) {
@@ -5965,6 +5979,8 @@ window.LANDQ = (function () {
     { id: 'iPriorAmt', t: 'm', on: function (a) { return N(a) && a.iPrior === 'y'; }, q: '그 증여재산가액 합계는요?', h: '증여 당시 가액' },
     
     { id: 'iPriorJt', t: 'b', stg: 'prior', pdef: 'n', on: function (a) { return N(a) && a.iPrior === 'y'; }, q: '그 증여를 받을 때 어머니(또는 아버지) 증여와 합쳐서 증여세를 신고했어요?', h: '예) 아버지 10억 + 어머니 10억을 받아 증여세를 한 번에 합쳐 계산한 경우(부모 증여는 10년 합산 §47②) → 상속세에서 빼 주는 증여세 = 합친 세금 중 돌아가신 분 몫(증여 금액 비율)', o: [['n', '아니요 — 따로 신고'], ['y', '예 — 배우자 증여와 합산 신고']] },
+    
+    { id: 'iJtOrd', t: 'b', stg: 'prior', pdef: 'same', on: function (a) { return N(a) && a.iPrior === 'y' && a.iPriorJt === 'y'; }, q: '누구 증여를 먼저 받았어요?', h: '날짜는 안 적어도 돼요 · 증여재산공제(성년 자녀 5천만원)는 먼저 받은 증여에서 먼저 빼요 · 예) 아버지 1억, 어머니 1억에 아버지가 돌아가시면 → 아버지 먼저 = 아버지 몫 과세표준 5천만원, 어머니 먼저 = 1억, 같은 날 = 7,500만원', o: [['dead', '돌아가신 분(피상속인) 먼저'], ['spouse', '배우자(다른 부모) 먼저'], ['same', '같은 날(한 번에)']] },
     { id: 'iJtOther', t: 'm', stg: 'prior', req: '합산된 배우자 증여가액이 있어야 돌아가신 분 몫을 나눠요', on: function (a) { return N(a) && a.iPrior === 'y' && a.iPriorJt === 'y'; }, q: '돌아가신 분 말고 다른 부모가 준 증여 금액은요?', h: '예) 아버지가 돌아가셨으면 어머니가 준 10억 · 위에 넣은 사전증여 금액 = 돌아가신 분이 준 것만(상속세에 다시 더하는 것, §13①)' },
     
     { id: 'iPriorDoc', t: 'b', pdef: 'y', on: function (a) { return N(a) && a.iPrior === 'y'; }, q: '그 증여 때 낸 증여세는 계산기가 계산할까요?', h: '증여 금액으로 과세표준, 산출세액을 계산해요(받은 사람 = 성년 자녀, 증여재산공제 5천만원, 지금 세율 가정) · 증여세 신고서가 있으면 그 숫자를 넣어도 돼요', o: [['auto', '계산기가 계산(추천)'], ['y', '신고서 숫자 넣기']] },
@@ -6057,8 +6073,8 @@ window.LANDQ = (function () {
       if (a.iFun === '') Df.push('장례비 모름 → 최소 500만원');
       if (a.iSp === 'y' && a.iSpAct === '') Df.push('배우자 실제 상속 = 법정상속분만큼 받는다고 봄(분할기한 안 등기 필요)');
       var JT = a.iPrior === 'y' && a.iPriorJt === 'y';   
-      setV('i_jtOther', JT ? mv(a.iJtOther) : '0'); setV('i_jtTax', JT ? mv(a.iJtTax) : ''); setV('i_jtBase', JT ? mv(a.iJtBase) : '');
-      if (JT) { setV('i_priorBase', ''); setV('i_priorTax', '0'); Df.push('사전증여 = 전부 배우자 증여와 합산 신고분으로 봄(일부만 합산이면 전체 입력)'); if (a.iPriorDoc === 'y' && a.iJtBase === '') Df.push('합산 과세표준 모름 → 합산 가액 − 공제 5천만원 가정'); if (a.iPriorDoc === 'y' && a.iJtTax === '') Df.push('합산 산출세액 모름 → 증여세액공제 0(세금이 많은 쪽)'); }
+      setV('i_jtOther', JT ? mv(a.iJtOther) : '0'); setV('i_jtOrd', JT && (a.iJtOrd === 'dead' || a.iJtOrd === 'spouse') ? a.iJtOrd : 'same');    setV('i_jtTax', JT ? mv(a.iJtTax) : ''); setV('i_jtBase', JT ? mv(a.iJtBase) : '');
+      if (JT) { setV('i_priorBase', ''); setV('i_priorTax', '0'); Df.push('사전증여 = 전부 배우자 증여와 합산 신고분으로 봄(일부만 합산이면 전체 입력)'); Df.push('증여재산공제 배분 = ' + (a.iJtOrd === 'dead' ? '돌아가신 분 증여가 먼저 → 공제를 돌아가신 분 몫에서 먼저' : a.iJtOrd === 'spouse' ? '다른 부모 증여가 먼저 → 공제를 다른 부모 몫에서 먼저, 남은 공제만 돌아가신 분 몫' : '같은 날 받음 → 증여 금액 비율로 나눔') + ' · 돌려받는 증여세(증여세액공제) = 합친 세금을 증여 금액 비율로 나눔'); if (a.iPriorDoc === 'y' && a.iJtBase === '') Df.push('합산 과세표준 모름 → 합산 가액 − 공제 5천만원 가정'); if (a.iPriorDoc === 'y' && a.iJtTax === '') Df.push('합산 산출세액 모름 → 증여세액공제 0(세금이 많은 쪽)'); }
       if (a.iPrior === 'y' && a.iPriorDoc !== 'y' && window.IGTC) {   
         var NH = !JT && a.iPriorNh === 'y', nhAmt = NH ? Math.min(Math.round((+a.iPriorAmt || 0) * 1e4), Math.round((+a.iNhAmt || 0) * 1e4)) : 0;   
         var gAmt = Math.round((+a.iPriorAmt || 0) * 1e4) - nhAmt + (JT ? Math.round((+a.iJtOther || 0) * 1e4) : 0), gg = gAmt > 0 ? IGTC.gift({ amount: gAmt, rel: 'parent' }) : null;
@@ -6827,8 +6843,15 @@ window.LANDQ = (function () {
         if (has(J0.base)) b.IN('JTB', '  합산 신고 과세표준(전체)', JPi.jointBase, { law: '§55' });
         else b.F('JTB', '  합산 신고 과세표준(모름 → 합산 가액 − 성년 공제)', 'MAX(0,{PRIOR}+{JTO}-MIN({PRIOR}+{JTO},' + (has(J0.ded) ? Math.max(0, num(J0.ded)) : '{$DADULT}') + '))', JPi.jointBase, { law: '§53' });
         b.F('JSH', '  피상속인 몫 비율(증여가액)', 'IF({PRIOR}+{JTO}>0,{PRIOR}/({PRIOR}+{JTO}),1)', JPi.share, { fmt: 'r', law: '재산세과-1658' });
-        b.F('PBIN', '  그 증여 과세표준(피상속인 몫)', 'ROUNDDOWN({JTB}*{JSH}+0.000001,0)', JPi.base, { law: '§24 3호, §28② · 안분 = 조문 문언 기준' });
-        if (JPi.jointTax != null) { b.IN('JTT', '  합산 신고 산출세액(전체)', JPi.jointTax, { law: '§56' }); b.F('PTAX', '  그 증여세 산출세액(피상속인 몫)', 'ROUNDDOWN({JTT}*{JSH}+0.000001,0)', JPi.tax, { law: '§28① · 재산세과-1658' }); }
+        
+        b.CN('JORD', '  두 분 증여 순서', JPi.order === 'dead' ? '피상속인 증여가 먼저' : JPi.order === 'spouse' ? '배우자 증여가 먼저' : '같은 날(동시)', { fmt: 't', law: '상증령 §46①', d: '순서를 바꾸면 아래 과세표준 식이 달라짐 → 시뮬레이터에서 새로 받기' });
+        if (JPi.order === 'same') b.F('PBIN', '  그 증여 과세표준(피상속인 몫)', 'ROUNDDOWN({JTB}*{JSH}+0.000001,0)', JPi.base, { law: '§24 3호, §28② · 동시 증여 = 공제 안분' });
+        else {
+          b.F('JDT', '  증여재산공제 합계(합산 가액 − 합산 과세표준)', 'MAX(0,{PRIOR}+{JTO}-MIN({PRIOR}+{JTO},{JTB}))', JPi.dedTotal, { law: '§53, 영 §46①' });
+          b.F('PBIN', '  그 증여 과세표준(피상속인 몫)', JPi.order === 'dead' ? 'MAX(0,{PRIOR}-MIN({PRIOR},{JDT}))' : 'MAX(0,{PRIOR}-MIN({PRIOR},{JDT}-MIN({JTO},{JDT})))', JPi.base, { law: '§24 3호, §28② · 먼저 받은 증여부터 공제(영 §46① 1호)' });
+        }
+        if (JPi.jointTax != null) { b.IN('JTT', '  합산 신고 산출세액(전체)', JPi.jointTax, { law: '§56' }); b.F('PTAX', '  그 증여세 산출세액(피상속인 몫)', 'ROUNDDOWN({JTT}*{JSH}+0.000001,0)', JPi.tax, { law: '§28① · 재산세과-81, 재산세과-1658' });
+          if (JPi.taxSeq != null && JPi.taxSeq !== JPi.tax) b.CN('PTAXS', '  ⚠ 증여 순서로 나누면(참고 · 계산 안 씀)', JPi.taxSeq.toLocaleString('ko-KR') + '원', { fmt: 't', law: '§28① · 서울고법 2026누3401 배척', d: '본값 = 증여가액 비율 안분(재산세과-81, 서울고법 2026누3401)' }); }
         else b.IN('PTAX', '  그 증여세 산출세액 합', Math.max(0, num(o.priorTax)), { law: '§28' });
         o = Object.assign({}, o, { priorBase: JPi.base }); delete o.priorDed;
       } else {

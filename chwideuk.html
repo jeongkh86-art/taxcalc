@@ -125,6 +125,7 @@ html.fwait body{visibility:hidden}
 #pkRoot .pk-wo.ic button{flex-direction:column;justify-content:center;text-align:center;padding:12px 6px;gap:4px}
 #pkRoot .pk-wo button svg{width:54px;height:54px;flex:0 0 auto}
 #pkRoot .pk-wo button.on{border-color:var(--ver);background:var(--verbg)}
+.pk-wo button small.pk-wos{display:block;font-size:12pt;font-weight:400;color:#6B7684;line-height:1.45;margin-top:4px;text-align:left;white-space:normal}.pk-wo button:has(small.pk-wos){flex-direction:column;align-items:flex-start;gap:0}
 #pkRoot .pk-wo button:active{transform:scale(.98)}
 #pkRoot .pk-wi input{width:100%;font:inherit;font-size:22px;padding:13px 12px;border:2px solid var(--rule);border-radius:12px;background:#fff;min-width:0}
 #pkRoot .pk-wi input[type=number]{text-align:right}
@@ -1754,7 +1755,9 @@ if (typeof module !== 'undefined') module.exports = ACQ;
 
   
   var H = function (a) { return a.obj === 'house'; };
-  var P = function (a) { return a.who !== 'corp'; };   
+  var P = function (a) { return a.who !== 'corp'; };
+  var HXQ = function (a) { return CNT(a) && a.cnt && a.cnt !== '1' && a.hxq === 'q'; };
+  function HXN(a, z) { var m = Math.max(1, Math.min(3, (+a.cnt || 1) - 1)), o = z ? [['0', '없어요(0)']] : []; for (var k = 1; k <= m; k++) o.push([String(k), k + (k === 3 && +a.cnt >= 4 ? '채 이상' : '채')]); return o; }   
   var BUY = function (a) { return a.how === 'buy'; }, GIFT = function (a) { return a.how === 'gift'; };
   var B = function (a) { return GIFT(a) && H(a) && P(a) && a.burden === 'y'; };
   var CNT = function (a) { return H(a) && ((BUY(a) && P(a)) || B(a)); };
@@ -1793,8 +1796,26 @@ if (typeof module !== 'undefined') module.exports = ACQ;
       h: function (a) { return (BUY(a) ? '취득일 = 사실상 잔금지급일(그 전에 등기하면 등기일)' : GIFT(a) ? '취득일 = 증여 계약일' : a.how === 'inh' ? '취득일 = 상속개시일' : '취득일 = 사용승인일, 임시사용승인일, 사실상 사용일 중 빠른 날') + '(영 §20) · 신고·납부 기한, 감면 기간 판정에 씀 · 숫자 8자리(예 20261130)'; } },
     { id: 'cnt', on: CNT, t: 'b',
       q: function (a) { return B(a) ? '받는 사람 세대의 집은 이번 집까지 몇 채예요?' : '이번 집까지 집이 몇 채예요?'; },
-      h: '같은 세대(주민등록 같이 된 가족 · 배우자, 미혼 30세 미만 자녀는 따로 살아도 같은 세대) 집 + 조합원입주권 + 분양권 + 주거용 오피스텔(2020.8.12. 이후 취득분)을 모두 셈(§13의3) · 빼는 집(상속 5년 안, 1억원 이하 등)은 아래 「특수 사례 더 보기」',
+      h: '같은 세대(주민등록 같이 된 가족 · 배우자, 미혼 30세 미만 자녀는 따로 살아도 같은 세대) 집 + 조합원입주권 + 분양권 + 주거용 오피스텔(2020.8.12. 이후 취득분)을 모두 셈(§13의3) · 빼는 집(상속 5년 안, 1억원 이하 등)은 다음 질문에서 골라요',
       o: [['1', '1채(이번 집만)'], ['2', '2채'], ['3', '3채'], ['4', '4채 이상']] },
+    
+    { id: 'hxq', on: function (a) { return CNT(a) && a.cnt && a.cnt !== '1'; }, t: 'b', pdef: 'none', q: '이번 집 말고 가진 집 중 주택 수에서 빼는 것이 있어요?', h: '빼는 집은 세율을 정하는 주택 수에 안 들어가요 · 여러 종류면 「질문으로 판정」',
+      o: [['none', '없어요'], ['inh', '상속받은 집(5년 안)', '상속받은 집·입주권·분양권·오피스텔 · 돌아가신 날부터 5년이 안 됨'], ['low', '시가표준액 1억원 이하 집', '공시가격(시가표준액) 1억원 이하 · 재개발·재건축 정비구역, 소규모주택정비 사업시행구역 안 집은 안 됨'],
+        ['off', '시가표준액 1억원 이하 오피스텔', '주거용 오피스텔 시가표준액 1억원 이하'], ['land', '1억원 이하 부속토지만', '건물 없이 부속토지만 가짐 · 그 땅 시가표준액 1억원 이하'],
+        ['small', '소형 신축·기축(2024.1.10.~) 등', '2024.1.10.~2027.12.31. 산 다가구(호수별)·연립·다세대·도시형 생활주택, 오피스텔 · 전용 60㎡ 이하, 취득가액 3억원(수도권 6억원) 이하 · 새로 지은 집 첫 구입 또는 60일 안 임대 등록 · 지방 미분양 아파트(85㎡·6억원 이하, 2024.1.10.~2025.12.31. 첫 구입)'],
+        ['etc', '그 밖(어린이집, 노인복지, 사원임대 등)', '가정어린이집·노인복지주택·사원임대용 등으로 직접 쓰는 집, 주택건설업자가 지어 보유한 집(남이 1년 이상 산 집 빼고), 혼인 전 배우자 집(분양권으로 취득할 때)'],
+        ['q', '잘 모르겠어요 — 질문으로 판정', '종류마다 요건을 하나씩 물어 계산기가 셈해요']] },
+    { id: 'hxn', on: function (a) { return CNT(a) && a.cnt && a.cnt !== '1' && a.hxq && a.hxq !== 'none' && a.hxq !== 'q'; }, t: 'b', q: '그런 것은 몇 채(개)예요?', o: function (a) { return HXN(a); } },
+    { id: 'hqI', on: function (a) { return HXQ(a); }, t: 'b', q: '이번 집 말고 상속받은 집(입주권, 분양권, 오피스텔 포함)이 있어요?', o: [['y', '예'], ['n', '아니요']] },
+    { id: 'hqI5', on: function (a) { return HXQ(a) && a.hqI === 'y'; }, t: 'b', q: '그중 돌아가신 날(상속개시일)부터 이번 취득일까지 5년이 안 된 것은 몇 채예요?', h: '5년이 지난 상속 집은 주택 수에 들어가요', o: function (a) { return HXN(a, true); } },
+    { id: 'hqL', on: function (a) { return HXQ(a); }, t: 'b', q: '시가표준액(공시가격)이 1억원 이하인 집이 있어요?', o: [['y', '예'], ['n', '아니요']] },
+    { id: 'hqL2', on: function (a) { return HXQ(a) && a.hqL === 'y'; }, t: 'b', q: '그중 재개발·재건축 정비구역, 소규모주택정비 사업시행구역 밖에 있는 것은 몇 채예요?', h: '정비구역 안 1억원 이하 집은 주택 수에 들어가요', o: function (a) { return HXN(a, true); } },
+    { id: 'hqO', on: function (a) { return HXQ(a); }, t: 'b', q: '시가표준액 1억원 이하 주거용 오피스텔은 몇 개예요?', o: function (a) { return HXN(a, true); } },
+    { id: 'hqD', on: function (a) { return HXQ(a); }, t: 'b', q: '건물 없이 부속토지만 가진 것 중 그 땅 시가표준액이 1억원 이하인 것은 몇 개예요?', o: function (a) { return HXN(a, true); } },
+    { id: 'hqS', on: function (a) { return HXQ(a); }, t: 'b', q: '2024.1.10. 이후 산 전용 60㎡ 이하, 취득가액 3억원(수도권 6억원) 이하 다가구·연립·다세대·도시형 생활주택(또는 오피스텔)이 있어요?', h: '새로 지은 집을 처음 샀거나, 산 날부터 60일 안 임대주택으로 등록한 것', o: [['y', '예'], ['n', '아니요']] },
+    { id: 'hqS2', on: function (a) { return HXQ(a) && a.hqS === 'y'; }, t: 'b', q: '그중 「새로 지은 집 첫 구입」이거나 「60일 안 임대 등록」한 것은 몇 채예요?', o: function (a) { return HXN(a, true); } },
+    { id: 'hqU', on: function (a) { return HXQ(a); }, t: 'b', q: '2024.1.10.~2025.12.31. 수도권 밖 준공 후 미분양 아파트(전용 85㎡, 취득가액 6억원 이하)를 사업주체에게서 처음 산 것이 있어요? 몇 채예요?', o: function (a) { return HXN(a, true); } },
+    { id: 'hqE', on: function (a) { return HXQ(a); }, t: 'b', q: '가정어린이집·노인복지주택·사원임대용으로 직접 쓰는 집, 주택건설업자가 지어 보유한 집, 혼인 전 배우자 집(분양권으로 취득할 때)은 몇 채예요?', o: function (a) { return HXN(a, true); } },
     { id: 'adj', t: 'b', q: '그 집이 조정대상지역에 있어요?',
       on: function (a) { return H(a) && ((BUY(a) && P(a) && a.cnt !== '1') || (GIFT(a) && (STD(a) >= 30000 || (B(a) && a.cnt !== '1')))); },
       h: '조정대상지역 = 정부가 집값 과열로 지정한 곳 · 2025.10.16. 현재 서울 전 지역, 경기 과천, 광명, 성남(분당, 수정, 중원), 수원(영통, 장안, 팔달), 안양 동안, 용인 수지, 의왕, 하남(「2026 주택과 세금」 p.308) · 모르면 주소로 고르기',
@@ -1823,7 +1844,7 @@ if (typeof module !== 'undefined') module.exports = ACQ;
     { id: 'area', on: H, t: 'n', unk: '모르겠어요(85㎡ 초과로)', q: '전용면적은 몇 ㎡예요?', h: '전용 85㎡(국민주택규모) 이하 = 농어촌특별세 비과세(농특세법 §4 11호) · 등기부, 분양계약서의 전용면적(공용 빼고)' }
   ];
   
-  var STG = { how: 'basic', obj: 'basic', who: 'basic', burden: 'basic', bFam: 'basic', date: 'basic', cnt: 'basic', price: 'base', std: 'base', debt: 'base', bProof: 'base',
+  var STG = { how: 'basic', obj: 'basic', who: 'basic', burden: 'basic', bFam: 'basic', date: 'basic', cnt: 'basic', hxq: 'cnt', hxn: 'cnt', hqI: 'cnt', hqI5: 'cnt', hqL: 'cnt', hqL2: 'cnt', hqO: 'cnt', hqD: 'cnt', hqS: 'cnt', hqS2: 'cnt', hqU: 'cnt', hqE: 'cnt', price: 'base', std: 'base', debt: 'base', bProof: 'base',
     inhNone: 'std', adj: 'heavy', adjAddr: 'heavy', t2: 'heavy', prevAdj: 'heavy', donor: 'heavy', metro: 'rate', first: 'red', small: 'red', area: 'nong' };
   var RANK = { basic: 0, base: 1, split: 1, cnt: 2, std: 3, heavy: 4, rate: 5, acq0: 6, red: 7, acq: 8, edu: 9, nong: 10, total: 11, due: 12 };
   if (window.FLOWKIT) { WS = FLOWKIT.order(WS, function (id) { return RANK[STG[id]] || 0; }); FLOWKIT.restage(STG, RANK, WS.eff); }
@@ -1854,6 +1875,16 @@ if (typeof module !== 'undefined') module.exports = ACQ;
     }
     if (h) { if (a.area === '') { v.area = 86; D.push('전용면적 모름 → 85㎡ 초과로 봄(농어촌특별세 과세 · 보수적)'); } else v.area = +a.area; }
     if (a.cnt !== undefined) { v.nH = +a.cnt - 1; if (a.cnt === '4') D.push('4채 이상 → 4채로 계산(4채 이상은 세율 같음 · §13의2①)'); }
+    
+    if (a.hxq && a.hxq !== 'none' && v.nH > 0) {
+      var HX = { hxInh: 0, hxLow: 0, hxOff: 0, hxLand: 0, hxSmall: 0, hxEtc: 0 }, K = { inh: 'hxInh', low: 'hxLow', off: 'hxOff', land: 'hxLand', small: 'hxSmall', etc: 'hxEtc' };
+      if (a.hxq !== 'q') HX[K[a.hxq]] = +a.hxn || 0;
+      else { HX.hxInh = a.hqI === 'y' ? +a.hqI5 || 0 : 0; HX.hxLow = a.hqL === 'y' ? +a.hqL2 || 0 : 0; HX.hxOff = +a.hqO || 0; HX.hxLand = +a.hqD || 0; HX.hxSmall = (a.hqS === 'y' ? +a.hqS2 || 0 : 0) + (+a.hqU || 0); HX.hxEtc = +a.hqE || 0; }
+      var tot = 0, cut = false; Object.keys(HX).forEach(function (k) { var x = Math.max(0, Math.min(HX[k], v.nH - tot)); if (x < HX[k]) cut = true; HX[k] = x; tot += x; });
+      Object.keys(HX).forEach(function (k) { v[k] = HX[k]; });
+      var nm = { hxInh: '상속 5년 안', hxLow: '1억원 이하 집', hxOff: '1억원 이하 오피스텔', hxLand: '1억원 이하 부속토지', hxSmall: '소형 신축·기축, 지방 미분양', hxEtc: '그 밖' };
+      D.push('주택 수에서 빼는 것' + (a.hxq === 'q' ? '(질문으로 판정)' : '') + ' : ' + (tot ? Object.keys(HX).filter(function (k) { return HX[k]; }).map(function (k) { return nm[k] + ' ' + HX[k]; }).join(', ') : '없음') + ' → 세율 주택 수 ' + (v.nH + 1 - tot) + '채(이번 집 포함)' + (cut ? ' · 합이 가진 집 수보다 많아 가진 집 수까지만' : '') + ' · 요건 = 고른 답 기준(영 §28의4⑥)');
+    }
     if (a.adj !== undefined) {
       v.adj = ADJ(a);
       if (a.adj === 'u') D.push('조정대상지역 모름 → 조정대상지역으로 봄(보수적)');
@@ -1967,7 +1998,7 @@ if (typeof module !== 'undefined') module.exports = ACQ;
     var s = step(W.cur), a = live(), v = W.a[s.id], h = top();
     if (window.FLOWKIT) h += FLOWKIT.note(CTX, ansTxt, 'data-pkwed');   
     h += '<div class="pk-wq">' + tx(s.q, a) + '</div>' + (s.h ? '<div class="pk-wh">' + tx(s.h, a) + '</div>' : '');
-    if (s.t === 'b') h += '<div class="pk-wo">' + tx(s.o, a).map(function (o) { return '<button type="button" class="' + (v === o[0] ? 'on' : '') + '" data-pkwv="' + o[0] + '"><span>' + o[1] + '</span></button>'; }).join('') + '</div>';
+    if (s.t === 'b') h += '<div class="pk-wo">' + tx(s.o, a).map(function (o) { return '<button type="button" class="' + (v === o[0] ? 'on' : '') + '" data-pkwv="' + o[0] + '"><span>' + o[1] + '</span>' + (o[2] ? '<small class="pk-wos">' + o[2] + '</small>' : '') + '</button>'; }).join('') + '</div>';   
     else {
       var inp = '';
       if (s.t === 'd') inp = '<input type="date" data-pkwi="0" value="' + esc(v || '') + '">';
