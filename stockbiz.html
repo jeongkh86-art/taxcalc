@@ -1121,6 +1121,14 @@ if (__SEV_NODE) {
   
   function calcInheritanceTax(p) {
     p = p || {};
+    
+    var PJ = p.priorJoint, hv = function (v) { return v !== undefined && v !== null && v !== ''; };
+    if (PJ && num(p.priorGifts) > 0 && (hv(PJ.tax) || hv(PJ.base) || num(PJ.other) > 0)) {
+      var jp = Math.max(0, num(p.priorGifts)), jo = Math.max(0, num(PJ.other)), jt = jp + jo, jsh = jt > 0 ? jp / jt : 1, jd = hv(PJ.ded) ? Math.max(0, num(PJ.ded)) : CONST.GIFT_DEDUCT.lineal_adult;
+      var jb = hv(PJ.base) ? Math.max(0, num(PJ.base)) : Math.max(0, jt - Math.min(jt, jd));
+      p = Object.assign({}, p); p.priorGiftTaxBase = Math.floor(jb * jsh + 1e-6); delete p.priorGiftDeduction;
+      if (hv(PJ.tax)) p.prepaidGiftTax = Math.floor(Math.max(0, num(PJ.tax)) * jsh + 1e-6);
+    }
     var gross = num(p.grossEstate) + num(p.deemedEstate);
     var prior = num(p.priorGifts);
     var debts = num(p.debts);

@@ -243,7 +243,7 @@ html.fwait body{visibility:hidden}
     table.sh td.sh-note { display:block; text-align:left; }
     table.sh td.sh-note::before { content:none; }
   }
-  .hrow { display:grid; grid-template-columns:minmax(0,1.6fr) minmax(0,1fr) minmax(0,1fr); gap:6px; margin-top:6px; }
+  .hrow { display:grid; grid-template-columns:minmax(0,1.4fr) minmax(0,.8fr) minmax(0,1fr) minmax(0,1fr); gap:6px; margin-top:6px; }
   .hrow select, .hrow input { width:100%; padding:9px 6px; border:1px solid var(--rule); border-radius:8px; font-size:12pt; background:var(--card); color:var(--ink); }
   .hrow input { text-align:right; }
   .hhead { font-size:12pt; color:var(--ink3); font-weight:700; }
@@ -427,7 +427,7 @@ body .y4box .y4e{color:var(--pd-acc)!important}
     <label class="chk"><input id="c_small" type="checkbox"> 소규모 성실신고 법인(법인세법 §55① 2호 — 2억원 이하 구간 없음)</label>
     <label class="chk"><input id="c_sme" type="checkbox" checked> 조특법상 중소기업(이월결손금 공제 100% · 아니면 80%)</label>
     <div class="sub">가족 주주(증여자 본인 포함 · 지배주주등)</div>
-    <div class="hrow hhead"><span>증여자와 관계</span><span>지분율(%)</span><span>10년 안 같은 증여자 증여(만원)</span></div>
+    <div class="hrow hhead"><span>증여자와 관계</span><span>지분율(%)</span><span>10년 안 같은 증여자 증여(만원)</span><span>다른 증여자 때 쓴 공제(만원)</span></div>
     <div id="hRows"></div>
   </section>
 
@@ -462,6 +462,9 @@ body .y4box .y4e{color:var(--pd-acc)!important}
       <div class="fld"><label>그 증여세 산출세액 합</label><input id="i_priorTax" type="number" value="0"><span class="dfl">증여세액공제(§28) · 모르면 0</span></div>
       <div class="fld"><label>그중 상속인 아닌 사람 몫 과세표준 <span class="cfm">선택</span></label><input id="i_nhBase" type="number" value="0"><span class="dfl">손자녀, 사위 등(상속인·수유자 아님) · §28② 후단 상속인별 한도용 · 없으면 0</span></div>
       <div class="fld"><label>그중 상속인 아닌 사람 몫 산출세액 <span class="cfm">선택</span></label><input id="i_nhTax" type="number" value="0"><span class="dfl">위 몫의 증여세 산출세액 · 없으면 0</span></div>
+      <div class="fld"><label>합산 신고된 배우자 증여가액 <span class="cfm">선택</span></label><input id="i_jtOther" type="number" value="0"><span class="dfl">위 사전증여가 돌아가신 분 배우자 증여와 합산 신고(§47②)됐으면 그 배우자 증여가액 · 아래 두 칸 = 합산 신고 값 → 피상속인 몫으로 나눔(§28① · 재산세과-1658) · 없으면 0</span></div>
+      <div class="fld"><label>합산 신고 산출세액(전체) <span class="cfm">선택</span></label><input id="i_jtTax" type="number" placeholder="비우면 위 산출세액 칸"></div>
+      <div class="fld"><label>합산 신고 과세표준(전체) <span class="cfm">선택</span></label><input id="i_jtBase" type="number" placeholder="비우면 합산 가액 − 5천만원"></div>
     </div>
   </section>
 
@@ -969,8 +972,17 @@ var IGTC = (function () {
   }
 
   
+  
+  function jointPrep(o) {
+    var J = o.priorJoint; if (!J || !(num(o.prior) > 0) || !(has(J.tax) || has(J.base) || num(J.other) > 0)) return { o: o, info: null };
+    var p = Math.max(0, num(o.prior)), ot = Math.max(0, num(J.other)), tot = p + ot, sh = tot > 0 ? p / tot : 1, n = Object.assign({}, o);
+    var ded = has(J.ded) ? Math.max(0, num(J.ded)) : G.R.giftDed.adult, jb = has(J.base) ? Math.max(0, num(J.base)) : Math.max(0, tot - Math.min(tot, ded));
+    n.priorBase = Math.floor(jb * sh + 1e-6); delete n.priorDed;
+    if (has(J.tax)) n.priorTax = Math.floor(Math.max(0, num(J.tax)) * sh + 1e-6);
+    return { o: n, info: { share: sh, other: ot, jointTax: has(J.tax) ? num(J.tax) : null, jointBase: jb, baseAssumed: !has(J.base), tax: has(J.tax) ? n.priorTax : null, base: n.priorBase } };
+  }
   function inherit(o) {
-    o = o || {};
+    o = o || {}; var JP = jointPrep(o); o = JP.o;
     var gross = num(o.estate), prior = num(o.prior), debts = num(o.debts);
     var funeralGiven = has(o.funeral) || has(o.bongan);
     var funeralAssumed = !funeralGiven && !o.noFuneral;
@@ -1047,13 +1059,14 @@ var IGTC = (function () {
     L.push({ k: '× 세율', v: b.rate, rate: true, deduct: b.deduct, law: '§26' });
     L.push({ k: '= 산출세액' + (belowMin ? '(과세표준 50만원 미만 — 부과 안 함)' : ''), v: calculated, law: belowMin ? '§25②' : '§26' });
     if (surcharge) L.push({ k: '+ 세대생략 할증(' + Math.round(sRate * 100) + '%)', v: surcharge, law: '§27' });
+    if (JP.info) L.push({ k: '  사전증여 = 배우자 증여와 합산 신고분 → 피상속인 몫 안분(' + Math.round(JP.info.share * 10000) / 100 + '%)', v: JP.info.tax != null ? JP.info.tax : JP.info.base, law: '§28① · 재산세과-1658', sub: (JP.info.jointTax != null ? '합산 산출세액 ' + w(JP.info.jointTax) + ' → ' + w(JP.info.tax) + ', ' : '') + '합산 과세표준 ' + w(JP.info.jointBase) + (JP.info.baseAssumed ? '(모름 → 합산 가액 − 성년 공제)' : '') + ' → ' + w(JP.info.base) + '(§24 3호, §28② 안분 · 근거 못 찾음 — 조문 문언 기준)' });
     if (gIn > 0) L.push({ k: '− 증여세액공제' + (gBlocked ? '(과세가액 5억원 이하 — 공제 안 됨)' : ''), v: giftCredit, law: gSplit ? '§28② 후단, 영 §20의4' : '§28', sub: gBlocked ? '' : gSplit ? '상속인 몫 한도 ' + w(gCapH) + '(§28② 후단) + 상속인 아닌 사람 몫 한도 ' + w(gCapN) : '한도 ' + w(gCap) });
     L.push({ k: '− 신고세액공제(' + Math.round(G.R.report * 100) + '%)', v: reportCredit, law: '§69' });
     L.push({ k: '= 납부할 세액', v: payable, law: '', big: true });
     var payable10 = pay10(payable);
     if (payable10 !== Math.floor(payable + 1e-6)) L.push({ k: '  고지·납부 금액(10원 미만 버림)', v: payable10, law: '국고금 관리법 §47①' });
     return {
-      kind: 'inherit', grossEstate: gross, debts: debts, funeralDeduction: funeralDeduct, funeralAssumed: funeralAssumed, priorGifts: prior, taxableEstate: taxable,
+      kind: 'inherit', priorJoint: JP.info, grossEstate: gross, debts: debts, funeralDeduction: funeralDeduct, funeralAssumed: funeralAssumed, priorGifts: prior, taxableEstate: taxable,
       personalDeduction: personal, personalBasic: dBasic, lumpUsed: lumpUsed, soleSpouse: soleSpouse, childDeduction: childDed, minorDeduction: minorDed, elderlyDeduction: elderlyDed, disabledDeduction: disDed,
       spouseDeduction: spouseDeduct, spouseActual: spActual, spouseLegalShare: spLegal, spouseLimitBase: spBase, spouseShareRate: share ? share.spouse : 0,
       financialDeduction: finDeduct, houseDeduction: houseDeduct, deductionBeforeLimit: before, deductionLimit: limit, deductionLimitApplied: limitApplied, totalDeduction: totalDeduct,
@@ -1072,9 +1085,10 @@ var IGTC = (function () {
   };
   SH.minorChild.minor = true;
   
-  function credited(cur, prior, rel, useSkip) {
-    prior = prior || 0;
-    var s = SH[rel] || SH.adultChild, ded = s.ded ? G.R.giftDed[s.ded] : 0;
+  
+  function credited(cur, prior, rel, useSkip, used) {
+    prior = prior || 0; if (prior > 0 && prior < R.sumFloor) prior = 0;   
+    var s = SH[rel] || SH.adultChild, ded = s.ded ? Math.max(0, G.R.giftDed[s.ded] - Math.max(0, num(used))) : 0;
     var comb = cur + prior, base = Math.max(0, comb - ded);
     var gt = function (x) { return x > 0 ? Math.max(0, baseTax(x).tax) : 0; };
     var ts = function (x, g) { var t = gt(x); if (s.skip) t *= 1 + G.skipRate(!!s.minor, g === undefined ? x : g); return t; };
@@ -1105,26 +1119,26 @@ var IGTC = (function () {
     var gross = Math.max(0, num(o.amount)), small = !!o.small;
     var ct = corpTax(gross, num(o.other), num(o.loss), small, o.sme);
     
-    var FL = function (v) { return Math.floor(Math.max(0, +v || 0) + 1e-6); };
+    var FL = function (v) { return Math.floor(+(Math.max(0, +v || 0)).toPrecision(15)); };   
     var national = (typeof o.national === 'number' && o.national >= 0) ? o.national : FL(ct.national);
     var net = Math.max(0, gross - national);
-    var H = (o.holders || []).map(function (h) { return { ratio: Math.max(0, num(h.ratio)), rel: SH[h.rel] ? h.rel : 'other', prior: num(h.prior) }; });
+    var H = (o.holders || []).map(function (h) { return { ratio: Math.max(0, num(h.ratio)), rel: SH[h.rel] ? h.rel : 'other', prior: num(h.prior), used: Math.max(0, num(h.usedDed)) }; });
     var famRatio = H.reduce(function (a, h) { return a + (SH[h.rel].fam ? h.ratio : 0); }, 0);
     var special = famRatio >= R.sp45.ctrl - 1e-12;
     var rows = H.map(function (h) {
       var s = SH[h.rel], ratio = h.ratio, isGift = special && s.fam && h.rel !== 'self';
       var alloc = FL(gross * ratio), deemed = FL(net * ratio), corpShare = FL(national * ratio);
       var over = isGift && deemed >= R.sp45.threshold;
-      var r = { rel: h.rel, relLabel: s.lab, ratio: ratio, prior: h.prior, alloc: alloc, deemed: isGift ? deemed : 0, corpShare: corpShare, target: isGift, over: over,
+      var r = { rel: h.rel, relLabel: s.lab, ratio: ratio, prior: h.prior, usedDed: h.used, alloc: alloc, deemed: isGift ? deemed : 0, corpShare: corpShare, target: isGift, over: over,
         ded: 0, base: 0, rateTax: 0, preSkipTax: 0, cap: 0, capApplied: false, limitedTax: 0, skipAdd: 0, priorCredit: 0, beforeCredit: 0, reportCredit: 0, payable: 0, directTax: 0 };
       if (!isGift) return r;
-      var direct = credited(alloc, h.prior, h.rel, true);
+      var direct = credited(alloc, h.prior, h.rel, true, h.used);
       r.directTax = FL(FL(direct.finalTax) * (1 - G.R.report));
       
-      var capCalc = credited(over ? alloc : 0, h.prior, h.rel, true);
+      var capCalc = credited(over ? alloc : 0, h.prior, h.rel, true, h.used);
       r.cap = Math.max(0, FL(capCalc.finalTax) - (over ? corpShare : 0));
-      var st = credited(over ? deemed : 0, h.prior, h.rel, true), stT = FL(st.finalTax);
-      var pre = FL(credited(over ? deemed : 0, h.prior, h.rel, false).finalTax);
+      var st = credited(over ? deemed : 0, h.prior, h.rel, true, h.used), stT = FL(st.finalTax);
+      var pre = FL(credited(over ? deemed : 0, h.prior, h.rel, false, h.used).finalTax);
       r.ded = st.ded; r.base = st.base; r.priorCredit = st.priorCredit; r.rateTax = st.rawTax; r.rawStructTax = stT; r.preSkipTax = pre;
       r.beforeCredit = over ? Math.min(stT, r.cap) : 0; r.capApplied = over && stT > r.cap;
       r.limitedTax = stT > 0 ? FL(r.beforeCredit * pre / stT) : 0;
@@ -5033,7 +5047,7 @@ if (typeof module !== 'undefined') module.exports = ACQ;
   function hRows() {
     var h = '';
     for (var i = 0; i < 4; i++) h += '<div class="hrow"><select id="h_rel' + i + '">' + HREL.map(function (o) { return '<option value="' + o[0] + '"' + ((i === 0 ? 'adultChild' : '') === o[0] ? ' selected' : '') + '>' + o[1] + '</option>'; }).join('') + '</select>' +
-      '<input id="h_rat' + i + '" type="number" value="' + (i === 0 ? 100 : 0) + '"><input id="h_pri' + i + '" type="number" value="0"></div>';
+      '<input id="h_rat' + i + '" type="number" value="' + (i === 0 ? 100 : 0) + '"><input id="h_pri' + i + '" type="number" value="0"><input id="h_use' + i + '" type="number" value="0"></div>';   
     $('hRows').innerHTML = h + '<div class="sub" id="hSum"></div>';
   }
   
@@ -5061,13 +5075,14 @@ if (typeof module !== 'undefined') module.exports = ACQ;
       prior: man('g_prior') || 0, priorTax: man('g_priorTax'), priorDed: man('g_priorDed'), usedDed: man('g_used') || 0, marriage: $('g_mb').checked, marriageUsed: man('g_mbUsed') || 0 } };
     if (m === 'corp') {
       var H = [];
-      for (var i = 0; i < 4; i++) { var r = $('h_rel' + i).value; if (!r) continue; H.push({ rel: r, ratio: (+$('h_rat' + i).value || 0) / 100, prior: man('h_pri' + i) || 0 }); }
+      for (var i = 0; i < 4; i++) { var r = $('h_rel' + i).value; if (!r) continue; H.push({ rel: r, ratio: (+$('h_rat' + i).value || 0) / 100, prior: man('h_pri' + i) || 0, usedDed: man('h_use' + i) || 0 }); }
       return { fn: 'corpGift', o: { amount: man('c_amt') || 0, other: man('c_other') || 0, loss: man('c_loss') || 0, small: $('c_small').checked, sme: $('c_sme').checked, holders: H } };
     }
     return { fn: 'inherit', o: { estate: man('i_est') || 0, debts: man('i_debt') || 0, funeral: man('i_fun'), bongan: man('i_bong') || undefined, spouse: $('i_sp').checked, spouseActual: $('i_sp').checked ? man('i_spAct') : undefined,
       kids: cnt('i_kids'), parents: cnt('i_par'), minorYears: cnt('i_minY'), elderly: cnt('i_old'), disabledYears: cnt('i_disY'), financial: man('i_fin') || 0, house: man('i_house') || 0,
       appraisalFee: man('i_fee') || 0, prior: man('i_prior') || 0, priorBase: man('i_priorBase'), priorTax: man('i_priorTax') || 0,
-      priorNonHeir: (man('i_nhBase') || man('i_nhTax')) ? { base: man('i_nhBase') || 0, tax: man('i_nhTax') || 0 } : null } };   
+      priorNonHeir: (man('i_nhBase') || man('i_nhTax')) ? { base: man('i_nhBase') || 0, tax: man('i_nhTax') || 0 } : null,
+      priorJoint: man('i_jtOther') ? { other: man('i_jtOther'), tax: man('i_jtTax'), base: man('i_jtBase') } : null } };      
   }
   function stepRows(L) {
     return L.map(function (l) {
@@ -5419,7 +5434,7 @@ var IGX6 = (function () {
   function giftIn(a) {
     var V = Math.round(+a.V || 0), person = a.to !== 'corp', house = a.kind === 'house', date = a.date || today(), rel = a.rel || 'parent';
     var G = person ? { fn: 'gift', o: { amount: V, debt: 0, rel: rel, minor: !!a.minor, parentDead: !!a.parentDead, prior: +a.prior || 0, usedDed: +a.usedDed || 0 } }
-      : { fn: 'corpGift', o: { amount: V, other: +a.other || 0, loss: +a.loss || 0, small: !!a.small, sme: a.sme !== false, holders: (a.holders || []).map(function (h) { return { rel: h.rel, ratio: +h.ratio || 0, prior: 0 }; }) } };
+      : { fn: 'corpGift', o: { amount: V, other: +a.other || 0, loss: +a.loss || 0, small: !!a.small, sme: a.sme !== false, holders: (a.holders || []).map(function (h) { return { rel: h.rel, ratio: +h.ratio || 0, prior: +h.prior || 0, usedDed: +h.usedDed || 0 }; })    } };
     if (person && !(a.priorTax === '' || a.priorTax == null)) G.o.priorTax = +a.priorTax;
     var A = aIn(a, { cause: 'gift', price: V, date: date, owner: person ? 'person' : 'corp' });
     if (house && person) A.donorOne = (+a.donorCnt || 1) === 1 && !!DIRECT[rel];   
@@ -5488,7 +5503,8 @@ var IGX6 = (function () {
       var fIn = giver === 'me' ? P.Va : P.Vb, fOut = giver === 'me' ? P.Vb : P.Va;   
       gv = E.IGTC.lowBuy({ fmv: fIn, price: fIn - g, related: P.related, reason: P.reason });
       gAlt = E.IGTC.lowBuy({ fmv: fOut, price: Math.max(0, fOut - g), related: P.related, reason: P.reason });
-      var GI = { debt: 0, rel: swGiftRel(P.rel, giver), minor: false, parentDead: false, prior: 0, usedDed: 0 };
+      var GI = { debt: 0, rel: swGiftRel(P.rel, giver), minor: !!a.minor, parentDead: !!a.parentDead, prior: +a.prior || 0, usedDed: +a.usedDed || 0 };   
+      if (!(a.priorTax === '' || a.priorTax == null)) GI.priorTax = +a.priorTax;
       if (gv.value > 0) gTax = E.IGTC.gift(Object.assign({}, GI, { amount: gv.value }));
       if (gAlt.value > 0 && gAlt.value !== gv.value) gAltTax = E.IGTC.gift(Object.assign({}, GI, { amount: gAlt.value }));
     }
@@ -5506,7 +5522,7 @@ var IGX6 = (function () {
       J.push((gv.hit ? '✓ ' : '✗ ') + '[증여세 · ' + taker + '] ' + gv.law + ' : 차액 ' + won(g) + ' · 기준금액 ' + won(gv.th) + '(양수한 재산 시가 ' + won(giver === 'me' ? P.Va : P.Vb) + ' 기준 · 조심 2025서3103 2025.11.19.)' + (gv.hit ? ' → 증여재산가액 ' + won(gv.value) + ', 증여세 ' + won(gT) : ' → 증여세 없음'));
       if (gAlt.value !== gv.value) CK.push('[⚠ 두 값 · 증여세 · ' + taker + '] 기준금액 시가 = 양수한 재산 시가(조심 2025서3103 2025.11.19. · 이 계산) 증여재산가액 ' + won(gv.value) + ', 증여세 ' + won(gT) + ' / 양도한 자기 재산 시가(고가양도로 봄 · 재산-591 2010.08.13. 문언) 증여재산가액 ' + won(gAlt.value) + ', 증여세 ' + won(gAltTax ? p10(gAltTax) : 0) + ' — 최근 심판례 쪽 값으로 둠');
       if (!P.related) CK.push('특수관계 아닌 사람끼리 = 「거래 관행상 정당한 사유」가 있으면 증여세 없음(상증법 §35②) — ' + (P.reason ? '정당한 사유 있음으로 계산' : '정당한 사유 없다고 봄(세금이 많은 쪽)'));
-      if (gTax) DF.push('증여세 = 받는 사람 성년, 거주자, 10년 안 같은 사람에게 받은 증여 없음, 신고세액공제 3%');
+      if (gTax) DF.push('증여세 = 받는 사람 ' + (a.minor ? '미성년' : '성년') + ', 거주자' + (+a.prior > 0 ? '' : ', 10년 안 같은 사람에게 받은 증여 없음') + ', 신고세액공제 3%');
     } else if (P.related) J.push('주고받은 값 = 시가 차이만큼 정산 → 저가양도 부당행위(소득세법 §101), 저가양수 증여(상증법 §35) 없음');
     [['나', xa, A], ['상대', xb, B]].forEach(function (p) { var l = ntLine(p[1], p[2], ' · ' + p[0]); if (l) J.push(l); });
     J.push('[취득세 · 나] ' + ba.why + ' (' + ba.law + ')'); J.push('[취득세 · 상대] ' + bb.why + ' (' + bb.law + ')');
@@ -5714,7 +5730,7 @@ var IGBD = (function () {
     var date = a.date || today(), sv = !!a.stdVal, known = sv || a.acqKnow !== 'n', acq0 = sv ? +a.stdAcq || 0 : +a.acq || 0, exp0 = sv ? 0 : +a.exp || 0;
     
     var G = person ? { fn: 'gift', o: { amount: V, debt: D, rel: a.rel || 'parent', minor: !!a.minor, parentDead: !!a.parentDead, prior: +a.prior || 0, priorTax: a.priorTax === '' || a.priorTax == null ? undefined : +a.priorTax, usedDed: +a.usedDed || 0 } }
-      : { fn: 'corpGift', o: { amount: V - D, other: +a.other || 0, loss: +a.loss || 0, small: !!a.small, sme: a.sme !== false, holders: (a.holders || []).map(function (h) { return { rel: h.rel, ratio: +h.ratio || 0, prior: 0 }; }) } };
+      : { fn: 'corpGift', o: { amount: V - D, other: +a.other || 0, loss: +a.loss || 0, small: !!a.small, sme: a.sme !== false, holders: (a.holders || []).map(function (h) { return { rel: h.rel, ratio: +h.ratio || 0, prior: +h.prior || 0, usedDed: +h.usedDed || 0 }; })    } };
     var G0 = { fn: G.fn, o: JSON.parse(JSON.stringify(G.o)) };
     if (person) G0.o.debt = 0; else G0.o.amount = V;
     if (G.o.priorTax === undefined) delete G0.o.priorTax;
@@ -6340,7 +6356,7 @@ window.LANDQ = (function () {
   function eokToMan(x) { x = String(x == null ? '' : x).trim(); if (x === '') return ''; if (!/^\d*\.?\d*$/.test(x) || x === '.') return NaN;
     var p = x.split('.'), i = p[0] || '0', f = p[1] || '', m = Number(i) * 10000 + Number((f + '0000').slice(0, 4)); if (f.length > 4 && +f.charAt(4) >= 5) m += 1; return m; }
   function manToEok(v) { if (v === '' || v == null) return ''; var n = Math.round(+v); if (!isFinite(n)) return ''; var e = Math.floor(n / 10000), r = n % 10000; return r ? e + '.' + ('000' + r).slice(-4).replace(/0+$/, '') : String(e); }
-  var EOKQ = { gAmt: 1, gPriorAmt: 1, cAmt: 1, cLoss: 1, iEst: 1, iDebt: 1, iSpAct: 1, iFin: 1, iHouseAmt: 1, iPriorAmt: 1, iPriorBase: 1,
+  var EOKQ = { gAmt: 1, gPriorAmt: 1, cAmt: 1, cLoss: 1, iEst: 1, iDebt: 1, iSpAct: 1, iFin: 1, iHouseAmt: 1, iPriorAmt: 1, iPriorBase: 1, iJtOther: 1, iJtBase: 1,
     bVal: 1, bDebt: 1, bAcq: 1, bCvA: 1, bCvS: 1, bStd: 1, bPriorAmt: 1,
     lVal: 1, lPrice: 1, lAcq: 1, lCvA: 1, lCvS: 1, lStd: 1, lPriorAmt: 1, lYrV: 1, lYrP: 1, bStdA: 1, sDebt: 1,
     nVal: 1, nStd: 1, nPriorAmt: 1, waVal: 1, waAcq: 1, waStd: 1, wbVal: 1, wbAcq: 1, wbStd: 1, wCash: 1, vVal: 1, vAcq: 1, vStd: 1, vAmt: 1, sVal: 1, sStd: 1, sPriorAmt: 1, sAcq: 1, sSale: 1 };         
@@ -6386,6 +6402,10 @@ window.LANDQ = (function () {
       { id: p + '90same', t: 'b', on: onC, q: '1990.8.30. 직전 등급가액과 산 날 직전에 결정된 등급가액이 같아요?', h: '같으면 개별공시지가에 곱하는 비율이 100%를 넘는 부분은 없는 것으로 봄(시행규칙 §80⑥ 후단)', o: [['n', '아니요(다른 등급 기간)'], ['y', '예(같은 등급 기간)']] }];
   }
   
+  
+  function swRecvRel(a) { var A = +a.waVal || 0, Bv = +a.wbVal || 0, k = a.wCash === '' || a.wCash == null, c = k ? Math.abs(A - Bv) : +a.wCash || 0, d = (A + (A < Bv ? c : 0)) - (Bv + (Bv < A ? c : 0)), r = a.wRel;
+    if (r === 'spouse') return 'spouse'; if (r === 'kin') return 'relative'; if (!r || r === 'other' || r === 'none') return 'other';
+    return d > 0 ? { child: 'parent', gchild: 'grand', parent: 'child', gparent: 'child' }[r] : { child: 'child', gchild: 'child', parent: 'parent', gparent: 'grand' }[r]; }
   function swGap(a) { var A = +a.waVal || 0, Bv = +a.wbVal || 0; if (a.wCash === '' || a.wCash == null) return 0; var c = +a.wCash || 0, pA = A < Bv ? c : 0, pB = Bv < A ? c : 0; return Math.abs((A + pA) - (Bv + pB)); }
   function rdq(id, p, on, who) { return { id: id, t: 'b', on: on, q: who + ' 집이 재개발·재건축 정비구역이나 소규모주택정비 사업시행구역 안에 있어요?', h: function (a) { return '공시가격 ' + eok(a[p + 'Cap'] === 'y' ? ACQ.R.lowCap : ACQ.R.lowNon) + ' 이하 주택 = 매매 취득세 주택 수 중과 제외 — 정비구역(도시정비법 §2 1호), 사업시행구역(소규모주택정비법 §2①4호) 안이면 제외 안 됨(영 §28의2 1호 단서)'; }, o: [['n', '아니요'], ['y', '예 / 모르겠어요']] }; }
   var GS = function (a) { return a.mode === 'gsell'; }, GSH = function (a) { return GS(a) && a.sKind === 'house'; };
@@ -6400,12 +6420,24 @@ window.LANDQ = (function () {
   var Y17 = function (a) { return !a.bAcqD || a.bAcqD >= '2017-08-03'; };   
   var LIN = function (a) { return G(a) && (a.gRel === 'parent' || a.gRel === 'grand'); };
   var GRP = { parent: '직계존속(부모, 조부모 등)', grand: '직계존속(부모, 조부모 등)', child: '직계비속(자녀, 손자녀 등)', relative: '기타친족' };
+  
+  var UREL = { p: null };
+  function usedQ(p, on, rk, mk) {
+    UREL[p] = { rk: rk, mk: mk };
+    return { id: p + 'Used', t: 'm', unk: '없어요', pdef: '', stg: 'ded', on: function (a) { return on(a) && !!GRP[rk(a)]; },
+      q: function (a) { return '10년 안에 다른 ' + GRP[rk(a)] + '에게 증여받으며 이미 공제받은 금액은요?'; },
+      h: function (a) { return '증여재산공제는 같은 그룹 합쳐 10년 통산(§53) — 예 할아버지에게 받을 때 ' + eok(D.adult) + ' 공제를 다 썼으면 이번 공제 0 · 위 같은 사람 증여분은 빼고, 남(공제 없는 사람)에게 받은 증여는 상관없음'; } };
+  }
 
   
   function capOf(s, a) {
     var FM = (window.IGTC && IGTC.R && IGTC.R.inh && IGTC.R.inh.funeralMax) || 10000000;
     if (s.id === 'gUsed') { var c = a.gRel === 'relative' ? D.relative : (a.gRel === 'parent' || a.gRel === 'grand') && a.gMinor === 'y' ? D.minor : D.adult;
       return { v: c, t: '한도 ' + eok(c) + '(' + (GRP[a.gRel] || '') + ' 10년 합계)', o: '한도 ' + eok(c) + '을 넘어요 — 이번 증여재산공제는 0원으로 계산해요' }; }
+    if (/^(n|b|s|l|w)Used$/.test(s.id) && UREL[s.id.slice(0, -4)]) { var u = UREL[s.id.slice(0, -4)], rk = u.rk(a), c2 = rk === 'relative' ? D.relative : (rk === 'parent' || rk === 'grand') && u.mk(a) ? D.minor : D.adult;
+      return { v: c2, t: '한도 ' + eok(c2) + '(' + (GRP[rk] || '') + ' 10년 합계)', o: '한도 ' + eok(c2) + '을 넘어요 — 이번 증여재산공제는 0원으로 계산해요' }; }
+    if (/^cUs\d$/.test(s.id)) { var hr = a['cRel' + s.id.slice(3)] || '', c3 = hr === 'relative' ? D.relative : /^minor/.test(hr) ? D.minor : D.adult;
+      return { v: c3, t: '한도 ' + eok(c3) + '(' + (hr === 'relative' ? '기타친족' : '직계존속') + ' 10년 합계)', o: '한도 ' + eok(c3) + '을 넘어요 — 그 주주 증여재산공제는 0원으로 계산해요' }; }
     if (s.id === 'gMbUsed') return { v: D.marriageBirth, t: '한도 ' + eok(D.marriageBirth) + '(혼인, 출산 합쳐 평생)', o: '한도 ' + eok(D.marriageBirth) + '을 넘어요 — 이번 혼인·출산 공제는 0원으로 계산해요' };
     if (s.id === 'iFun') return { v: FM, t: '한도 ' + eok(FM) + '(봉안시설 빼고)', o: '한도 ' + eok(FM) + '을 넘어요 — 장례비는 ' + eok(FM) + '까지만 빼요' };
     if (s.id === 'iSpAct') return { v: I.spouseMax, t: '배우자상속공제 한도 ' + eok(I.spouseMax) + '(법정상속분 한도 따로)', o: '한도 ' + eok(I.spouseMax) + '을 넘어요 — 배우자상속공제는 ' + eok(I.spouseMax) + '까지만 빼요' };
@@ -6415,6 +6447,21 @@ window.LANDQ = (function () {
   function capTxt(s, a, man) { var c = s && capOf(s, a); if (!c) return ''; return Math.round((+man || 0) * 1e4) > c.v ? '⚠ ' + c.o : c.t; }
   function capHtml(s, a, man) { var c = capOf(s, a); return c ? '<div class="pk-wbl pk-wcap" id="pkWcap">' + esc(capTxt(s, a, man)) + '</div>' : ''; }
   var HREL = [['self', '증여자 본인'], ['spouse', '배우자'], ['adultChild', '성년 자녀'], ['minorChild', '미성년 자녀'], ['adultGrand', '성년 손자녀(세대생략)'], ['minorGrand', '미성년 손자녀(세대생략)'], ['relative', '기타친족(4촌 이내 혈족, 3촌 이내 인척)']];
+  
+  var HLAB = {}; HREL.forEach(function (o) { HLAB[o[0]] = o[1]; });
+  function hFam(a, i) { var r = a['cRel' + i]; return CQ(a) && +a.cN > i && !!r && r !== 'self' && r !== 'other'; }
+  function holderPQs() {
+    var Q = [{ id: 'cPri', t: 'b', stg: 'sh', pdef: 'n', on: function (a) { for (var i = 0; i < 4; i++) if (hFam(a, i)) return true; return false; },
+      q: '가족 주주 중에 10년 안에 이 증여자에게 따로 증여받았거나, 다른 사람에게 증여받으며 공제를 쓴 사람이 있어요?', h: '주주 증여세 = 같은 증여자(직계존속이면 그 배우자 포함)에게 10년 안 받은 증여와 합산(§47②), 증여재산공제는 같은 그룹 10년 통산(§53)',
+      o: [['n', '없어요'], ['y', '있어요']] }];
+    for (var i = 0; i < 4; i++) (function (i) {
+      var on = function (a) { return a.cPri === 'y' && hFam(a, i); }, who = function (a) { return (i + 1) + '번째 주주(' + (HLAB[a['cRel' + i]] || '') + ')'; };
+      Q.push({ id: 'cPr' + i, t: 'm', stg: 'sh', unk: '없어요', on: on, q: function (a) { return who(a) + '가 10년 안에 이 증여자에게 따로 받은 증여는 모두 얼마예요?'; }, h: '증여 당시 가액 합계 · 증여자가 직계존속이면 그 배우자에게 받은 것도 · 1천만원 미만은 합산 안 함, 그때 산출세액은 빼 줌(§58)' });
+      Q.push({ id: 'cUs' + i, t: 'm', stg: 'sh', unk: '없어요', on: function (a) { return on(a) && a['cRel' + i] !== 'spouse'; }, q: function (a) { return who(a) + '가 10년 안에 다른 ' + (a['cRel' + i] === 'relative' ? '기타친족' : '직계존속(부모, 조부모 등)') + '에게 받으며 이미 공제받은 금액은요?'; },
+        h: '증여재산공제는 같은 그룹 합쳐 10년 통산(§53) — 위 이 증여자 증여분은 빼고' });
+    })(i);
+    return Q;
+  }
   function holderQs(i) {
     var on = function (a) { return CQ(a) && +a.cN > i; };
     return [
@@ -6443,6 +6490,7 @@ window.LANDQ = (function () {
     { id: 'nPrior', t: 'b', on: NP, q: '10년 안에 같은 사람에게 받은 증여가 있어요?', h: '직계존속이면 부부를 한 사람으로 봐요, 합계 1천만원 미만이면 합산 안 함(§47②)', o: [['n', '없어요'], ['y', '있어요']] },
     { id: 'nPriorAmt', t: 'm', on: function (a) { return NP(a) && a.nPrior === 'y'; }, q: '그때 받은 재산은 모두 얼마예요?', h: '증여 당시 가액 합계 → 이번 과세가액에 더함(§47②)' },
     { id: 'nPriorTax', t: 'm', unk: '모르겠어요 — 계산할게요', on: function (a) { return NP(a) && a.nPrior === 'y'; }, q: '그때 증여세 산출세액은요?', h: '이번 세금에서 빼 줘요(납부세액공제 §58)' },
+    usedQ('n', NP, function (a) { return a.nRel; }, function (a) { return a.nMinor === 'y'; }),
     { id: 'nCorpNew', t: 'b', on: NC, q: '받는 법인이 수도권 과밀억제권역(서울 등) 안에서 설립되거나 옮겨 온 지 5년이 안 됐어요?', h: '대도시 안 설립·전입 5년 안 법인의 부동산 무상취득 = 표준세율 × 3 − 4%(지방세법 §13②)', o: [['n', '아니요'], ['y', '예']] },
     
     { id: 'wDate', t: 'd', on: SW, unk: '오늘로 할게요', q: '교환일(잔금일, 등기일)은 언제예요?', h: '양쪽 양도일 = 취득일' },
@@ -6478,6 +6526,13 @@ window.LANDQ = (function () {
     
     { id: 'wRel', t: 'b', on: SW, q: '상대는 나에게 누구예요?', h: '특수관계인(친족 = 4촌 이내 혈족, 3촌 이내 인척, 배우자 · 임원, 사용인 등 · 국세기본법 시행령 §1의2)과 시가와 다른 값으로 바꾸면 → 더 준 쪽 양도세 부당행위(소득세법 §101), 덜 준 쪽 증여세(상증법 §35)',
       o: [['none', '남(특수관계 아님)'], ['spouse', '배우자'], ['child', '자녀'], ['gchild', '손자녀'], ['parent', '부모'], ['gparent', '조부모'], ['kin', '그 밖 친족(4촌 이내 혈족, 3촌 이내 인척)'], ['other', '그 밖 특수관계인(임원, 사용인 등)']] },
+    
+    { id: 'wPrior', t: 'b', stg: 'gift2', pdef: 'n', on: function (a) { return SW(a) && swGap(a) > 0; }, q: '이익 본 쪽(덜 준 쪽)이 10년 안에 상대에게 받은 증여가 있어요?', h: '교환으로 증여세가 나올 때 합산(§47②) · 직계존속이면 부부를 한 사람으로 봐요, 1천만원 미만 합산 안 함', o: [['n', '없어요'], ['y', '있어요']] },
+    { id: 'wPriorAmt', t: 'm', stg: 'gift2', on: function (a) { return SW(a) && swGap(a) > 0 && a.wPrior === 'y'; }, q: '그때 받은 재산은 모두 얼마예요?', h: '증여 당시 가액 합계' },
+    { id: 'wPriorTax', t: 'm', stg: 'gift2', unk: '모르겠어요 — 계산할게요', on: function (a) { return SW(a) && swGap(a) > 0 && a.wPrior === 'y'; }, q: '그때 증여세 산출세액은요?', h: '납부세액공제(§58)' },
+    { id: 'wDead', t: 'b', stg: 'gift2', pdef: 'n', on: function (a) { return SW(a) && swGap(a) > 0 && swRecvRel(a) === 'grand'; }, q: '이익 본 손자녀의 부모(조부모의 자녀)는 살아 계세요?', h: '부모가 돌아가셔서 손자녀가 받으면 할증 없음(§57① 단서)', o: [['n', '예 — 살아 계세요(할증 30%)'], ['y', '아니요 — 돌아가셨어요(할증 없음)']] },
+    { id: 'wMinor', t: 'b', stg: 'gift2', pdef: 'n', on: function (a) { return SW(a) && swGap(a) > 0 && /^(parent|grand)$/.test(swRecvRel(a) || ''); }, q: '이익 본 쪽(덜 준 쪽)이 미성년자(만 19세 미만)예요?', h: function () { return '직계존속에게 받을 때 공제 ' + eok(D.adult) + ', 미성년이면 ' + eok(D.minor) + '(§53 2호) · 종전 = 성년으로 봄'; }, o: [['n', '아니요 — 성년'], ['y', '예 — 미성년']] },
+    Object.assign(usedQ('w', function (a) { return SW(a) && swGap(a) > 0; }, function (a) { return swRecvRel(a); }, function (a) { return a.wMinor === 'y'; }), { stg: 'gift2' }),
     { id: 'wReason', t: 'b', on: function (a) { return SW(a) && a.wRel === 'none' && swGap(a) > 0; }, q: '시가와 다른 값으로 바꾼 데 거래 관행상 정당한 사유가 있어요?', h: '특수관계 아닌 사람끼리 = 정당한 사유 없이 차액이 시가 30% 이상이면 차액 − 3억원 증여(상증법 §35②, 시행령 §26③④) · 모르면 없다고 봐요(세금이 많은 쪽)', o: [['n', '없어요(모름)'], ['y', '있어요']] },
     { id: 'waDH', t: 'b', on: function (a) { return SW(a) && a.wbKind === 'house'; }, q: '내 세대가 이미 가진 집은 몇 채예요?(받는 집, 내주는 집 빼고)', h: '받는 집 취득세 = 매매처럼 주택 수 중과(지방세법 §13의2①)', o: [['0', '없어요'], ['1', '1채'], ['2', '2채'], ['3', '3채 이상']] },
     { id: 'wbDH', t: 'b', on: function (a) { return SW(a) && a.waKind === 'house'; }, q: '상대 세대가 이미 가진 집은 몇 채예요?(받는 집, 내주는 집 빼고)', h: '상대가 받는 집 취득세 주택 수 판정', o: [['0', '없어요'], ['1', '1채'], ['2', '2채'], ['3', '3채 이상']] },
@@ -6519,6 +6574,7 @@ window.LANDQ = (function () {
     { id: 'sPrior', t: 'b', on: function (a) { return GS(a) && a.sRel !== 'none'; }, q: '그 증여 전 10년 안에 같은 사람에게 받은 증여가 있어요?', h: '증여세 합산(§47②) · 1천만원 미만이면 합산 안 함', o: [['n', '없어요'], ['y', '있어요']] },
     { id: 'sPriorAmt', t: 'm', on: function (a) { return GS(a) && a.sPrior === 'y'; }, q: '그때 받은 재산은 모두 얼마예요?', h: '증여 당시 가액 합계' },
     { id: 'sPriorTax', t: 'm', unk: '모르겠어요 — 계산할게요', on: function (a) { return GS(a) && a.sPrior === 'y'; }, q: '그때 증여세 산출세액은요?', h: '납부세액공제(§58)' },
+    usedQ('s', GS, function (a) { return a.sRel; }, function (a) { return a.sMinor === 'y'; }),
     { id: 'sDebt', t: 'm', pdef: '', on: function (a) { return GS(a) && a.sRel === 'spouse'; }, unk: '없어요 — 빚 없이 증여', q: '증여 때 받은 사람이 빚(대출, 전세·임대보증금)도 같이 넘겨받았어요? 얼마예요?', h: '빚도 같이 넘긴 부담부증여 = 빚 부분은 증여 때 증여자 양도세 + 받은 사람이 산 것으로 보고, 나머지만 이월과세로 나눠 계산' },
     { id: 'sBCnt', t: 'b', on: SBH, auto: function (a) { if (a.sDCnt === '1') return '1'; }, q: '증여일에 준 사람(증여자) 세대의 집은 모두 몇 채였어요?(이 집 포함)', h: '빚 부분 = 증여자가 판 것 → 증여자 양도세 1세대1주택 비과세, 중과 판정', o: [['1', '1채'], ['2', '2채'], ['3', '3채 이상']] },
     { id: 'sBT2', t: 'b', on: function (a) { return SBH(a) && a.sBCnt === '2'; }, q: '증여일에 증여자가 일시적 2주택이었어요?', h: '새 집을 산 날부터 처분기한 안에 원래 집을 넘기면 1세대1주택으로 봄', o: [['y', '예'], ['n', '아니요 — 그냥 2채']] },
@@ -6581,6 +6637,7 @@ window.LANDQ = (function () {
     { id: 'lYrP', t: 'm', stg: 'gift', on: function (a) { return LYR(a) && a.lYr === 'y'; }, req: '앞 거래 대가 합계를 넣어 주세요', q: '그 앞 거래들에서 실제로 주고받은 값을 모두 더하면요?', h: '계약서 거래가 합계(이번 거래 빼고)' },
     { id: 'lPriorAmt', t: 'm', on: function (a) { return LP(a) && a.lPrior === 'y'; }, q: '그때 받은 재산은 모두 얼마예요?', h: '증여 당시 가액 합계' },
     { id: 'lPriorTax', t: 'm', unk: '모르겠어요 — 계산할게요', on: function (a) { return LP(a) && a.lPrior === 'y'; }, q: '그때 증여세 산출세액은요?', h: '이번 세금에서 빼 줘요(납부세액공제 §58)' },
+    usedQ('l', LP, function (a) { var I = { parent: 'child', grand: 'child', spouse: 'spouse', child: 'parent', relative: 'relative' }; return a.lDir === 'high' && !(LDIR(a) && a.lPaid !== 'y') ? I[a.lRel] : a.lRel; }, function (a) { return a.lMinor === 'y'; }),   
     
     { id: 'bTo', t: 'b', on: B, q: '누가 받아요?', h: '개인 = 증여세(채무 뺀 금액) · 법인 = 법인세(자산수증이익) + 가족 지분 30% 이상이면 주주 증여세(§45의5) · 양도세, 취득세는 둘 다 나와요',
       o: [['person', '개인(자녀, 배우자 등)'], ['corp', '법인(자녀가 주주인 법인 등)']] },
@@ -6621,6 +6678,7 @@ window.LANDQ = (function () {
     { id: 'bPrior', t: 'b', on: BP, q: '10년 안에 같은 사람에게 받은 증여가 있어요?', h: '직계존속이면 부부를 한 사람으로 봐요, 합계 1천만원 미만이면 합산 안 함(§47②)', o: [['n', '없어요'], ['y', '있어요']] },
     { id: 'bPriorAmt', t: 'm', on: function (a) { return BP(a) && a.bPrior === 'y'; }, q: '그때 받은 재산은 모두 얼마예요?', h: '증여 당시 가액 합계 → 이번 과세가액에 더함(§47②)' },
     { id: 'bPriorTax', t: 'm', unk: '모르겠어요 — 계산할게요', on: function (a) { return BP(a) && a.bPrior === 'y'; }, q: '그때 증여세 산출세액은요?', h: '이번 세금에서 빼 줘요(납부세액공제 §58)' },
+    usedQ('b', BP, function (a) { return a.bRel; }, function (a) { return BLIN(a) && a.bMinor === 'y'; }),
     { id: 'bDH', t: 'b', on: function (a) { return BP(a) && a.bKind === 'house'; }, q: '받는 사람 세대가 이미 가진 집은 몇 채예요?(이 집 빼고)', h: '빚 부분(유상분) 취득세 = 매매처럼 주택 수 중과(지방세법 §13의2①) · 조정대상지역 2주택 8%, 3주택 이상 12%',
       o: [['0', '없어요'], ['1', '1채'], ['2', '2채'], ['3', '3채 이상']] },
     { id: 'bProof', t: 'b', on: BDIR, q: '받는 사람이 그 빚을 자기 소득, 재산으로 갚을 수 있다고 증명할 수 있어요?', h: '배우자, 직계존비속 간 = 증명 못 하면 빚 부분도 증여로 보아 취득세(지방세법 §7⑪, ⑫ 단서) · 증여세는 채무 인수 사실 입증 필요(상증법 §47③)',
@@ -6653,7 +6711,7 @@ window.LANDQ = (function () {
     { id: 'cSme', t: 'b', on: function (a) { return CQ(a) && a.cSmall === 'n' && +a.cLoss > 0; }, q: '조세특례제한법상 중소기업이에요?', h: '이월결손금 공제 한도 중소기업 100%, 그 밖 80%(법인세법 §13①)', o: [['y', '예'], ['n', '아니요']] },
     { id: 'cN', t: 'b', on: CQ, q: '증여자 본인과 가족 주주는 몇 명이에요?', h: '친족 아닌 주주는 빼고, 가족(지배주주등) 지분 합계 30% 이상이면 특정법인 → 주주별 증여의제(§45의5①)',
       o: [['1', '1명'], ['2', '2명'], ['3', '3명'], ['4', '4명']] }
-  ].concat(holderQs(0), holderQs(1), holderQs(2), holderQs(3), [
+  ].concat(holderQs(0), holderQs(1), holderQs(2), holderQs(3), holderPQs(), [
     
     { id: 'iEst', t: 'm', on: N, req: '상속재산가액 = 상속세 계산의 기준 금액이라 0보다 큰 금액이 꼭 필요해요', q: '돌아가신 분의 재산은 모두 얼마예요?', h: '부동산, 예금, 주식 등 시가 + 사망보험금, 퇴직금(간주상속재산), 미리 증여한 재산은 뒤에서 따로' },
     { id: 'iDebt', t: 'm', on: N, q: '갚아야 할 빚과 세금(채무, 공과금)은요?', h: '상속재산에서 빼요(§14①)' },
@@ -6675,8 +6733,13 @@ window.LANDQ = (function () {
     { id: 'iHouseAmt', t: 'm', on: function (a) { return N(a) && a.iHouse === 'y'; }, q: '그 주택 가액은요?(주택에 담보된 돌아가신 분 채무 뺀 금액)', h: '주택부수토지 포함' },
     { id: 'iPrior', t: 'b', on: N, q: '돌아가신 분이 미리 증여한 재산이 있어요?', h: '상속인에게 10년 안, 상속인 아닌 사람에게 5년 안 증여 → 상속세 과세가액에 더함(§13①)', o: [['n', '없어요'], ['y', '있어요']] },
     { id: 'iPriorAmt', t: 'm', on: function (a) { return N(a) && a.iPrior === 'y'; }, q: '그 증여재산가액 합계는요?', h: '증여 당시 가액' },
-    { id: 'iPriorBase', t: 'm', unk: '모르겠어요 — 공제 5천만원 가정', on: function (a) { return N(a) && a.iPrior === 'y'; }, q: '그 증여 때 증여세 과세표준 합계는요?', h: '상속공제 한도(§24 3호)와 증여세액공제 한도(§28②)에 써요' },
-    { id: 'iPriorTax', t: 'm', unk: '모르겠어요 — 공제 안 함', on: function (a) { return N(a) && a.iPrior === 'y'; }, q: '그때 증여세 산출세액 합계는요?', h: '상속세에서 빼 줘요(증여세액공제 §28), 상속세 과세가액 5억원 이하면 빼지 않음' }
+    
+    { id: 'iPriorJt', t: 'b', stg: 'prior', pdef: 'n', on: function (a) { return N(a) && a.iPrior === 'y'; }, q: '그 증여가 돌아가신 분 배우자(다른 부모 등)에게 받은 증여와 합산해 신고됐어요?', h: '부모에게 10년 안 받은 증여는 합쳐 신고(§47②) → 상속세에서 빼 주는 증여세 = 합산 산출세액 중 돌아가신 분 몫(증여가액 비율)', o: [['n', '아니요 — 따로 신고'], ['y', '예 — 배우자 증여와 합산 신고']] },
+    { id: 'iJtOther', t: 'm', stg: 'prior', req: '합산된 배우자 증여가액이 있어야 돌아가신 분 몫을 나눠요', on: function (a) { return N(a) && a.iPrior === 'y' && a.iPriorJt === 'y'; }, q: '합산된 배우자 쪽 증여가액은요?', h: '합산 신고서에서 돌아가신 분 말고 다른 사람이 준 증여재산가액 · 위 증여재산가액 = 돌아가신 분이 준 것만(상속세에 더하는 것, §13①)' },
+    { id: 'iJtBase', t: 'm', stg: 'dedL', unk: '모르겠어요 — 공제 5천만원 가정', on: function (a) { return N(a) && a.iPrior === 'y' && a.iPriorJt === 'y'; }, q: '합산 신고 과세표준(전체)은요?', h: '돌아가신 분 몫 = 이 값 × 돌아가신 분 증여가액 ÷ 합산 증여가액 → 상속공제 한도(§24 3호), 증여세액공제 한도(§28②)' },
+    { id: 'iJtTax', t: 'm', stg: 'credit', unk: '모르겠어요 — 공제 안 함', on: function (a) { return N(a) && a.iPrior === 'y' && a.iPriorJt === 'y'; }, q: '합산 신고 산출세액(전체 · 신고서 「산출세액」)은요?', h: '돌아가신 분 몫 = 이 값 × 돌아가신 분 증여가액 ÷ 합산 증여가액(§28① · 재산세과-1658, 2008.07.15.) — 돌아가신 분 증여만 따로 계산한 세액(고지서 값)을 넣으면 공제가 덜 들어갈 수 있어요' },
+    { id: 'iPriorBase', t: 'm', unk: '모르겠어요 — 공제 5천만원 가정', on: function (a) { return N(a) && a.iPrior === 'y' && a.iPriorJt !== 'y'; }, q: '그 증여 때 증여세 과세표준 합계는요?', h: '상속공제 한도(§24 3호)와 증여세액공제 한도(§28②)에 써요' },
+    { id: 'iPriorTax', t: 'm', unk: '모르겠어요 — 공제 안 함', on: function (a) { return N(a) && a.iPrior === 'y' && a.iPriorJt !== 'y'; }, q: '그때 증여세 산출세액 합계는요?', h: '상속세에서 빼 줘요(증여세액공제 §28), 상속세 과세가액 5억원 이하면 빼지 않음' }
   ])));   
 
   
@@ -6747,19 +6810,19 @@ window.LANDQ = (function () {
         setV('mode', 'gift'); setV('g_rel', o.rel); setV('g_minor', o.minor); setV('g_dead', o.parentDead);
         setV('g_amt', mv(a.bVal)); setV('g_debt', mv(a.bDebt));
         setV('g_prior', a.bPrior === 'y' ? mv(a.bPriorAmt) : '0'); setV('g_priorTax', a.bPrior === 'y' ? mv(a.bPriorTax) : ''); setV('g_priorDed', '');
-        setV('g_used', '0'); setV('g_mb', false); setV('g_mbUsed', '0');
+        setV('g_used', mv(a.bUsed) || '0'); setV('g_mb', false); setV('g_mbUsed', '0');
       } else {
         setV('mode', 'corp'); setV('c_amt', String(+a.bVal - +a.bDebt)); setV('c_other', mv(a.cOther)); setV('c_loss', mv(a.cLoss) || '0'); setV('c_small', a.cSmall === 'y'); setV('c_sme', a.cSme !== 'n');
-        for (var j = 0; j < 4; j++) { var on2 = +a.cN > j; setV('h_rel' + j, on2 ? a['cRel' + j] : ''); setV('h_rat' + j, on2 ? mv(a['cRat' + j]) : '0'); setV('h_pri' + j, '0'); }
+        for (var j = 0; j < 4; j++) { var on2 = +a.cN > j; setV('h_rel' + j, on2 ? a['cRel' + j] : ''); setV('h_rat' + j, on2 ? mv(a['cRat' + j]) : '0'); setV('h_pri' + j, on2 && a.cPri === 'y' ? mv(a['cPr' + j]) : '0'); setV('h_use' + j, on2 && a.cPri === 'y' ? mv(a['cUs' + j]) : '0'); }
         if (a.cLoss === '') Df.push('이월결손금 없음');
       }
       if (W.BD && W.BD.defaults) Df = Df.concat(W.BD.defaults);
       landPut(W.BD, Df);
     } else if (a.mode === 'corp') {
       setV('c_amt', mv(a.cAmt)); setV('c_other', mv(a.cOther)); setV('c_loss', mv(a.cLoss) || '0'); setV('c_small', a.cSmall === 'y'); setV('c_sme', a.cSme !== 'n');
-      for (var i = 0; i < 4; i++) { var on = +a.cN > i; setV('h_rel' + i, on ? a['cRel' + i] : ''); setV('h_rat' + i, on ? mv(a['cRat' + i]) : '0'); setV('h_pri' + i, '0'); }
+      for (var i = 0; i < 4; i++) { var on = +a.cN > i; setV('h_rel' + i, on ? a['cRel' + i] : ''); setV('h_rat' + i, on ? mv(a['cRat' + i]) : '0'); setV('h_pri' + i, on && a.cPri === 'y' ? mv(a['cPr' + i]) : '0'); setV('h_use' + i, on && a.cPri === 'y' ? mv(a['cUs' + i]) : '0'); }
       if (a.cLoss === '') Df.push('이월결손금 없음');
-      Df.push('주주가 같은 증여자에게 10년 안 받은 증여 없음, 법인세 공제·감면 없음, 지분 = 직접 보유만(간접 보유 [확인 필요])');
+      Df.push((a.cPri === 'y' ? '' : '주주가 같은 증여자에게 10년 안 받은 증여, 다른 증여자 때 쓴 공제 없음, ') + '법인세 공제·감면 없음, 지분 = 직접 보유만(간접 보유 [확인 필요])');
     } else {
       setV('i_est', mv(a.iEst)); setV('i_debt', mv(a.iDebt)); setV('i_fun', mv(a.iFun)); setV('i_bong', '0');
       setV('i_sp', a.iSp === 'y'); setV('i_spAct', a.iSp === 'y' ? mv(a.iSpAct) : ''); setV('i_kids', mv(a.iKids) || '0'); setV('i_par', a.iSp === 'y' && +a.iKids === 0 ? a.iPar : '0');
@@ -6769,8 +6832,11 @@ window.LANDQ = (function () {
       setV('i_prior', a.iPrior === 'y' ? mv(a.iPriorAmt) : '0'); setV('i_priorBase', a.iPrior === 'y' ? mv(a.iPriorBase) : ''); setV('i_priorTax', a.iPrior === 'y' ? (mv(a.iPriorTax) || '0') : '0');
       if (a.iFun === '') Df.push('장례비 모름 → 최소 500만원');
       if (a.iSp === 'y' && a.iSpAct === '') Df.push('배우자 실제 상속 = 법정상속분만큼 받는다고 봄(분할기한 안 등기 필요)');
-      if (a.iPrior === 'y' && a.iPriorBase === '') Df.push('사전증여 과세표준 모름 → 공제 5천만원 가정');
-      if (a.iPrior === 'y' && a.iPriorTax === '') Df.push('사전증여 산출세액 모름 → 증여세액공제 0(세금이 많은 쪽)');
+      var JT = a.iPrior === 'y' && a.iPriorJt === 'y';   
+      setV('i_jtOther', JT ? mv(a.iJtOther) : '0'); setV('i_jtTax', JT ? mv(a.iJtTax) : ''); setV('i_jtBase', JT ? mv(a.iJtBase) : '');
+      if (JT) { setV('i_priorBase', ''); setV('i_priorTax', '0'); Df.push('사전증여 = 전부 배우자 증여와 합산 신고분으로 봄(일부만 합산이면 전체 입력)'); if (a.iJtBase === '') Df.push('합산 과세표준 모름 → 합산 가액 − 공제 5천만원 가정'); if (a.iJtTax === '') Df.push('합산 산출세액 모름 → 증여세액공제 0(세금이 많은 쪽)'); }
+      if (!JT && a.iPrior === 'y' && a.iPriorBase === '') Df.push('사전증여 과세표준 모름 → 공제 5천만원 가정');
+      if (!JT && a.iPrior === 'y' && a.iPriorTax === '') Df.push('사전증여 산출세액 모름 → 증여세액공제 0(세금이 많은 쪽)');
       Df.push('돌아가신 분 = 거주자, 가업·영농상속공제 없음, 세대생략 상속 없음, 신고기한 안 신고(3% 공제)');
     }
     W.D = Df;
@@ -6787,11 +6853,11 @@ window.LANDQ = (function () {
     if (a.bKind === 'house') { o.cnt = +a.bCnt || 1; o.temp2 = a.bT2 === 'y'; o.adjAcq = a.bAdjA === 'y'; o.res = +a.bRes || 0; o.adjSale = a.bAdjS === 'y'; o.std = M(a.bStd); o.big85 = a.bArea === 'n' ? false : a.bArea === 'y' ? true : undefined; o.cap = a.bCap === 'y'; }
     if (a.bTo === 'person') {
       o.rel = a.bRel || 'parent'; o.minor = BLIN(a) && a.bMinor === 'y'; o.parentDead = a.bRel === 'grand' && a.bDead === 'y';
-      o.prior = a.bPrior === 'y' ? M(a.bPriorAmt) : 0; o.priorTax = a.bPrior === 'y' && a.bPriorTax !== '' && a.bPriorTax != null ? M(a.bPriorTax) : ''; o.usedDed = 0;
+      o.prior = a.bPrior === 'y' ? M(a.bPriorAmt) : 0; o.priorTax = a.bPrior === 'y' && a.bPriorTax !== '' && a.bPriorTax != null ? M(a.bPriorTax) : ''; o.usedDed = M(a.bUsed);   
       o.dh = +a.bDH || 0; o.proof = a.bProof === 'y';
     } else {
       o.other = M(a.cOther); o.loss = M(a.cLoss); o.small = a.cSmall === 'y'; o.sme = a.cSme !== 'n'; o.metro = a.bMetro === 'y';
-      o.holders = []; for (var i = 0; i < 4; i++) if (+a.cN > i && a['cRel' + i]) o.holders.push({ rel: a['cRel' + i], ratio: (+a['cRat' + i] || 0) / 100 });
+      o.holders = []; for (var i = 0; i < 4; i++) if (+a.cN > i && a['cRel' + i]) o.holders.push({ rel: a['cRel' + i], ratio: (+a['cRat' + i] || 0) / 100, prior: a.cPri === 'y' ? M(a['cPr' + i]) : 0, usedDed: a.cPri === 'y' ? M(a['cUs' + i]) : 0 });   
     }
     return o;
   }
@@ -6803,10 +6869,10 @@ window.LANDQ = (function () {
     var pt = function (x) { return x === '' || x == null ? '' : M(x); };
     if (a.mode === 'ngift') {
       var o = { to: a.nTo, kind: a.nKind, V: M(a.nVal), date: a.nDate || '', rel: a.nRel || 'parent', minor: (a.nRel === 'parent' || a.nRel === 'grand') && yn(a.nMinor), parentDead: a.nRel === 'grand' && yn(a.nDead),
-        prior: a.nPrior === 'y' ? M(a.nPriorAmt) : 0, priorTax: a.nPrior === 'y' ? pt(a.nPriorTax) : '', usedDed: 0 };
+        prior: a.nPrior === 'y' ? M(a.nPriorAmt) : 0, priorTax: a.nPrior === 'y' ? pt(a.nPriorTax) : '', usedDed: M(a.nUsed) };
       if (a.nKind === 'house') Object.assign(o, { adjSale: yn(a.nAdjS), std: M(a.nStd), big85: area(a.nArea), cap: yn(a.nCap), donorCnt: +a.nDCnt || 2, dh: +a.nDH || 0 });
       if (a.nTo === 'corp') { o.other = M(a.cOther); o.loss = M(a.cLoss); o.small = yn(a.cSmall); o.sme = a.cSme !== 'n'; o.corpNew = yn(a.nCorpNew);
-        o.holders = []; for (var i = 0; i < 4; i++) if (+a.cN > i && a['cRel' + i]) o.holders.push({ rel: a['cRel' + i], ratio: (+a['cRat' + i] || 0) / 100 }); }
+        o.holders = []; for (var i = 0; i < 4; i++) if (+a.cN > i && a['cRel' + i]) o.holders.push({ rel: a['cRel' + i], ratio: (+a['cRat' + i] || 0) / 100, prior: a.cPri === 'y' ? M(a['cPr' + i]) : 0, usedDed: a.cPri === 'y' ? M(a['cUs' + i]) : 0 });    }
       if (a.nKind === 'house' && !(a.nDCnt)) o.donorCnt = 2;   
       return o;
     }
@@ -6815,11 +6881,12 @@ window.LANDQ = (function () {
       if (k === 'house') Object.assign(o, { cnt: +a[x + 'Cnt'] || 1, temp2: yn(a[x + 'T2']), adjAcq: yn(a[x + 'AdjA']) || a[x + 'AdjA'] === 'u', adjAcqUnk: a[x + 'AdjA'] === 'u', res: +a[x + 'Res'] || 0, adjSale: yn(a[x + 'AdjS']), std: M(a[x + 'Std']), big85: area(a[x + 'Area']), cap: yn(a[x + 'Cap']) });
       return LEput(o, a, x);   
     }
-    if (a.mode === 'swap') return { date: a.wDate || '', me: side('wa'), you: side('wb'), cash: pt(a.wCash), rel: a.wRel || 'none', reason: a.wReason === 'y' };
+    if (a.mode === 'swap') return { date: a.wDate || '', me: side('wa'), you: side('wb'), cash: pt(a.wCash), rel: a.wRel || 'none', reason: a.wReason === 'y',
+      prior: a.wPrior === 'y' ? M(a.wPriorAmt) : 0, priorTax: a.wPrior === 'y' ? pt(a.wPriorTax) : '', usedDed: M(a.wUsed), minor: yn(a.wMinor), parentDead: yn(a.wDead) };   
     if (a.mode === 'divorce') return Object.assign(side('v'), { type: a.vType, date: a.vDate || '', alimony: pt(a.vAmt) });
     
     var g = { kind: KD(a, 's'), rel: a.sRel || 'parent', minor: (a.sRel === 'parent' || a.sRel === 'grand') && yn(a.sMinor), parentDead: a.sRel === 'grand' && yn(a.sDead),
-      prior: a.sPrior === 'y' ? M(a.sPriorAmt) : 0, priorTax: a.sPrior === 'y' ? pt(a.sPriorTax) : '', usedDed: 0,
+      prior: a.sPrior === 'y' ? M(a.sPriorAmt) : 0, priorTax: a.sPrior === 'y' ? pt(a.sPriorTax) : '', usedDed: M(a.sUsed),
       gDate: a.sGDate, V: M(a.sVal), acqDate: a.sAcqD, acq: M(a.sAcq), exp: M(a.sExp), sDate: a.sSDate || '', S: M(a.sSale), dExp: M(a.sDExp), real: yn(a.sReal) };
     if (SB(a)) Object.assign(g, { debt: M(a.sDebt), bCnt: +a.sBCnt || 1, bT2: yn(a.sBT2), bAdjA: yn(a.sBAdjA), bRes: +a.sBRes || 0, proof: yn(a.sBProof) });   
     LEput(g, a, 's');   
@@ -6832,7 +6899,7 @@ window.LANDQ = (function () {
     var o = { kind: KD(a, 'l'), V: M(a.lVal), P: M(a.lPrice), date: a.lDate || '', acqDate: a.lAcqD, acqKnow: a.lAcqK, acq: M(a.lAcq), exp: M(a.lExp), cvA: cvA90(a, 'l', M), cvS: M(a.lCvS),
       rel: a.lRel || 'parent', paid: a.lPaid === 'y', minor: LLIN(a) && a.lMinor === 'y', parentDead: a.lRel === 'grand' && a.lDead === 'y',
       dir: a.lDir === 'high' ? 'high' : 'low', seller: LC(a) ? 'corp' : 'person', yr: LYR(a) && a.lYr === 'y', yrV: M(a.lYrV), yrP: M(a.lYrP),   
-      prior: a.lPrior === 'y' ? M(a.lPriorAmt) : 0, priorTax: a.lPrior === 'y' && a.lPriorTax !== '' && a.lPriorTax != null ? M(a.lPriorTax) : '', usedDed: 0 };
+      prior: a.lPrior === 'y' ? M(a.lPriorAmt) : 0, priorTax: a.lPrior === 'y' && a.lPriorTax !== '' && a.lPriorTax != null ? M(a.lPriorTax) : '', usedDed: M(a.lUsed) };
     LEput(o, a, 'l');   
     if (a.lKind === 'house') { o.cnt = +a.lCnt || 1; o.temp2 = a.lT2 === 'y'; o.adjAcq = a.lAdjA === 'y'; o.res = +a.lRes || 0; o.adjSale = a.lAdjS === 'y'; o.std = M(a.lStd); o.big85 = a.lArea === 'n' ? false : a.lArea === 'y' ? true : undefined; o.cap = a.lCap === 'y'; o.dh = +a.lDH || 0; }
     return o;
@@ -7583,10 +7650,10 @@ window.LANDQ = (function () {
       TB.push({ k: 'DMINOR', n: '직계존속 → 미성년자', v: R.giftDed.minor, law: '§53 2호 단서' });
       TB.push({ k: 'DREL', n: '기타친족', v: R.giftDed.relative, law: '§53 4호' });
       TB.push({ k: 'DOTHER', n: '그 밖의 사람', v: R.giftDed.other, law: '§53' });
+      TB.push({ k: 'SUMFLOOR', n: '10년 내 같은 사람 증여 합산 하한', v: C.R.sumFloor, law: '§47②' });   
     }
     if (kind === 'gift') {
       TB.push({ k: 'DMB', n: '혼인·출산 증여재산공제(통산)', v: R.giftDed.marriageBirth, law: '§53의2' });
-      TB.push({ k: 'SUMFLOOR', n: '10년 내 같은 사람 증여 합산 하한', v: C.R.sumFloor, law: '§47②' });
     }
     if (kind === 'inherit') {
       var I = R.inh, J = C.R.inh;
@@ -7703,9 +7770,22 @@ window.LANDQ = (function () {
       else b.CN('FUNM', '장례비', fAssumed ? '모름 → 최소 공제' : '공제 안 받음', { fmt: 't', law: '령 §9②', d: '장례비를 넣으면 칸 구성이 달라짐 → 시뮬레이터에서 새로 받기' });
       b.IN('PRIOR', '사전증여재산(상속인 10년, 그 밖 5년)', num(o.prior), { law: '§13①' });
       if (has(o.priorHeir)) b.IN('PHEIR', '  그중 상속인 몫', Math.max(0, num(o.priorHeir)), { law: '§19①' });
+      var JPi = R.priorJoint;   
+      if (JPi) {
+        var J0 = o.priorJoint || {};
+        b.IN('JTO', '  합산 신고된 배우자 증여가액', JPi.other, { law: '§47②' });
+        if (has(J0.base)) b.IN('JTB', '  합산 신고 과세표준(전체)', JPi.jointBase, { law: '§55' });
+        else b.F('JTB', '  합산 신고 과세표준(모름 → 합산 가액 − 성년 공제)', 'MAX(0,{PRIOR}+{JTO}-MIN({PRIOR}+{JTO},' + (has(J0.ded) ? Math.max(0, num(J0.ded)) : '{$DADULT}') + '))', JPi.jointBase, { law: '§53' });
+        b.F('JSH', '  피상속인 몫 비율(증여가액)', 'IF({PRIOR}+{JTO}>0,{PRIOR}/({PRIOR}+{JTO}),1)', JPi.share, { fmt: 'r', law: '재산세과-1658' });
+        b.F('PBIN', '  그 증여 과세표준(피상속인 몫)', 'ROUNDDOWN({JTB}*{JSH}+0.000001,0)', JPi.base, { law: '§24 3호, §28② · 안분 = 조문 문언 기준' });
+        if (JPi.jointTax != null) { b.IN('JTT', '  합산 신고 산출세액(전체)', JPi.jointTax, { law: '§56' }); b.F('PTAX', '  그 증여세 산출세액(피상속인 몫)', 'ROUNDDOWN({JTT}*{JSH}+0.000001,0)', JPi.tax, { law: '§28① · 재산세과-1658' }); }
+        else b.IN('PTAX', '  그 증여세 산출세액 합', Math.max(0, num(o.priorTax)), { law: '§28' });
+        o = Object.assign({}, o, { priorBase: JPi.base }); delete o.priorDed;
+      } else {
       if (has(o.priorBase)) b.IN('PBIN', '  그 증여 과세표준 합', Math.max(0, num(o.priorBase)), { law: '§24 3호, §28' });
       else if (has(o.priorDed)) b.IN('PDIN', '  그 증여 때 쓴 공제 합', Math.max(0, num(o.priorDed)), { law: '§24 3호' });
       b.IN('PTAX', '  그 증여세 산출세액 합', Math.max(0, num(o.priorTax)), { law: '§28' });
+      }
       
       var NH = o.priorNonHeir || {};
       b.IN('NHB', '  그중 상속인 아닌 사람 몫 과세표준', Math.max(0, num(NH.base)), { law: '§28② 후단, 영 §3①2호' });
@@ -7794,7 +7874,7 @@ window.LANDQ = (function () {
   function corpRows(E, M, o, R, lnk) {
     var X = E.X, C = E.C, YN = X.YN, n = E.G.R.rate.length, P = function (r) { return X.progF(r, 'IR', n); };
     var small = !!o.small, sme = o.sme !== false, natGiven = typeof o.national === 'number' && o.national >= 0;
-    var H = (o.holders || []).map(function (h) { return { ratio: Math.max(0, num(h.ratio)), rel: C.SH[h.rel] ? h.rel : 'other', prior: num(h.prior) }; });
+    var H = (o.holders || []).map(function (h) { return { ratio: Math.max(0, num(h.ratio)), rel: C.SH[h.rel] ? h.rel : 'other', prior: num(h.prior), used: Math.max(0, num(h.usedDed)) }; });
     M.block('K', '법인세, 특정법인 판정', function (b) {
       b.sec('입력 (파란 글자 = 입력 칸 · 바꾸면 아래 수식이 다시 계산)');
       if (lnk) b.F('AMT', '법인에 증여한 재산(시가 − 인수 채무 · 나누기 칸)', 'MAX(0,{N:V}-{N:D})', Math.max(0, num(o.amount)), { law: '법인세법 §15①, 상증법 §45의5' });   
@@ -7814,13 +7894,14 @@ window.LANDQ = (function () {
       b.F('CTAX', '법인세 산출세액', E.CT.xlTax('{TI}', { small: small }), R.corpTaxNational, { law: '법인세법 §55①', d: '세율 = 법인세 엔진(CIT) 누진 수식' });
       b.F('CLOC', '법인 실부담(지방소득세 포함)', '{CTAX}*(1+{$CITLOCAL})', R.corpTaxWithLocal, { law: '지방세법 §103의20' });
       b.F('AP', '  이 증여 이익 ÷ 소득금액', 'IF(AND({TI}>0,{GI}>0),MIN(1,{TAXP}/{GI}),0)', R.corp.apportion, { fmt: 'r', law: '령 §34의5④2호' });
-      b.F('NAT', '법인세 상당액', natGiven ? '{NATIN}' : '{CTAX}*{AP}', R.national, { law: '령 §34의5④2호' });
+      b.F('NAT', '법인세 상당액', natGiven ? '{NATIN}' : 'ROUNDDOWN({CTAX}*{AP},0)', R.national, { law: '령 §34의5④2호' });
       b.F('NET', '특정법인의 이익(증여가액 − 법인세 상당액)', 'MAX(0,{AMT}-{NAT})', R.net, { law: '령 §34의5④' });
       H.forEach(function (h, i) {
         var s = C.SH[h.rel];
         b.CN('REL' + i, '주주 ' + (i + 1) + ' 관계', s.lab, { fmt: 't', law: '§45의5①', d: s.fam ? '지배주주등(친족)' : '친족 아님' });
         b.IN('RAT' + i, '  지분율', h.ratio, { fmt: 'r' });
-        b.IN('PRI' + i, '  10년 내 같은 증여자 증여', h.prior, { law: '§47②' });
+        b.IN('PRI' + i, '  10년 내 같은 증여자 증여', h.prior, { law: '§47②', d: '직계존속이면 그 배우자 포함 · 1천만원 미만은 합산 안 함' });
+        b.IN('USE' + i, '  10년 안 같은 그룹 다른 증여자에게서 받은 공제(칸 A)', h.used, { law: '§53 후단' });   
       });
       var fam = H.map(function (h, i) { return C.SH[h.rel].fam ? '{RAT' + i + '}' : null; }).filter(Boolean);
       b.F('FAM', '지배주주등 지분 합계', fam.length ? fam.join('+') : '0', R.famRatio, { fmt: 'r', law: '§45의5①' });
@@ -7828,7 +7909,8 @@ window.LANDQ = (function () {
     });
     function cred(b, p, cur, i, h, useSkip, label) {
       var s = C.SH[h.rel], dedRef = { spouse: '{$DSP}', adult: '{$DADULT}', minor: '{$DMINOR}', relative: '{$DREL}', other: '{$DOTHER}' }[s.ded] || '0';
-      var pr = '{K:PRI' + i + '}', sk = function (g) { return useSkip && s.skip ? '*(1+' + (s.minor ? 'IF(' + g + '>{$SKIPOVER},{$SKIPL},{$SKIPN})' : '{$SKIPN}') + ')' : ''; };
+      dedRef = 'MAX(0,' + dedRef + '-{K:USE' + i + '})';   
+      var pr = 'IF({K:PRI' + i + '}<{$SUMFLOOR},0,{K:PRI' + i + '})', sk = function (g) { return useSkip && s.skip ? '*(1+' + (s.minor ? 'IF(' + g + '>{$SKIPOVER},{$SKIPL},{$SKIPN})' : '{$SKIPN}') + ')' : ''; };
       b.F(p + 'C', label + ' — 합산 과세가액', cur + '+' + pr, null, { law: '§47②' });
       b.F(p + 'B', '    과세표준(공제 ' + s.lab + ')', 'MAX(0,{' + p + 'C}-' + dedRef + ')', null, { law: '§53' });
       b.F(p + 'T', '    세액' + (useSkip && s.skip ? '(할증 포함)' : ''), 'IF({' + p + 'B}>0,MAX(0,' + P('{' + p + 'B}') + '),0)' + sk('{' + p + 'C}'), null, { law: '§56' + (useSkip && s.skip ? ', §57' : '') });
@@ -7845,24 +7927,25 @@ window.LANDQ = (function () {
       M.block('S' + i, '주주 ' + (i + 1) + ' ' + s.lab + ' — 증여의제(§45의5)', function (b) {
         var k = function (x) { return '{K:' + x + i + '}'; };
         b.F('TGT', '증여의제 대상(특정법인 + 친족)', 'IF({K:SPEC}="예","예","아니요")', YN(r.target), { fmt: 't', law: '§45의5①' });
-        b.F('ALLOC', '  지분만큼 받은 재산(직접 증여였다면)', '{K:AMT}*' + k('RAT'), r.alloc, {});
-        b.F('CSH', '  법인세 상당액 × 지분', '{K:NAT}*' + k('RAT'), r.corpShare, { law: '령 §34의5⑨' });
-        b.F('DEEM', '증여의제이익(특정법인의 이익 × 지분)', 'IF({TGT}="예",{K:NET}*' + k('RAT') + ',0)', r.deemed, { law: '§45의5①' });
+        b.F('ALLOC', '  지분만큼 받은 재산(직접 증여였다면)', 'ROUNDDOWN({K:AMT}*' + k('RAT') + ',0)', r.alloc, {});
+        b.F('CSH', '  법인세 상당액 × 지분', 'ROUNDDOWN({K:NAT}*' + k('RAT') + ',0)', r.corpShare, { law: '령 §34의5⑨' });
+        b.F('DEEM', '증여의제이익(특정법인의 이익 × 지분)', 'IF({TGT}="예",ROUNDDOWN({K:NET}*' + k('RAT') + ',0),0)', r.deemed, { law: '§45의5①' });
         b.F('OVER', '1억원 이상(과세)', 'IF(AND({TGT}="예",{DEEM}>={$THR}),"예","아니요")', YN(r.over), { fmt: 't', law: '령 §34의5⑤' });
         b.sec('직접 증여였다면(할증 포함) — 비교용');
         var dF = cred(b, 'D', '{ALLOC}', i, h, true, '  직접 증여');
-        b.F('DIRECT', '  직접 증여였다면 납부할 세액', 'IF({TGT}="예",' + dF + '*(1-{$REPORT}),0)', r.directTax, {});
-        b.sec('§45의5② 한도 = 직접 증여 증여세(할증 제외) − 법인세 상당액 × 지분');
-        var cF = cred(b, 'H', 'IF({OVER}="예",{ALLOC},0)', i, h, false, '  한도 계산');
-        b.F('CAP', '  한도', 'IF({TGT}="예",MAX(0,' + cF + '-IF({OVER}="예",{CSH},0)),0)', r.cap, { law: '§45의5②, 령 §34의5⑨' });
+        b.F('DIRECT', '  직접 증여였다면 납부할 세액', 'IF({TGT}="예",ROUNDDOWN(ROUNDDOWN(' + dF + ',0)*(1-{$REPORT}),0),0)', r.directTax, {});
+        
+        b.sec('§45의5② 한도 = 직접 증여 증여세(할증 포함) − 법인세 상당액 × 지분');
+        var cF = cred(b, 'H', 'IF({OVER}="예",{ALLOC},0)', i, h, true, '  한도 계산');
+        b.F('CAP', '  한도', 'IF({TGT}="예",MAX(0,ROUNDDOWN(' + cF + ',0)-IF({OVER}="예",{CSH},0)),0)', r.cap, { law: '§45의5②, 령 §34의5⑨' });
         b.sec('증여의제 세액');
         var pF = cred(b, 'P', 'IF({OVER}="예",{DEEM},0)', i, h, false, '  할증 전');
         var sF = s.skip ? cred(b, 'Q', 'IF({OVER}="예",{DEEM},0)', i, h, true, '  할증 포함') : pF;
-        b.F('LIMT', '  한도 적용 세액(할증 전)', 'IF({OVER}="예",MIN(' + pF + ',{CAP}),0)', r.limitedTax, { law: '§45의5②' });
-        b.F('BEFC', '  할증 붙인 세액', 'IF(' + pF + '>0,{LIMT}*' + sF + '/' + pF + ',0)', r.beforeCredit, { law: '§57', d: '할증은 한도 뒤에 붙임' });
-        b.F('SKADD', '  + 세대생략 할증', '{BEFC}-{LIMT}', r.skipAdd, { law: '§57' });
+        b.F('BEFC', '  한도 적용 세액(할증 포함)', 'IF({OVER}="예",MIN(ROUNDDOWN(' + sF + ',0),{CAP}),0)', r.beforeCredit, { law: '§45의5②, §57' });
+        b.F('LIMT', '  그중 할증 전 세액', 'IF(ROUNDDOWN(' + sF + ',0)>0,ROUNDDOWN({BEFC}*ROUNDDOWN(' + pF + ',0)/ROUNDDOWN(' + sF + ',0),0),0)', r.limitedTax, { law: '§45의5②' });
+        b.F('SKADD', '  그중 세대생략 할증', '{BEFC}-{LIMT}', r.skipAdd, { law: '§57' });
         b.F('REP', '  − 신고세액공제', 'ROUNDDOWN({BEFC}*{$REPORT},0)', r.reportCredit, { law: '§69' });
-        b.F('PAY', '= 납부할 세액', '{BEFC}-{REP}', r.payable, { big: 1 });
+        b.F('PAY', '= 납부할 세액(10원 미만 버림)', 'ROUNDDOWN(({BEFC}-{REP})/10,0)*10', r.payable, { big: 1, law: '국고금 관리법 §47①' });
       });
       pays.push('{S' + i + ':PAY}');
     });
@@ -8074,10 +8157,10 @@ window.LANDQ = (function () {
       TB.push({ k: 'DMINOR', n: '직계존속 → 미성년자', v: R.giftDed.minor, law: '§53 2호 단서' });
       TB.push({ k: 'DREL', n: '기타친족', v: R.giftDed.relative, law: '§53 4호' });
       TB.push({ k: 'DOTHER', n: '그 밖의 사람', v: R.giftDed.other, law: '§53' });
+      TB.push({ k: 'SUMFLOOR', n: '10년 내 같은 사람 증여 합산 하한', v: C.R.sumFloor, law: '§47②' });   
     }
     if (kind === 'gift') {
       TB.push({ k: 'DMB', n: '혼인·출산 증여재산공제(통산)', v: R.giftDed.marriageBirth, law: '§53의2' });
-      TB.push({ k: 'SUMFLOOR', n: '10년 내 같은 사람 증여 합산 하한', v: C.R.sumFloor, law: '§47②' });
     }
     if (kind === 'inherit') {
       var I = R.inh, J = C.R.inh;
@@ -8179,7 +8262,7 @@ window.LANDQ = (function () {
   function corpRows(E, M, o, R, lnk) {
     var X = E.X, C = E.C, YN = X.YN, n = E.G.R.rate.length, P = function (r) { return X.progF(r, 'IR', n); };
     var small = !!o.small, sme = o.sme !== false, natGiven = typeof o.national === 'number' && o.national >= 0;
-    var H = (o.holders || []).map(function (h) { return { ratio: Math.max(0, num(h.ratio)), rel: C.SH[h.rel] ? h.rel : 'other', prior: num(h.prior) }; });
+    var H = (o.holders || []).map(function (h) { return { ratio: Math.max(0, num(h.ratio)), rel: C.SH[h.rel] ? h.rel : 'other', prior: num(h.prior), used: Math.max(0, num(h.usedDed)) }; });
     M.block('K', '법인세, 특정법인 판정', function (b) {
       b.sec('입력 (파란 글자 = 입력 칸 · 바꾸면 아래 수식이 다시 계산)');
       if (lnk) b.F('AMT', '법인에 증여한 재산(시가 − 인수 채무 · 나누기 칸)', 'MAX(0,{N:V}-{N:D})', Math.max(0, num(o.amount)), { law: '법인세법 §15①, 상증법 §45의5' });   
@@ -8199,13 +8282,14 @@ window.LANDQ = (function () {
       b.F('CTAX', '법인세 산출세액', E.CT.xlTax('{TI}', { small: small }), R.corpTaxNational, { law: '법인세법 §55①', d: '세율 = 법인세 엔진(CIT) 누진 수식' });
       b.F('CLOC', '법인 실부담(지방소득세 포함)', '{CTAX}*(1+{$CITLOCAL})', R.corpTaxWithLocal, { law: '지방세법 §103의20' });
       b.F('AP', '  이 증여 이익 ÷ 소득금액', 'IF(AND({TI}>0,{GI}>0),MIN(1,{TAXP}/{GI}),0)', R.corp.apportion, { fmt: 'r', law: '령 §34의5④2호' });
-      b.F('NAT', '법인세 상당액', natGiven ? '{NATIN}' : '{CTAX}*{AP}', R.national, { law: '령 §34의5④2호' });
+      b.F('NAT', '법인세 상당액', natGiven ? '{NATIN}' : 'ROUNDDOWN({CTAX}*{AP},0)', R.national, { law: '령 §34의5④2호' });
       b.F('NET', '특정법인의 이익(증여가액 − 법인세 상당액)', 'MAX(0,{AMT}-{NAT})', R.net, { law: '령 §34의5④' });
       H.forEach(function (h, i) {
         var s = C.SH[h.rel];
         b.CN('REL' + i, '주주 ' + (i + 1) + ' 관계', s.lab, { fmt: 't', law: '§45의5①', d: s.fam ? '지배주주등(친족)' : '친족 아님' });
         b.IN('RAT' + i, '  지분율', h.ratio, { fmt: 'r' });
-        b.IN('PRI' + i, '  10년 내 같은 증여자 증여', h.prior, { law: '§47②' });
+        b.IN('PRI' + i, '  10년 내 같은 증여자 증여', h.prior, { law: '§47②', d: '직계존속이면 그 배우자 포함 · 1천만원 미만은 합산 안 함' });
+        b.IN('USE' + i, '  10년 안 같은 그룹 다른 증여자에게서 받은 공제(칸 A)', h.used, { law: '§53 후단' });   
       });
       var fam = H.map(function (h, i) { return C.SH[h.rel].fam ? '{RAT' + i + '}' : null; }).filter(Boolean);
       b.F('FAM', '지배주주등 지분 합계', fam.length ? fam.join('+') : '0', R.famRatio, { fmt: 'r', law: '§45의5①' });
@@ -8213,7 +8297,8 @@ window.LANDQ = (function () {
     });
     function cred(b, p, cur, i, h, useSkip, label) {
       var s = C.SH[h.rel], dedRef = { spouse: '{$DSP}', adult: '{$DADULT}', minor: '{$DMINOR}', relative: '{$DREL}', other: '{$DOTHER}' }[s.ded] || '0';
-      var pr = '{K:PRI' + i + '}', sk = function (g) { return useSkip && s.skip ? '*(1+' + (s.minor ? 'IF(' + g + '>{$SKIPOVER},{$SKIPL},{$SKIPN})' : '{$SKIPN}') + ')' : ''; };
+      dedRef = 'MAX(0,' + dedRef + '-{K:USE' + i + '})';   
+      var pr = 'IF({K:PRI' + i + '}<{$SUMFLOOR},0,{K:PRI' + i + '})', sk = function (g) { return useSkip && s.skip ? '*(1+' + (s.minor ? 'IF(' + g + '>{$SKIPOVER},{$SKIPL},{$SKIPN})' : '{$SKIPN}') + ')' : ''; };
       b.F(p + 'C', label + ' — 합산 과세가액', cur + '+' + pr, null, { law: '§47②' });
       b.F(p + 'B', '    과세표준(공제 ' + s.lab + ')', 'MAX(0,{' + p + 'C}-' + dedRef + ')', null, { law: '§53' });
       b.F(p + 'T', '    세액' + (useSkip && s.skip ? '(할증 포함)' : ''), 'IF({' + p + 'B}>0,MAX(0,' + P('{' + p + 'B}') + '),0)' + sk('{' + p + 'C}'), null, { law: '§56' + (useSkip && s.skip ? ', §57' : '') });
@@ -8230,24 +8315,25 @@ window.LANDQ = (function () {
       M.block('S' + i, '주주 ' + (i + 1) + ' ' + s.lab + ' — 증여의제(§45의5)', function (b) {
         var k = function (x) { return '{K:' + x + i + '}'; };
         b.F('TGT', '증여의제 대상(특정법인 + 친족)', 'IF({K:SPEC}="예","예","아니요")', YN(r.target), { fmt: 't', law: '§45의5①' });
-        b.F('ALLOC', '  지분만큼 받은 재산(직접 증여였다면)', '{K:AMT}*' + k('RAT'), r.alloc, {});
-        b.F('CSH', '  법인세 상당액 × 지분', '{K:NAT}*' + k('RAT'), r.corpShare, { law: '령 §34의5⑨' });
-        b.F('DEEM', '증여의제이익(특정법인의 이익 × 지분)', 'IF({TGT}="예",{K:NET}*' + k('RAT') + ',0)', r.deemed, { law: '§45의5①' });
+        b.F('ALLOC', '  지분만큼 받은 재산(직접 증여였다면)', 'ROUNDDOWN({K:AMT}*' + k('RAT') + ',0)', r.alloc, {});
+        b.F('CSH', '  법인세 상당액 × 지분', 'ROUNDDOWN({K:NAT}*' + k('RAT') + ',0)', r.corpShare, { law: '령 §34의5⑨' });
+        b.F('DEEM', '증여의제이익(특정법인의 이익 × 지분)', 'IF({TGT}="예",ROUNDDOWN({K:NET}*' + k('RAT') + ',0),0)', r.deemed, { law: '§45의5①' });
         b.F('OVER', '1억원 이상(과세)', 'IF(AND({TGT}="예",{DEEM}>={$THR}),"예","아니요")', YN(r.over), { fmt: 't', law: '령 §34의5⑤' });
         b.sec('직접 증여였다면(할증 포함) — 비교용');
         var dF = cred(b, 'D', '{ALLOC}', i, h, true, '  직접 증여');
-        b.F('DIRECT', '  직접 증여였다면 납부할 세액', 'IF({TGT}="예",' + dF + '*(1-{$REPORT}),0)', r.directTax, {});
-        b.sec('§45의5② 한도 = 직접 증여 증여세(할증 제외) − 법인세 상당액 × 지분');
-        var cF = cred(b, 'H', 'IF({OVER}="예",{ALLOC},0)', i, h, false, '  한도 계산');
-        b.F('CAP', '  한도', 'IF({TGT}="예",MAX(0,' + cF + '-IF({OVER}="예",{CSH},0)),0)', r.cap, { law: '§45의5②, 령 §34의5⑨' });
+        b.F('DIRECT', '  직접 증여였다면 납부할 세액', 'IF({TGT}="예",ROUNDDOWN(ROUNDDOWN(' + dF + ',0)*(1-{$REPORT}),0),0)', r.directTax, {});
+        
+        b.sec('§45의5② 한도 = 직접 증여 증여세(할증 포함) − 법인세 상당액 × 지분');
+        var cF = cred(b, 'H', 'IF({OVER}="예",{ALLOC},0)', i, h, true, '  한도 계산');
+        b.F('CAP', '  한도', 'IF({TGT}="예",MAX(0,ROUNDDOWN(' + cF + ',0)-IF({OVER}="예",{CSH},0)),0)', r.cap, { law: '§45의5②, 령 §34의5⑨' });
         b.sec('증여의제 세액');
         var pF = cred(b, 'P', 'IF({OVER}="예",{DEEM},0)', i, h, false, '  할증 전');
         var sF = s.skip ? cred(b, 'Q', 'IF({OVER}="예",{DEEM},0)', i, h, true, '  할증 포함') : pF;
-        b.F('LIMT', '  한도 적용 세액(할증 전)', 'IF({OVER}="예",MIN(' + pF + ',{CAP}),0)', r.limitedTax, { law: '§45의5②' });
-        b.F('BEFC', '  할증 붙인 세액', 'IF(' + pF + '>0,{LIMT}*' + sF + '/' + pF + ',0)', r.beforeCredit, { law: '§57', d: '할증은 한도 뒤에 붙임' });
-        b.F('SKADD', '  + 세대생략 할증', '{BEFC}-{LIMT}', r.skipAdd, { law: '§57' });
+        b.F('BEFC', '  한도 적용 세액(할증 포함)', 'IF({OVER}="예",MIN(ROUNDDOWN(' + sF + ',0),{CAP}),0)', r.beforeCredit, { law: '§45의5②, §57' });
+        b.F('LIMT', '  그중 할증 전 세액', 'IF(ROUNDDOWN(' + sF + ',0)>0,ROUNDDOWN({BEFC}*ROUNDDOWN(' + pF + ',0)/ROUNDDOWN(' + sF + ',0),0),0)', r.limitedTax, { law: '§45의5②' });
+        b.F('SKADD', '  그중 세대생략 할증', '{BEFC}-{LIMT}', r.skipAdd, { law: '§57' });
         b.F('REP', '  − 신고세액공제', 'ROUNDDOWN({BEFC}*{$REPORT},0)', r.reportCredit, { law: '§69' });
-        b.F('PAY', '= 납부할 세액', '{BEFC}-{REP}', r.payable, { big: 1 });
+        b.F('PAY', '= 납부할 세액(10원 미만 버림)', 'ROUNDDOWN(({BEFC}-{REP})/10,0)*10', r.payable, { big: 1, law: '국고금 관리법 §47①' });
       });
       pays.push('{S' + i + ':PAY}');
     });
