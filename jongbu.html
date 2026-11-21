@@ -3535,8 +3535,8 @@ https://github.com/nodeca/pako/blob/main/LICENSE
         /* 2026-11-19 부담부증여 질문 — 시가(공시가격은 시가 없을 때) · 주택 공시가격(취득세 3억원 판정) · 환산취득가액 산 해, 증여일 기준시가(양도세 탭 cvA, cvS 와 같은 연도 규칙) */
         if (id === 'bVal') return { want: 'any', year: 0, why: '시가(매매사례, 감정가액)가 없을 때 = 공시가격(상증법 §61 · 시가가 먼저)' };
         if (id === 'bStd') return { want: 'house', year: pubYear(a.bDate), why: '취득세 증여분 3억원 중과 판정 = 증여일 현재 공시가격' };
-        if (id === 'bCvA') { var dm = a.bAcqD && a.bAcqD < '1985-01-01'; return { want: 'any', year: dm ? 1985 : pubYear(a.bAcqD), acq: dm ? '1985-01-01' : (a.bAcqD || ''), why: dm ? '의제취득일 1985.1.1. 현재 기준시가' : '산 날 현재 고시된 기준시가(소득세법 §99①)' }; }
-        if (id === 'bCvS') return { want: 'any', year: pubYear(a.bDate), why: '증여일 현재 고시된 기준시가(소득세법 §99①)' };
+        if (id === 'bCvA') { var dm = a.bAcqD && a.bAcqD < '1985-01-01'; return { want: 'any', year: dm ? 1985 : pubYear(a.bAcqD), acq: dm ? '1985-01-01' : (a.bAcqD || ''), at: dm ? '1985-01-01' : (a.bAcqD || ''), why: dm ? '의제취득일 1985.1.1. 현재 기준시가' : '산 날 현재 고시된 기준시가(소득세법 §99①)' }; }
+        if (id === 'bCvS') return { want: 'any', year: pubYear(a.bDate), at: a.bDate || '', why: '증여일 현재 고시된 기준시가(소득세법 §99①)' };
         return id === 'gAmt' || id === 'cAmt' ? { want: 'any', year: 0, why: '시가(매매사례, 감정가액)가 없을 때 = 공시가격(상증법 §61 · 시가가 먼저)' } : id === 'iEst' ? { want: 'any', year: 0, add: 1, why: '시가가 없을 때 = 공시가격(상증법 §61) · 재산이 여럿이면 [더하기]' } : id === 'iHouseAmt' ? { want: 'house', year: 0, why: '상속주택 가액' } : null; } },
     /* 2026-11-20 통합 세금 탭(igx · 손잡이 IGWZ) — 거래 6개 : n 일반 증여 · l 저가양수도 · b 부담부증여 · wa/wb 교환(내 것/상대 것) · v 이혼 · s 증여 후 양도
        시가 칸(시가 없을 때 = 공시가격) · 주택 공시가격 칸(그 거래일) · 환산 기준시가(산 해, 거래일) · 조정대상지역(산 날, 거래일) — 연도 규칙은 상속·증여세 탭 부담부증여(b*)와 같음 */
@@ -3562,16 +3562,16 @@ https://github.com/nodeca/pako/blob/main/LICENSE
       pick: function (id, a) { var P = this._p(id); if (!P) return null; var t = P.t, D = a[this._d[t]] === '' ? TODAY : a[this._d[t]], A = a[this._a[t]];
         if (P.f === 'Val') return { want: 'any', year: 0, why: '시가(매매사례, 감정가액)가 없을 때 = 공시가격(상증법 §61 · 시가가 먼저)' };
         if (P.f === 'Std') return { want: 'house', year: pubYear(D), why: '취득세 3억원 중과, 1억원 이하 판정 = ' + this._w[t] + ' 현재 공시가격' };
-        if (P.f === 'CvA' && /^[lb]$/.test(t)) { var dm = A && A < '1985-01-01'; return { want: 'any', year: dm ? 1985 : pubYear(A), acq: dm ? '1985-01-01' : (A || ''), why: dm ? '의제취득일 1985.1.1. 현재 기준시가' : '산 날 현재 고시된 기준시가(소득세법 §99①)' }; }
-        if (P.f === 'CvS' && /^[lb]$/.test(t)) return { want: 'any', year: pubYear(D), why: this._w[t] + ' 현재 고시된 기준시가(소득세법 §99①)' };
+        if (P.f === 'CvA' && /^[lb]$/.test(t)) { var dm = A && A < '1985-01-01'; return { want: 'any', year: dm ? 1985 : pubYear(A), acq: dm ? '1985-01-01' : (A || ''), at: dm ? '1985-01-01' : (A || ''), why: dm ? '의제취득일 1985.1.1. 현재 기준시가' : '산 날 현재 고시된 기준시가(소득세법 §99①)' }; }
+        if (P.f === 'CvS' && /^[lb]$/.test(t)) return { want: 'any', year: pubYear(D), at: D || '', why: this._w[t] + ' 현재 고시된 기준시가(소득세법 §99①)' };
         return null; } },
     cgt: { h: function () { return window.YSWZ; },
       more: function (id, a) { if (id === 'cvA' && a.saleD) return [{ id: 'cvS', year: pubYear(a.saleD), lab: '파는 해' }];
         if (id === 'cvS' && a.acqD && a.acqD >= '1985-01-01') return [{ id: 'cvA', year: pubYear(a.acqD), lab: '산 해' }]; return []; },
       adj: function (id, a) { return id === 'adjAcq' ? { date: a.acqD || '', lab: '산 날', yes: 'y', no: 'n' } : id === 'adjSale' ? { date: a.saleD || '', lab: '파는 날', yes: 'y', no: 'n' } : null; },
       l90: function (id) { return id === 'l90Pub'; },
-      pick: function (id, a) { if (id === 'cvA') { var dm = a.acqD && a.acqD < '1985-01-01'; return { want: 'any', year: dm ? 1985 : pubYear(a.acqD), acq: dm ? '1985-01-01' : (a.acqD || ''), why: dm ? '의제취득일 1985.1.1. 현재 기준시가' : '산 날 현재 고시된 기준시가(소득세법 §99①)' }; }
-        if (id === 'cvS') return { want: 'any', year: pubYear(a.saleD), why: '파는 날 현재 고시된 기준시가(소득세법 §99①)' }; return null; } }
+      pick: function (id, a) { if (id === 'cvA') { var dm = a.acqD && a.acqD < '1985-01-01'; return { want: 'any', year: dm ? 1985 : pubYear(a.acqD), acq: dm ? '1985-01-01' : (a.acqD || ''), at: dm ? '1985-01-01' : (a.acqD || ''), why: dm ? '의제취득일 1985.1.1. 현재 기준시가' : '산 날 현재 고시된 기준시가(소득세법 §99①)' }; }
+        if (id === 'cvS') return { want: 'any', year: pubYear(a.saleD), at: a.saleD || '', why: '파는 날 현재 고시된 기준시가(소득세법 §99①)' }; return null; } }
   }[TAB];
   if (!CFG) return;
   /* ── JSONP(브이월드는 CORS 머리글이 없어 script 로 부름) ── */
@@ -3695,7 +3695,8 @@ https://github.com/nodeca/pako/blob/main/LICENSE
           K.forEach(function (k) { var r = ds[k]; V.push({ kind: 'house', key: 'A|' + k, v: +r.pblntfPc, t: y + '년 공동주택가격 · ' + (r.aphusNm || '') + ' ' + (r.dongNm ? r.dongNm + '동 ' : '') + r.hoNm + '호 · 전용 ' + r.prvuseAr + '㎡' }); }); }
       }
       if (Hh.rows.length) { var hs = {}; Hh.rows.forEach(function (r) { var k = (r.bildRegstrEsntlNo || '') + '|' + (r.dongCode || ''); if (!hs[k] || String(r.lastUpdtDt) > String(hs[k].lastUpdtDt)) hs[k] = r; });
-        Object.keys(hs).forEach(function (k, i, arr) { var r = hs[k]; V.push({ kind: 'house', key: 'H|' + k, v: +r.housePc, t: y + '년 개별주택가격(땅 + 건물)' + (arr.length > 1 ? ' · ' + (i + 1) + '번째 집 · 건물 연면적 ' + r.buldAllTotAr + '㎡' : '') }); }); }
+        var HR = Object.keys(hs).map(function (k) { return hs[k]; });
+        Object.keys(hs).forEach(function (k, i, arr) { var r = hs[k]; V.push({ kind: 'house', key: 'H|' + k, v: +r.housePc, r: areaFacts(r, HR), t: y + '년 개별주택가격(땅 + 건물)' + (arr.length > 1 ? ' · ' + (i + 1) + '번째 집 · 건물 연면적 ' + r.buldAllTotAr + '㎡' : '') }); }); }
       if (Ld && Ld.rows.length && A.n === 0 && (want === 'land' || k === 'land' || k === 'landbld' || !k)) {
         var lr = latest(Ld.rows), up = +lr.pblntfPclnd, ar = Ch && Ch.rows.length ? +latest(Ch.rows).lndpclAr : 0;
         if (ar > 0) V.push({ kind: 'land', key: 'L', v: Math.floor(up * ar), t: y + '년 개별공시지가 ' + wonT(up) + '/㎡ × 면적 ' + ar.toLocaleString('ko-KR') + '㎡' + (lr.pblntfDe ? ' · 공시일 ' + lr.pblntfDe : '') + (Hh.rows.length ? ' · 땅만일 때' : '') + (k === 'landbld' && want !== 'land' ? ' · 땅 부분만(건물 기준시가는 직접 더해 넣기)' : '') });
@@ -3738,7 +3739,8 @@ https://github.com/nodeca/pako/blob/main/LICENSE
       if (!V.length && !N.length && k !== 'ot') N.push(y + '년 ' + (want === 'land' ? '공시지가' : '공시가격') + ' 자료가 없어요' + (y < 2006 ? ' — 개별주택가격 2005년, 공동주택가격 2006년부터 · 그 전은 국세청 기준시가(홈택스)나 환산 기준시가(소득세법 시행령 §164)' + (S.p.acq ? ' · 아래 「공시 전 환산」' : '를 직접') : ' — 다른 해를 고르거나 직접 넣어 주세요'));
       g.__V = V;
       out(g, '<div class="gsg-n">' + esc(ad) + '</div>' + KN + OT + N.map(function (t) { return '<div class="gsg-e">' + esc(t) + '</div>'; }).join('') +
-        V.map(function (x, i) { var mo = x.more || [];
+        V.map(function (x, i) { var mo = x.more || [], tri = triOn(S, k) && x.r && x.r.tri;
+          if (tri) return '<div class="gsg-v"><b>' + esc(x.t) + '</b><div class="gsg-big">' + won(x.v) + eokT(x.v) + '</div><div class="gsg-n">= 주택 몫(①)만 · 이 땅에 주택 밖 땅이나 건물이 있어 아래 「세 몫」 합계를 넣어 주세요</div><div class="gsg-r"><button type="button" class="gsg-2" data-gsgput="' + i + '">주택 몫만 넣기</button></div></div>';
           return '<div class="gsg-v"><b>' + esc(x.t) + '</b><div class="gsg-big">' + won(x.v) + eokT(x.v) + '</div>' +
             mo.map(function (m) { return '<div class="gsg-m">' + esc(m.lab) + ' (' + m.year + '년) ' + won(m.v) + eokT(m.v) + '</div>'; }).join('') +
             '<div class="gsg-r">' + (mo.length ? '<button type="button" data-gsgall="' + i + '">' + (mo.length > 1 ? '세 값' : '두 해') + ' 한 번에 넣기</button><button type="button" class="gsg-2" data-gsgput="' + i + '">이 칸만</button>' : '<button type="button"' + (k === 'landbld' && x.kind === 'land' ? ' class="gsg-2"' : '') + ' data-gsgput="' + i + '">' + (k === 'landbld' && x.kind === 'land' ? '땅만 넣기' : '이 값 넣기') + '</button>') +
@@ -3747,14 +3749,14 @@ https://github.com/nodeca/pako/blob/main/LICENSE
               '<div class="gsg-n">건물 값은 이 사이트에서 못 찾아요 — 상속·증여세, 양도세 = 홈택스 「기준시가 조회 → 건물」 · 취득세, 재산세 = 위택스 건물 시가표준액</div>' : '') + '</div>'; }).join('') +
         BL + (V.length ? '<div class="gsg-n">공시가격 = 브이월드 국토교통부 자료 · 부동산공시가격알리미와 같은 값 · 지분이면 전체 값 그대로(지분은 다음 질문)</div>' : '') +
         (M.length && V.length && !V.some(function (x) { return (x.more || []).length; }) ? '<div class="gsg-n">' + esc(M.map(function (m) { return m.lab + '(' + m.year + '년)'; }).join(', ')) + ' 값은 못 찾았어요 — 그 질문에서 직접 넣어 주세요</div>' : ''));
-      preMount(g, S, it, d, h, k);   /* 2026-11-21 공시 전 취득 환산(시행령 §164④⑦) */
+      if (!preMount(g, S, it, d, h, k)) triMount(g, S, it, y, k, V);   /* 2026-11-21 공시 전 취득 환산(시행령 §164④⑦) · 아니면 세 몫(주택, 남는 땅, 주택 아닌 건물) */
     });
   }
   /* ── 2026-11-21 공시 전 취득 환산 ──
      주택(개별주택가격 2005년, 공동주택가격 2006년 처음 공시) 공시 전 취득 = 소득세법 시행령 §164⑦
        최초 공시 주택가격 × (취득 당시 토지 기준시가 + 건물 기준시가) ÷ (최초 공시 당시 토지 기준시가 + 건물 기준시가)
      1990.8.30. 전 취득 토지 = 시행령 §164④(1990.1.1. 개별공시지가 × 취득 당시 등급가액 ÷ 분모)
-     계산 = 탭 안 주택양도세 엔진 HTX.bk.ratio · HTX.bk.land1990 · HTX.bk.areaStd 그대로(이 파일은 값 모으기, 화면만)
+     계산 = 탭 안 양도세 엔진 HTX.bk.ratio · HTX.bk.land1990 · HTX.bk.areaStd 그대로(이 파일은 값 모으기, 화면만)
      브이월드에서 찾는 값 = 최초 공시 주택가격, 그 해 · 산 때 개별공시지가, 1990년 개별공시지가, 땅 면적 / 못 찾는 값 = 건물 기준시가(홈택스), 토지등급가액(토지대장 + 등급가액표 · 정본 필요) */
   var GOV24 = 'https://www.gov.kr/mw/AA020InfoCappView.do?HighCtgCD=A01010&CappBizCD=13100000026';   /* 정부24 토지(임야)대장 등본 발급(열람) · 2026-11-21 열어 확인 · 인터넷 열람 무료, 회원 또는 비회원(간편인증 등) */
   var D90 = '1990-08-30';
@@ -3781,12 +3783,105 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     var step = function (i) { if (i >= Y.length) return Promise.resolve(null); var y = Y[i];
       if (k === 'house') return ned('getIndvdHousingPriceAttr', { pnu: it.id, stdrYear: y }).then(function (R) { if (!R.rows.length) return step(i + 1);
           var hs = {}; R.rows.forEach(function (r) { var kk = (r.bildRegstrEsntlNo || '') + '|' + (r.dongCode || ''); if (!hs[kk] || String(r.lastUpdtDt) > String(hs[kk].lastUpdtDt)) hs[kk] = r; });
-          return { year: y, L: Object.keys(hs).map(function (kk) { var r = hs[kk]; return { v: +r.housePc, area: +r.calcPlotAr || +r.ladRegstrAr || 0, t: y + '년 개별주택가격' + (Object.keys(hs).length > 1 ? ' · 건물 연면적 ' + r.buldAllTotAr + '㎡' : '') }; }) }; });
+          var HR = Object.keys(hs).map(function (kk) { return hs[kk]; }); return { year: y, L: Object.keys(hs).map(function (kk) { var r = hs[kk]; return { v: +r.housePc, area: +r.calcPlotAr || +r.ladRegstrAr || 0, r: areaFacts(r, HR), t: y + '년 개별주택가격' + (Object.keys(hs).length > 1 ? ' · 건물 연면적 ' + r.buldAllTotAr + '㎡' : '') }; }) }; });
       return yearVals(it, y, d, h, 'house', 'apt').then(function (R) { return R.V.length ? { year: y, L: R.V.map(function (x) { return { v: x.v, area: 0, t: x.t }; }) } : step(i + 1); });
     };
     return step(0);
   }
-  var PCSS = '#pkWz .gsg-pre{margin-top:10px;border:1px solid var(--pd-acc,#1E3A8A);border-radius:8px;padding:12px;background:#fff}#pkWz .gsg-pre>b{display:block;font-size:17px;color:#111827;margin-bottom:4px}#pkWz .gsg-pre .gsg-f{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin:8px 0 0}#pkWz .gsg-pre .gsg-f label{flex:1 1 100%;font-size:16px;color:#111827}#pkWz .gsg-pre .gsg-f input,#pkWz .gsg-pre .gsg-f select{flex:1 1 160px;min-width:0;min-height:44px;font:inherit;font-size:16px;border:1px solid var(--pd-line2,#D1D5DB);border-radius:6px;padding:6px 10px;box-sizing:border-box;font-variant-numeric:tabular-nums}#pkWz .gsg-pre .gsg-f span{font-size:15px;color:var(--pd-ink3,#6B7280)}#pkWz .gsg-pre .gsg-res{margin-top:10px}';
+  /* ── 2026-11-21 땅 면적 자동 검토 + 세 몫(2026-11-21 지시 · 면적 자동 검토, 주택·토지·건물 세 몫)
+     사실만 보여 줌(세법 판단 안 넣음) — 브이월드 개별주택가격 calcPlotAr(산정 대지면적) · ladRegstrAr(토지대장 면적) · buldCalcTotAr(주택 산정 연면적) · buldAllTotAr(건물 전체 연면적) · 같은 필지 집 수 · 건축물대장 getBuildingUse(지금 현황)
+     세 몫(소득세법 §99①1호 · 부동산거래관리과-75 2012.02.03. · 부동산거래관리과-0526 2011.06.28. = 주택은 개별주택가격(공시 전 §164⑦), 주택 외 부분 토지, 건물은 §99①1호 가목, 나목)
+       ① 주택 = 개별주택가격(부수토지 포함) ② 주택 부수토지 밖 땅 = 개별공시지가 × (토지대장 − 산정 대지면적) ③ 주택 아닌 건물 = 국세청 건물 기준시가(직접)
+     계산 = 엔진 HTX.bk.areaStd · ratio 그대로, 합계 = 세 값 더하기(새 계산식 없음) */
+  function r2(x) { return Math.round(x * 100) / 100; }
+  function areaFacts(r, all) {
+    all = all && all.length ? all : [r];
+    var calc = +r.calcPlotAr || 0, lad = +r.ladRegstrAr || 0, bc = +r.buldCalcTotAr || 0, ba = +r.buldAllTotAr || 0, n = all.length;
+    var sum = r2(all.reduce(function (s, x) { return s + (+x.calcPlotAr || 0); }, 0));
+    var mixB = ba > 0 && bc > 0 && ba - bc > 0.005, same = lad > 0 && Math.abs(calc - lad) < 0.005;
+    var cls = n > 1 ? 'multi' : same ? 'same' : !(lad > 0 && calc > 0) ? 'none' : mixB ? 'mix' : 'diff';
+    var free = n > 1 ? r2(Math.max(0, lad - sum)) : 0;
+    return { calc: calc, lad: lad, bc: bc, ba: ba, other: mixB ? r2(ba - bc) : 0, n: n, sum: sum, cls: cls, mixB: mixB, mixOne: mixB && n === 1,
+      rest: cls === 'mix' || cls === 'diff' ? r2(lad - calc) : 0, free: free, tri: cls === 'mix' || cls === 'diff' || mixB || free > 0 };
+  }
+  function a2(x) { return r2(x).toLocaleString('ko-KR', { maximumFractionDigits: 2 }); }   /* 면적 글자 = 쉼표 + 소수 둘째 자리 */
+  /* 검토 한 줄(사실만) */
+  function areaLine(F) {
+    var bl = F.mixB ? ' · 건물 연면적 ' + a2(F.ba) + '㎡ 중 주택 ' + a2(F.bc) + '㎡ → 주택 아닌 건물 ' + a2(F.other) + '㎡ = ③(직접)' : '';
+    if (F.cls === 'same') return '산정 대지면적 = 토지대장 면적(' + a2(F.calc) + '㎡) — 그대로 계산' + bl;
+    if (F.cls === 'multi') return '한 필지에 집 ' + F.n + '채(산정 대지면적 합 ' + a2(F.sum) + '㎡ / 토지대장 ' + a2(F.lad) + '㎡) → 이 집 몫 = 산정 대지면적 ' + a2(F.calc) + '㎡로 계산' + (F.free > 0 ? ' · 어느 집 값에도 안 든 땅 ' + a2(F.free) + '㎡ — 이 집 주인 땅이면 ② 면적에 넣어 주세요(기본 0)' : '') + bl;
+    if (F.cls === 'mix') return '한 건물에 상가 등 섞임(건물 연면적 ' + a2(F.ba) + '㎡ 중 주택 ' + a2(F.bc) + '㎡) → 이 집 몫 = 산정 대지면적 ' + a2(F.calc) + '㎡로 계산 · 나머지 땅 ' + a2(F.rest) + '㎡ = ②, 주택 아닌 건물 ' + a2(F.other) + '㎡ = ③';
+    if (F.cls === 'diff') return '두 면적이 달라요 — 산정 대지면적 ' + a2(F.calc) + '㎡ / 토지대장 ' + a2(F.lad) + '㎡(집 1채, 건물 전부 주택 · 까닭을 못 찾음)';
+    return '토지대장 면적을 못 읽었어요 — 산정 대지면적 ' + a2(F.calc) + '㎡로 계산';
+  }
+  /* 건축물대장(지금 현황) 한 줄 */
+  function bldLine(pnu) {
+    return ned('getBuildingUse', { pnu: pnu }).then(function (R) { if (!R.rows.length) return '';
+      return '건축물대장(지금 현황 · 브이월드) : ' + R.rows.slice(0, 4).map(function (x) { return (x.mainPrposCodeNm || '') + (x.detailPrposCodeNm && x.detailPrposCodeNm !== x.mainPrposCodeNm ? '(' + x.detailPrposCodeNm + ')' : '') + (x.buldDongNm ? ' ' + x.buldDongNm + '동' : '') + ' 연면적 ' + a2(+x.buldTotar || 0) + '㎡' + (+x.buldPlotAr > 0 ? ', 대지면적 ' + a2(+x.buldPlotAr) + '㎡' : '') + (x.useConfmDe ? ', 사용승인 ' + dotY(x.useConfmDe) : ''); }).join(' / ') + (R.rows.length > 4 ? ' 외 ' + (R.rows.length - 4) + '동' : '') +
+        ' — 산 날, 판 날 현황과 다를 수 있어요(취득 당시 기준시가 = 취득일 현재 이용현황 · 기준-2017-법령해석재산-0250, 2018.12.26.)'; }).catch(function () { return ''; });
+  }
+  function triOn(S, k) { return k === 'house' && /[cC]v[AS]$/.test(S.id); }
+  /* 양도세 탭 = 엔진 겸용주택 칸(특수 사례 「겸용주택(주택 + 상가)」 mxOn, mxH, mxO, mxP · YS.mix 규칙 그대로) */
+  function toMix(h, o, pct) {
+    if (TAB !== 'cgt') return false; var b = document.querySelector('[data-pkspx="mix"]');
+    if (b && b.getAttribute('aria-pressed') !== 'true') b.click();
+    var on = $('mxOn'), H = $('mxH'), O = $('mxO'), P = $('mxP'); if (!on || !H || !O) return false;
+    var ev = function (e) { e.dispatchEvent(new Event('input', { bubbles: true })); e.dispatchEvent(new Event('change', { bubbles: true })); };
+    on.checked = true; ev(on); H.value = String(h); ev(H); O.value = String(o); ev(O); if (P && pct != null) { P.value = String(pct); ev(P); }
+    return true;
+  }
+  function triNote(F) { return TAB === 'cgt' ? (F.mixOne ? '양도세 = 주택 몫에만 1세대1주택 비과세, 중과 — [겸용주택 칸에도 넣기]를 누르면 엔진 겸용주택 규칙(시행령 §154③④, §160①)으로 계산' : '주택 부수토지 밖 땅이 있어요 — 이 땅은 주택 값에 안 든 땅(주택 외 토지)이라 비과세, 중과 판정이 주택 몫과 다를 수 있어요 [확인 필요] · 땅을 따로 계산하려면 양도세 탭에서 토지로 한 번 더')
+    : '주택 외 부분 있음 → 겸용주택 양도세 계산은 양도세 탭 「특수 사례 더 보기 → 겸용주택(주택 + 상가)」에서 [확인 필요]'; }
+  function triMount(g, S, it, y, k, V) {
+    if (!triOn(S, k)) return; var out0 = g.querySelector('.gsg-out'); if (!out0) return; var old = out0.querySelector('.gsg-tri'); if (old) old.remove();
+    var H = (V || []).filter(function (x) { return x.kind === 'house' && x.r; }); if (!H.length) return;
+    var T = H.filter(function (x) { return x.r.tri; });
+    if (!T.length) { var ln = document.createElement('div'); ln.className = 'gsg-n gsg-tri'; ln.innerHTML = '<b style="display:inline">땅 면적 검토</b> : ' + esc(H.length > 1 ? areaLine(H[0].r).replace(/ → 이 집 몫 = .*$/, '') + ' → 집마다 산정 대지면적으로 계산(' + H.map(function (x, i) { return (i + 1) + '번째 ' + a2(x.r.calc) + '㎡'; }).join(', ') + ')' : areaLine(H[0].r)); out0.appendChild(ln); return; }
+    var box = document.createElement('div'); box.className = 'gsg-pre gsg-tri'; box.innerHTML = '<b>땅 면적 검토 — 찾는 중…</b>'; out0.appendChild(box);
+    var pnu = it.id, at = S.p.at && /^\d{4}-\d{2}-\d{2}$/.test(S.p.at) && pubYear(S.p.at) === y ? S.p.at : '';
+    var LP = at ? landAt(pnu, at) : ned('getIndvdLandPriceAttr', { pnu: pnu, stdrYear: y }).then(function (R) { var r = R.rows.length ? latest(R.rows) : null; return r ? { per: +r.pblntfPclnd, year: y, de: r.pblntfDe || '' } : null; }).catch(function () { return null; });
+    Promise.all([LP, bldLine(pnu)]).then(function (Q) {
+      var LA = Q[0], x = T[0], F = x.r;
+      box.__q = { mode: 'tri', T: T, sel: 0, S: S };
+      box.innerHTML = '<b>땅 면적 검토 + 세 몫(소득세법 §99①1호)</b>' +
+        '<div class="gsg-ar">' + arHtml(F) + '</div>' + (Q[1] ? '<div class="gsg-n">' + esc(Q[1]) + '</div>' : '') +
+        (T.length > 1 ? '<div class="gsg-f"><label>어느 집이에요?</label><select data-gspk="tpick">' + T.map(function (z, i) { return '<option value="' + i + '">' + esc(z.t) + ' ' + esc(wonT(z.v)) + '</option>'; }).join('') + '</select></div>' : '') +
+        fld('h1', '① 주택 — ' + y + '년 개별주택가격(주택 + 부수토지 ' + a2(F.calc) + '㎡)', x.v, '원', '브이월드 · 공시가격 그대로') +
+        fld('per', '② 주택 부수토지 밖 땅 — 개별공시지가(㎡당)', LA && LA.per, '원/㎡', LA ? LA.year + '년 값' + (LA.de ? '(공시일 ' + dotY(LA.de) + ')' : '') : '못 찾았어요 — 직접') +
+        fld('rest', '② 면적 = 토지대장 ' + a2(F.lad) + '㎡ − 산정 대지면적 ' + a2(F.calc) + '㎡', F.rest, '㎡', F.cls === 'multi' ? '한 필지에 집이 여럿 = 기본 0(남는 땅이 이 집 주인 땅이면 넣기)' : '토지대장, 등기부로 이 집 주인 땅인지 확인') +
+        fld('ob', '③ 주택 아닌 건물(상가, 창고 등) — 국세청 건물 기준시가', 0, '원', F.mixB ? '주택 아닌 건물 ' + a2(F.other) + '㎡ — 홈택스 건물 기준시가 계산으로 넣어 주세요(없으면 0)' : '없으면 0') +
+        lnk('홈택스 건물 기준시가(양도) 계산', HTX_URL + '4712090500') +
+        '<div class="gsg-res"></div>';
+      triCalc(box);
+    });
+  }
+  function arHtml(F) { return F.cls === 'diff' ? '<div class="gsg-w">' + esc(areaLine(F)) + '</div>' : '<div class="gsg-n"><b style="display:inline">땅 면적 검토</b> : ' + esc(areaLine(F)) + '</div>'; }
+  function pctT(a, t) { return t > 0 ? (Math.round(a / t * 10000) / 100).toFixed(2) + '%' : ''; }
+  /* 세 몫 표(공시 뒤 · 공시 전 상자 공용) : ①, ② = HTX.bk.areaStd, ③ → 합계 · 주택 몫 % · 두 면적 비교(diff) */
+  function triTable(o) {
+    var t = o.h + o.l + o.b, L = [];
+    L.push('<div class="gsg-m">① 주택 ' + wn(o.h) + '</div>');
+    L.push('<div class="gsg-m">② 주택 부수토지 밖 땅 ' + (o.rest > 0 ? wn(o.per) + ' × ' + a2(o.rest) + '㎡ = ' : '') + wn(o.l) + '</div>');
+    L.push('<div class="gsg-m">③ 주택 아닌 건물 ' + wn(o.b) + '</div>');
+    L.push('<div class="gsg-m"><b style="display:inline">합계 ' + wn(t) + '</b>' + (o.l > 0 || o.b > 0 ? ' · 주택 몫 ' + pctT(o.h, t) : '') + '</div>');
+    return { t: t, html: L.join('') };
+  }
+  function cmpHtml(a, b, la, lb) { return '<div class="gsg-w"><b style="display:block">두 면적으로 각각 계산</b><div class="gsg-m">' + esc(la) + ' = ' + wn(a) + '(기본)</div><div class="gsg-m">' + esc(lb) + ' = ' + wn(b) + '</div><div class="gsg-m">차이 ' + wn(Math.abs(a - b)) + '</div><div class="gsg-n" style="color:#111827">토지대장, 등기부로 이 집 부속토지 면적을 확인해 칸을 고쳐 주세요 · 기본값 = 산정 대지면적 그대로</div></div>'; }
+  function triCalc(box) {
+    var B = eng(), q = box.__q || {}, res = box.querySelector('.gsg-res'), V = function (k) { var e = box.querySelector('[data-gspk="' + k + '"]'); var v = e ? numOf(e.value) : NaN; return isNaN(v) ? 0 : v; };
+    if (!res) return; if (!B) { res.innerHTML = '<div class="gsg-e">계산 엔진(양도세 엔진)을 못 불렀어요 — 화면을 새로 열어 주세요</div>'; box.__v = null; return; }
+    var x = q.T[q.sel] || q.T[0], F = x.r, h = V('h1'), per = V('per'), rest = V('rest'), ob = V('ob');
+    if (!(h > 0)) { res.innerHTML = '<div class="gsg-e">① 주택 값을 넣어 주세요</div>'; box.__v = null; return; }
+    if (rest > 0 && !(per > 0)) { res.innerHTML = '<div class="gsg-e">② 개별공시지가(㎡당)를 넣어 주세요</div>'; box.__v = null; return; }
+    var l = rest > 0 ? B.areaStd([[per, rest]]) : 0, TT = triTable({ h: h, l: l, b: ob, per: per, rest: rest });
+    box.__v = TT.t; box.__f = { F: F, pct: TT.t > 0 ? Math.round(h / TT.t * 10000) / 100 : null, two: l > 0 || ob > 0 };
+    res.innerHTML = '<div class="gsg-v"><b>' + (/[cC]vS$/.test(q.S.id) ? '판 때' : '산 때') + ' 기준시가 = ① + ② + ③</b><div class="gsg-big">' + won(TT.t) + eokT(TT.t) + '</div>' + TT.html +
+      (F.cls === 'diff' ? cmpHtml(TT.t, h + ob, '산정 대지면적 ' + a2(F.calc) + '㎡ + 남는 땅', '토지대장 ' + a2(F.lad) + '㎡ 전부가 주택값에 들었다고 보면(① + ③)') : '') +
+      '<div class="gsg-n">계산 = 양도세 엔진(HTX.bk.areaStd) · 주택 외 토지, 건물 = 소득세법 §99①1호 가목, 나목(부동산거래관리과-0526, 2011.06.28.)</div>' +
+      (box.__f.two ? '<div class="gsg-n">' + esc(triNote(F)) + '</div>' : '') +
+      '<div class="gsg-r"><button type="button" data-gsp="tput">합계 넣기</button>' + (TAB === 'cgt' && F.mixOne ? '<button type="button" class="gsg-2" data-gsp="tmix">겸용주택 칸에도 넣기</button>' : '') + '</div></div>';
+  }
+  var PCSS = '#pkWz .gsg-pre{margin-top:10px;border:1px solid var(--pd-acc,#1E3A8A);border-radius:8px;padding:12px;background:#fff}#pkWz .gsg-pre>b{display:block;font-size:17px;color:#111827;margin-bottom:4px}#pkWz .gsg-pre .gsg-f{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin:8px 0 0}#pkWz .gsg-pre .gsg-f label{flex:1 1 100%;font-size:16px;color:#111827}#pkWz .gsg-pre .gsg-f input,#pkWz .gsg-pre .gsg-f select{flex:1 1 160px;min-width:0;min-height:44px;font:inherit;font-size:16px;border:1px solid var(--pd-line2,#D1D5DB);border-radius:6px;padding:6px 10px;box-sizing:border-box;font-variant-numeric:tabular-nums}#pkWz .gsg-pre .gsg-f span{font-size:15px;color:var(--pd-ink3,#6B7280)}#pkWz .gsg-pre .gsg-res{margin-top:10px}#pkWz .gsg-w{margin-top:8px;border:1px solid #F59E0B;border-radius:8px;padding:10px 12px;background:#FEF3C7;color:#111827;font-size:16px;line-height:1.5}#pkWz .gsg-w .gsg-m{margin:2px 0}#pkWz .gsg-tri.gsg-n{margin-top:8px}';
   (function () { var s2 = document.createElement('style'); s2.id = 'gsgPreCss'; s2.textContent = PCSS; document.head.appendChild(s2); })();
   function fld(key, lab, val, unit, note) { return '<div class="gsg-f"><label>' + esc(lab) + '</label><input type="text" inputmode="decimal" data-gspk="' + key + '" value="' + esc(cm(val)) + '" aria-label="' + esc(lab) + '"><span>' + esc(unit) + '</span>' + (note ? '<div class="gsg-n" style="flex:1 1 100%;margin:0">' + esc(note) + '</div>' : '') + '</div>'; }
   function lnk(t, u) { return '<a class="gsg-o" style="text-decoration:none;margin-top:8px" href="' + u + '" target="_blank" rel="noopener">' + esc(t) + ' (새 창)</a>'; }
@@ -3799,10 +3894,10 @@ https://github.com/nodeca/pako/blob/main/LICENSE
       lnk('정부24 토지(임야)대장 열람 — 토지등급 연혁', GOV24) + '<div class="gsg-n">인터넷 열람 무료 · 회원 로그인 또는 비회원 신청(간편인증 또는 인증서가 필요할 수 있음) · 토지등급가액표(등급 → ㎡당 가액)는 이 사이트에 없어요(정본 확인 전)</div>';
   }
   function preMount(g, S, it, d, h, k) {
-    var acq = S.p.acq; if (!acq || !/^\d{4}-\d{2}-\d{2}$/.test(acq)) return;
+    var acq = S.p.acq; if (!acq || !/^\d{4}-\d{2}-\d{2}$/.test(acq)) return false;
     var old = g.querySelector('.gsg-pre'); if (old) old.remove();
     var house = k === 'house' || k === 'apt', land = k === 'land';
-    if (!(house && acq < (k === 'apt' ? '2006-05-01' : '2005-05-01')) && !(land && acq < D90)) return;
+    if (!(house && acq < (k === 'apt' ? '2006-05-01' : '2005-05-01')) && !(land && acq < D90)) return false;
     /* 공시 전 해에 「집 값이 없어요 — 종류를 다시 골라」 안내가 뜨면 헷갈림 → 공시 전 안내로 바꿈 */
     if (house) [].forEach.call(g.querySelectorAll('.gsg-out .gsg-e'), function (e) { if (/개별주택가격이 없어요|공동주택가격을 못 찾았어요|자료가 없어요/.test(e.textContent)) { e.className = 'gsg-n'; e.textContent = '산 날(' + dotY(acq) + ')은 주택가격 공시 전이에요(개별주택가격 2005년, 공동주택가격 2006년부터) — 아래 「공시 전 환산」으로 산 때 기준시가를 계산해요'; } });
     var box = document.createElement('div'); box.className = 'gsg-pre'; box.innerHTML = '<b>공시 전 환산 — 찾는 중…</b>'; g.querySelector('.gsg-out').appendChild(box);
@@ -3815,37 +3910,44 @@ https://github.com/nodeca/pako/blob/main/LICENSE
           fld('area', '땅 면적', R[1] || null, '㎡', R[1] ? '브이월드 토지특성(지금 면적 · 그때와 다르면 토지대장 면적으로)' : '면적을 못 읽었어요 — 토지대장 면적') + g90Fields(r9 && r9.per, r9 && r9.de) +
           '<div class="gsg-r" style="margin-top:8px"><button type="button" data-gsp="calc">계산하기</button></div><div class="gsg-res"></div>';
       });
-      return;
+      return true;
     }
     Promise.all([firstHouse(it, d, h, k), P90]).then(function (R) {
       var F = R[0], r9 = R[1];
       if (!F) { box.innerHTML = '<b>공시 전 환산(시행령 §164⑦)</b><div class="gsg-e">이 주소에서 최초 공시 주택가격을 못 찾았어요 — 최초 공시 주택가격을 아래에 직접 넣어 주세요</div>'; F = { year: k === 'apt' ? 2006 : 2005, L: [{ v: null, area: 0, t: '' }] }; }
       var D0 = F.year + '-04-30';   /* 주택가격 공시일 = 4월 30일로 봄 [확인 필요 — 그 해 실제 공시일] */
-      if (acq >= D0) { box.remove(); return; }
+      if (acq >= D0) { box.remove(); triMount(g, S, it, +S.p.year || pubYear(acq), k, g.__V || []); return; }
       var X = F.L[0];
       return Promise.all([pre90 ? Promise.resolve(null) : landAt(pnu, acq), landAt(pnu, D0), X.area > 0 ? Promise.resolve(X.area) : (k === 'apt' ? Promise.resolve(0) : areaNow(pnu))]).then(function (Q) {
         var LA = Q[0], L0 = Q[1], ar = Q[2];
-        box.__q = { mode: 'house', pre90: pre90, F: F };
+        box.__q = { mode: 'house', pre90: pre90, F: F, sel: 0, S: S };
+        var XR = k === 'house' && X.r ? X.r : null;
         box.innerHTML = '<b>공시 전에 산 주택 — 산 때 기준시가 환산(소득세법 시행령 §164⑦)</b>' +
           '<div class="gsg-n">최초 공시 주택가격 × (산 때 땅 기준시가 + 건물 기준시가) ÷ (최초 공시 때 땅 기준시가 + 건물 기준시가) · 산 때 = ' + dotY(acq) + (acq === '1985-01-01' ? '(의제취득일)' : '') + ' · 최초 공시 = ' + F.year + '년(공시일 4월 30일로 봄 — 확인 필요)</div>' +
           (k === 'apt' ? '<div class="gsg-n">2006년 전 국세청이 고시한 공동주택(아파트 등) 기준시가가 산 날에 이미 있었으면 그 값이 산 때 기준시가예요(환산 안 함) — 홈택스 「기준시가 조회」</div>' : '') +
           (F.L.length > 1 ? '<div class="gsg-f"><label>어느 집이에요?</label><select data-gspk="pick">' + F.L.map(function (x, i) { return '<option value="' + i + '">' + esc(x.t) + ' ' + esc(wonT(x.v)) + '</option>'; }).join('') + '</select></div>' : '') +
           fld('p0', '최초 공시 주택가격(' + F.year + '년)', X.v, '원', X.t ? X.t + ' · 브이월드' : '') +
           fld('area', k === 'apt' ? '대지권 면적(땅 지분 면적)' : '땅 면적(주택 부수토지)', ar || null, '㎡', k === 'apt' ? '등기부 대지권 비율 × 대지 면적 — 브이월드에 없어 직접' : (ar ? '브이월드 ' + (X.area > 0 ? '개별주택가격 산정 대지면적' : '토지특성 면적') : '토지대장 면적')) +
+          (XR ? '<div class="gsg-ar">' + arHtml(XR) + '</div><div class="gsg-n gsg-bl" hidden></div>' : '') +
           (pre90 ? '<div class="gsg-n" style="margin-top:8px"><b style="display:inline">산 때 땅 = 1990.8.30. 전</b> → 시행령 §164④로 ㎡당 기준시가 계산(아래)</div>' + g90Fields(r9 && r9.per, r9 && r9.de)
             : fld('la', '산 때 개별공시지가(㎡당)', LA && LA.per, '원/㎡', LA ? LA.year + '년 값(공시일 ' + dotY(LA.de) + ' · 산 날 현재 고시된 값)' : '못 찾았어요 — 직접')) +
           fld('l0', '최초 공시 때 개별공시지가(㎡당)', L0 && L0.per, '원/㎡', L0 ? L0.year + '년 값(공시일 ' + dotY(L0.de) + ' · 주택가격 공시일 현재 고시된 값 — 확인 필요)' : '못 찾았어요 — 직접') +
-          fld('ba', '산 때 건물 기준시가', null, '원', '국세청 건물 기준시가(2000.12.31. 전 취득 = 2001.1.1. 기준시가 × 산정기준율 · 시행규칙 §80③) — 브이월드에 없어 직접') +
-          fld('b0', '최초 공시 때 건물 기준시가', null, '원', '그 해 국세청 건물 기준시가 — 직접') +
+          fld('ba', '산 때 건물 기준시가' + (XR && XR.mixB ? '(주택 부분만)' : ''), null, '원', '국세청 건물 기준시가(2000.12.31. 전 취득 = 2001.1.1. 기준시가 × 산정기준율 · 시행규칙 §80③) — 브이월드에 없어 직접') +
+          fld('b0', '최초 공시 때 건물 기준시가' + (XR && XR.mixB ? '(주택 부분만)' : ''), null, '원', '그 해 국세청 건물 기준시가 — 직접') +
           lnk('홈택스 건물 기준시가(양도) 계산', HTX_URL + '4712090500') +
+          (XR && XR.tri ? '<div class="gsg-n" style="margin-top:8px"><b style="display:inline">주택 밖 부분(세 몫 ②, ③)</b> — 주택 외 토지, 건물 = 소득세법 §99①1호 가목, 나목(부동산거래관리과-75, 2012.02.03.)</div>' +
+            fld('rest', '② 주택 부수토지 밖 땅 면적(토지대장 ' + a2(XR.lad) + '㎡ − 산정 대지면적 ' + a2(XR.calc) + '㎡)', XR.rest, '㎡', (XR.cls === 'multi' ? '한 필지에 집이 여럿 = 기본 0(남는 땅이 이 집 주인 땅이면 넣기) · ' : '') + '단가 = 위 산 때 땅 ㎡당 값') +
+            fld('ob', '③ 산 때 주택 아닌 건물(상가, 창고 등) 기준시가', 0, '원', XR.mixB ? '주택 아닌 건물 ' + a2(XR.other) + '㎡ — 홈택스 건물 기준시가 계산으로(없으면 0)' : '없으면 0') : '') +
           '<div class="gsg-r" style="margin-top:8px"><button type="button" data-gsp="calc">환산하기</button></div><div class="gsg-res"></div>';
+        if (XR) bldLine(pnu).then(function (t) { var e = box.querySelector('.gsg-bl'); if (e && t) { e.textContent = t; e.hidden = false; } });
       });
     }).catch(function (e) { box.innerHTML = '<b>공시 전 환산</b><div class="gsg-e">불러오기 실패 — ' + esc(e.message) + '</div>'; });
+    return true;
   }
   function preCalc(box) {
     var B = eng(), q = box.__q || {}, res = box.querySelector('.gsg-res'), V = function (k) { var e = box.querySelector('[data-gspk="' + k + '"]'); return e ? numOf(e.value) : NaN; };
     var bad = function (t) { res.innerHTML = '<div class="gsg-e">' + esc(t) + '</div>'; box.__v = null; };
-    if (!B) return bad('계산 엔진(주택양도세 엔진)을 못 불렀어요 — 화면을 새로 열어 주세요');
+    if (!B) return bad('계산 엔진(양도세 엔진)을 못 불렀어요 — 화면을 새로 열어 주세요');
     var area = V('area'); if (!(area > 0)) return bad('땅 면적(㎡)을 넣어 주세요');
     var per = null, l9 = null, L = [];
     if (q.mode === 'land' || q.pre90) {
@@ -3868,17 +3970,41 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     L.push('산 때 땅 = ' + wn(per) + ' × ' + cm(area) + '㎡ = ' + wn(LA) + ', 건물 ' + wn(ba) + ' → 합계 ' + wn(LA + ba));
     L.push('최초 공시 때 땅 = ' + wn(l0) + ' × ' + cm(area) + '㎡ = ' + wn(LZ) + ', 건물 ' + wn(b0) + ' → 합계 ' + wn(LZ + b0));
     L.push(wn(p0) + ' × <span>' + cm(LA + ba) + '</span> ÷ <span>' + cm(LZ + b0) + '</span> = ' + wn(v) + '(원 미만 버림)');
-    box.__v = v;
+    box.__v = v; box.__f = null;
+    var FR = q.F && q.F.L[q.sel || 0] && q.F.L[q.sel || 0].r, hasT = FR && box.querySelector('[data-gspk="rest"]');
+    if (hasT) {
+      var rest = V('rest'), ob = V('ob'); if (isNaN(rest)) rest = 0; if (isNaN(ob)) ob = 0;
+      var l2 = rest > 0 ? B.areaStd([[per, rest]]) : 0, TT = triTable({ h: v, l: l2, b: ob, per: per, rest: rest });
+      box.__v = TT.t; box.__f = { F: FR, pct: null, two: l2 > 0 || ob > 0 };
+      var alt = FR.cls === 'diff' ? B.ratio(p0, [B.areaStd([[per, FR.lad]]), ba], [B.areaStd([[l0, FR.lad]]), b0]) + ob : null;
+      res.innerHTML = '<div class="gsg-v"><b>산 때 기준시가 = ① §164⑦ 환산 + ② + ③</b><div class="gsg-big">' + won(TT.t) + eokT(TT.t) + '</div>' + L.map(function (t) { return '<div class="gsg-m">' + t + '</div>'; }).join('') + TT.html +
+        (alt != null ? cmpHtml(TT.t, alt, '산정 대지면적 ' + a2(area) + '㎡로 환산 + 남는 땅', '토지대장 ' + a2(FR.lad) + '㎡ 전부를 주택 부수토지로 환산(① + ③)') : '') +
+        '<div class="gsg-n">계산 = 양도세 엔진(HTX.bk.ratio, areaStd) · 건물 기준시가, 최초 공시일은 서류로 확인</div>' + (box.__f.two ? '<div class="gsg-n">' + esc(triNote(FR)) + '</div>' : '') +
+        '<div class="gsg-r"><button type="button" data-gsp="put">이 값 넣기</button>' + (TAB === 'cgt' && FR.mixOne ? '<button type="button" class="gsg-2" data-gsp="tmix">겸용주택 칸에도 넣기</button>' : '') + '</div></div>';
+      return;
+    }
     res.innerHTML = '<div class="gsg-v"><b>산 때 기준시가(시행령 §164⑦ 환산)</b><div class="gsg-big">' + won(v) + eokT(v) + '</div>' + L.map(function (t) { return '<div class="gsg-m">' + t + '</div>'; }).join('') +
-      '<div class="gsg-n">계산 = 주택양도세 엔진(HTX.bk.ratio) · 건물 기준시가, 최초 공시일, 대지권 면적은 서류로 확인</div><div class="gsg-r"><button type="button" data-gsp="put">이 값 넣기</button></div></div>';
+      '<div class="gsg-n">계산 = 양도세 엔진(HTX.bk.ratio) · 건물 기준시가, 최초 공시일, 대지권 면적은 서류로 확인</div><div class="gsg-r"><button type="button" data-gsp="put">이 값 넣기</button></div></div>';
   }
   document.addEventListener('click', function (e) {
     var t = e.target.closest && e.target.closest('.gsg-pre [data-gsp]'); if (!t) return; e.preventDefault(); e.stopPropagation();
     var box = t.closest('.gsg-pre'), g = t.closest('.gsg');
-    if (t.getAttribute('data-gsp') === 'calc') { preCalc(box); return; }
-    if (t.getAttribute('data-gsp') === 'put' && box.__v > 0) put(g, { v: box.__v });
+    var c = t.getAttribute('data-gsp');
+    if (c === 'calc') { preCalc(box); return; }
+    if ((c === 'put' || c === 'tput') && box.__v > 0) { put(g, { v: box.__v }); var S0 = curStep(), f = box.__f;
+      MEM.note = f && f.two && S0 ? { id: S0.id, man: Math.floor(box.__v / 10000), t: '기준시가에 주택 밖 부분(주택 부수토지 밖 땅, 주택 아닌 건물)이 들어 있어요' + (f.pct != null ? '(주택 몫 ' + f.pct.toFixed(2) + '%)' : '') + ' — ' + triNote(f.F) } : MEM.note; return; }
+    if (c === 'tmix' && box.__f) { var F = box.__f.F, S1 = curStep(), pc = S1 && /[cC]vS$/.test(S1.id) ? box.__f.pct : null;
+      var okk = toMix(a2n(F.bc), a2n(F.other), pc), m = g.querySelector('.gsg-ok') || document.createElement('div'); m.className = 'gsg-ok';
+      m.textContent = okk ? '겸용주택 칸에 넣었어요 : 주택 연면적 ' + a2(F.bc) + '㎡, 주택 외 ' + a2(F.other) + '㎡' + (pc != null ? ', 주택 부분 가액 비율 ' + pc.toFixed(2) + '%(판 때 기준시가 비율 · 대법원 2017두66107)' : '(가액 비율은 판 때 질문에서)') + ' — 특수 사례 「겸용주택(주택 + 상가)」에서 고칠 수 있어요' : '겸용주택 칸을 못 찾았어요 — 특수 사례 더 보기에서 「겸용주택(주택 + 상가)」를 골라 직접 넣어 주세요';
+      g.querySelector('.gsg-out').appendChild(m); return; }
   }, true);
-  document.addEventListener('change', function (e) { var t = e.target; if (!t || !t.matches || !t.matches('.gsg-pre [data-gspk="pick"]')) return; var box = t.closest('.gsg-pre'), x = box.__q && box.__q.F && box.__q.F.L[+t.value]; if (!x) return; var p = box.querySelector('[data-gspk="p0"]'); if (p) p.value = cm(x.v); if (x.area > 0) { var a = box.querySelector('[data-gspk="area"]'); if (a) a.value = cm(x.area); } }, true);
+  function a2n(x) { return Math.round(x * 100) / 100; }
+  /* 세 몫 칸을 고치면 바로 다시 계산 · 집 고르기 */
+  document.addEventListener('input', function (e) { var t = e.target; if (!t || !t.closest) return; var box = t.closest('.gsg-tri'); if (box && box.__q && box.__q.mode === 'tri') triCalc(box); }, true);
+  document.addEventListener('change', function (e) { var t = e.target; if (!t || !t.matches || !t.matches('.gsg-tri [data-gspk="tpick"]')) return; var box = t.closest('.gsg-tri'), q = box.__q, x = q.T[+t.value]; if (!x) return; q.sel = +t.value;
+    var s = function (k, v) { var el = box.querySelector('[data-gspk="' + k + '"]'); if (el) el.value = cm(v); }; s('h1', x.v); s('rest', x.r.rest); box.querySelector('.gsg-ar').innerHTML = arHtml(x.r); triCalc(box); }, true);
+  document.addEventListener('change', function (e) { var t = e.target; if (!t || !t.matches || !t.matches('.gsg-pre [data-gspk="pick"]')) return; var box = t.closest('.gsg-pre'), x = box.__q && box.__q.F && box.__q.F.L[+t.value]; if (!x) return; box.__q.sel = +t.value; var p = box.querySelector('[data-gspk="p0"]'); if (p) p.value = cm(x.v); if (x.area > 0) { var a = box.querySelector('[data-gspk="area"]'); if (a) a.value = cm(x.area); }
+    if (x.r) { var ar = box.querySelector('.gsg-ar'), rs = box.querySelector('[data-gspk="rest"]'); if (ar) ar.innerHTML = arHtml(x.r); if (rs) rs.value = cm(x.r.rest); } }, true);
   document.addEventListener('change', function (e) { var t = e.target; if (!t || !t.matches || !t.matches('.gsg-pre input[data-gspk]')) return; var v = numOf(t.value); if (!isNaN(v)) t.value = cm(v); }, true);   /* 넣은 숫자에 쉼표 */
   document.addEventListener('keydown', function (e) { var t = e.target; if (e.key !== 'Enter' || !t || !t.closest || !t.closest('.gsg-pre')) return; e.preventDefault(); e.stopPropagation(); var b = t.closest('.gsg-pre').querySelector('[data-gsp="calc"]'); if (b) b.click(); }, true);
   /* 1990.8.30. 전 취득 땅 질문(양도세 탭 l90Pub · 엔진 HTX.bk.land1990) — 「주소로 1990년 개별공시지가 찾기」 → ㎡당 값을 칸에, 땅 면적은 다음 질문(l90Area)에 미리 · 토지대장 열람 링크 */
@@ -4027,7 +4153,14 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     if (t.hasAttribute('data-gsjans') && g.__ans) { var b = $('pkWz').querySelector('.pk-wo [data-pkwv="' + g.__ans + '"]'); if (b) b.click(); }
   }, true);
   document.addEventListener('keydown', function (e) { var t = e.target; if (e.key !== 'Enter' || !t || !t.classList || !t.classList.contains('gsj-a')) return; e.preventDefault(); e.stopPropagation(); var b = t.closest('.gsj').querySelector('[data-gsj="run"]'); if (b) b.click(); }, true);
-  function watch() { var box = $('pkWz'); if (!box) return setTimeout(watch, 500); new MutationObserver(function () { mount(); mountAdj(); mount90(); }).observe(box, { childList: true, subtree: true }); mount(); mountAdj(); mount90(); }
+  /* 2026-11-21 결과 화면 안내 — 세 몫 합계(주택 밖 부분 포함)를 넣은 칸 답이 그대로면 결과 맨 위에 [확인 필요] 한 줄 */
+  function noteMount() {
+    var box = $('pkWz'); if (!box) return; var H = CFG.h(), W = H && H.W, n = MEM.note, old = box.querySelector('.gsg-rn');
+    var on = !!(n && W && W.done && W.a && +W.a[n.id] === n.man);
+    if (!on) { if (old) old.remove(); return; } if (old) return;
+    var d = document.createElement('div'); d.className = 'gsg-rn gsg-w'; d.innerHTML = '<b style="display:block">[확인 필요] 땅 면적 검토</b>' + esc(n.t); box.insertAdjacentElement('afterbegin', d);
+  }
+  function watch() { var box = $('pkWz'); if (!box) return setTimeout(watch, 500); new MutationObserver(function () { mount(); mountAdj(); mount90(); noteMount(); }).observe(box, { childList: true, subtree: true }); mount(); mountAdj(); mount90(); noteMount(); }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', watch); else watch();
 })();
 </script>
