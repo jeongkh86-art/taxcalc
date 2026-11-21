@@ -40109,7 +40109,7 @@ function selGet(m){ if(MOD_ALWAYS[m.id]) return false;
           var cgTax=cgE.tax*1.1;                      
           
           try{ var cgW=document.getElementById('convCgWarn'); if(!cgW){ cgW=document.createElement('div'); cgW.id='convCgWarn'; cgW.style.cssText='font-size:12px;color:#8a1c1c;margin:6px 12px'; document.body.appendChild(cgW); }
-            cgW.textContent='[확인 필요] 법인전환 양도세 = 기본 식(CGT) — 비사업용 토지·주택이면 주택양도세 엔진과 다를 수 있음 → yangdo_calc 로 확인'; }catch(e){}
+            cgW.textContent='[확인 필요] 법인전환 양도세 = 기본 식(CGT) — 비사업용 토지·주택이면 양도세 엔진과 다를 수 있음 → 양도세 탭에서 확인'; }catch(e){}   
 
           var R=function(lab,v,em){ return [em?CH.em(lab,{align:'left'}):CH.rh(lab,{align:'left'}),
             em?CH.emn(v):CH.n(v)]; };

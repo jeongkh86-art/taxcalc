@@ -3887,6 +3887,16 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     on.checked = true; ev(on); H.value = String(h); ev(H); O.value = String(o); ev(O); if (P && pct != null) { P.value = String(pct); ev(P); }
     return true;
   }
+  /* 2026-11-21 남은 넷 ③ — 양도세 탭 + ②만(주택 아닌 건물 ③ = 0) = 엔진 「주택 부수토지 밖 땅」(outLand) 칸으로 넘김 → 밖 땅을 주택과 따로 토지로 계산(결과 노란 [확인 필요] 줄 없음) */
+  function olCase(f) { return TAB === 'cgt' && f && f.l > 0 && !(f.ob > 0) && !(f.F && f.F.mixOne); }
+  function toOl(f, sale) {
+    var b = document.querySelector('[data-pkspx="ol"]');
+    if (b && b.getAttribute('aria-pressed') !== 'true') b.click();
+    var on = $('olOn'), L = $(sale ? 'olSL' : 'olAL'), T = $(sale ? 'olST' : 'olAT'); if (!on || !L || !T) return false;
+    var ev = function (e) { e.dispatchEvent(new Event('input', { bubbles: true })); e.dispatchEvent(new Event('change', { bubbles: true })); };
+    on.checked = true; ev(on); L.value = String(f.l); ev(L); T.value = String(f.t); ev(T);
+    return true;
+  }
   function triNote(F) { return TAB === 'cgt' ? (F.mixOne ? '양도세 = 주택 몫에만 1세대1주택 비과세, 중과 — [겸용주택 칸에도 넣기]를 누르면 엔진 겸용주택 규칙(시행령 §154③④, §160①)으로 계산' : '주택 부수토지 밖 땅이 있어요 — 이 땅은 주택 값에 안 든 땅(주택 외 토지)이라 비과세, 중과 판정이 주택 몫과 다를 수 있어요 [확인 필요] · 땅을 따로 계산하려면 양도세 탭에서 토지로 한 번 더')
     : '주택 외 부분 있음 → 겸용주택 양도세 계산은 양도세 탭 「특수 사례 더 보기 → 겸용주택(주택 + 상가)」에서 [확인 필요]'; }
   function triMount(g, S, it, y, k, V) {
@@ -3931,12 +3941,12 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     if (!(h > 0)) { res.innerHTML = '<div class="gsg-e">① 주택 값을 넣어 주세요</div>'; box.__v = null; return; }
     if (rest > 0 && !(per > 0)) { res.innerHTML = '<div class="gsg-e">② 개별공시지가(㎡당)를 넣어 주세요</div>'; box.__v = null; return; }
     var l = rest > 0 ? B.areaStd([[per, rest]]) : 0, TT = triTable({ h: h, l: l, b: ob, per: per, rest: rest });
-    box.__v = TT.t; box.__f = { F: F, pct: TT.t > 0 ? Math.round(h / TT.t * 10000) / 100 : null, two: l > 0 || ob > 0 };
+    box.__v = TT.t; box.__f = { F: F, pct: TT.t > 0 ? Math.round(h / TT.t * 10000) / 100 : null, two: l > 0 || ob > 0, l: l, ob: ob, t: TT.t };
     res.innerHTML = '<div class="gsg-v"><b>' + (/[cC]vS$/.test(q.S.id) ? '판 때' : '산 때') + ' 기준시가 = ① + ② + ③</b><div class="gsg-big">' + won(TT.t) + eokT(TT.t) + '</div>' + TT.html +
       (F.cls === 'diff' ? cmpHtml(TT.t, h + ob, '산정 대지면적 ' + a2(F.calc) + '㎡ + 남는 땅', '토지대장 ' + a2(F.lad) + '㎡ 전부가 주택값에 들었다고 보면(① + ③)') : '') +
       '<div class="gsg-n">계산 = 양도세 엔진(HTX.bk.areaStd) · 주택 외 토지, 건물 = 소득세법 §99①1호 가목, 나목(부동산거래관리과-0526, 2011.06.28.)</div>' +
-      (box.__f.two ? '<div class="gsg-n">' + esc(triNote(F)) + '</div>' : '') +
-      '<div class="gsg-r"><button type="button" data-gsp="tput">합계 넣기</button>' + (TAB === 'cgt' && F.mixOne ? '<button type="button" class="gsg-2" data-gsp="tmix">겸용주택 칸에도 넣기</button>' : '') + '</div></div>';
+      (box.__f.two ? '<div class="gsg-n">' + esc(olCase(box.__f) ? OLNOTE : triNote(F)) + '</div>' : '') +
+      '<div class="gsg-r"><button type="button" data-gsp="tput">합계 넣기' + (olCase(box.__f) ? ' + 주택 밖 땅 칸' : '') + '</button>' + (TAB === 'cgt' && F.mixOne ? '<button type="button" class="gsg-2" data-gsp="tmix">겸용주택 칸에도 넣기</button>' : '') + '</div></div>';
   }
   var PCSS = '#pkWz .gsg-pre{margin-top:10px;border:1px solid var(--pd-acc,#1E3A8A);border-radius:8px;padding:12px;background:#fff}#pkWz .gsg-pre>b{display:block;font-size:17px;color:#111827;margin-bottom:4px}#pkWz .gsg-pre .gsg-f{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin:8px 0 0}#pkWz .gsg-pre .gsg-f label{flex:1 1 100%;font-size:16px;color:#111827}#pkWz .gsg-pre .gsg-f input,#pkWz .gsg-pre .gsg-f select{flex:1 1 160px;min-width:0;min-height:44px;font:inherit;font-size:16px;border:1px solid var(--pd-line2,#D1D5DB);border-radius:6px;padding:6px 10px;box-sizing:border-box;font-variant-numeric:tabular-nums}#pkWz .gsg-pre .gsg-f span{font-size:15px;color:var(--pd-ink3,#6B7280)}#pkWz .gsg-pre .gsg-res{margin-top:10px}#pkWz .gsg-w{margin-top:8px;border:1px solid #F59E0B;border-radius:8px;padding:10px 12px;background:#FEF3C7;color:#111827;font-size:16px;line-height:1.5}#pkWz .gsg-w .gsg-m{margin:2px 0}#pkWz .gsg-tri.gsg-n{margin-top:8px}';
   (function () { var s2 = document.createElement('style'); s2.id = 'gsgPreCss'; s2.textContent = PCSS; document.head.appendChild(s2); })();
@@ -4032,12 +4042,12 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     if (hasT) {
       var rest = V('rest'), ob = V('ob'); if (isNaN(rest)) rest = 0; if (isNaN(ob)) ob = 0;
       var l2 = rest > 0 ? B.areaStd([[per, rest]]) : 0, TT = triTable({ h: v, l: l2, b: ob, per: per, rest: rest });
-      box.__v = TT.t; box.__f = { F: FR, pct: null, two: l2 > 0 || ob > 0 };
+      box.__v = TT.t; box.__f = { F: FR, pct: null, two: l2 > 0 || ob > 0, l: l2, ob: ob, t: TT.t };
       var alt = FR.cls === 'diff' ? B.ratio(p0, [B.areaStd([[per, FR.lad]]), ba], [B.areaStd([[l0, FR.lad]]), b0]) + ob : null;
       res.innerHTML = '<div class="gsg-v"><b>산 때 기준시가 = ① §164⑦ 환산 + ② + ③</b><div class="gsg-big">' + won(TT.t) + eokT(TT.t) + '</div>' + L.map(function (t) { return '<div class="gsg-m">' + t + '</div>'; }).join('') + TT.html +
         (alt != null ? cmpHtml(TT.t, alt, '산정 대지면적 ' + a2(area) + '㎡로 환산 + 남는 땅', '토지대장 ' + a2(FR.lad) + '㎡ 전부를 주택 부수토지로 환산(① + ③)') : '') +
-        '<div class="gsg-n">계산 = 양도세 엔진(HTX.bk.ratio, areaStd) · 건물 기준시가, 최초 공시일은 서류로 확인</div>' + (box.__f.two ? '<div class="gsg-n">' + esc(triNote(FR)) + '</div>' : '') +
-        '<div class="gsg-r"><button type="button" data-gsp="put">이 값 넣기</button>' + (TAB === 'cgt' && FR.mixOne ? '<button type="button" class="gsg-2" data-gsp="tmix">겸용주택 칸에도 넣기</button>' : '') + '</div></div>';
+        '<div class="gsg-n">계산 = 양도세 엔진(HTX.bk.ratio, areaStd) · 건물 기준시가, 최초 공시일은 서류로 확인</div>' + (box.__f.two ? '<div class="gsg-n">' + esc(olCase(box.__f) ? OLNOTE : triNote(FR)) + '</div>' : '') +
+        '<div class="gsg-r"><button type="button" data-gsp="put">이 값 넣기' + (olCase(box.__f) ? ' + 주택 밖 땅 칸' : '') + '</button>' + (TAB === 'cgt' && FR.mixOne ? '<button type="button" class="gsg-2" data-gsp="tmix">겸용주택 칸에도 넣기</button>' : '') + '</div></div>';
       return;
     }
     res.innerHTML = '<div class="gsg-v"><b>산 때 기준시가(시행령 §164⑦ 환산)</b><div class="gsg-big">' + won(v) + eokT(v) + '</div>' + L.map(function (t) { return '<div class="gsg-m">' + t + '</div>'; }).join('') +
@@ -4048,13 +4058,17 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     var box = t.closest('.gsg-pre'), g = t.closest('.gsg');
     var c = t.getAttribute('data-gsp');
     if (c === 'calc') { preCalc(box); return; }
-    if ((c === 'put' || c === 'tput') && box.__v > 0) { put(g, { v: box.__v }); var S0 = curStep(), f = box.__f;
+    if ((c === 'put' || c === 'tput') && box.__v > 0) { var S0 = curStep(), f = box.__f;
+      if (olCase(f) && S0) { var sale = /[cC]vS$/.test(S0.id); put(g, { v: box.__v }); var okO = toOl(f, sale);
+        if (okO) { MEM.note = { id: S0.id, man: Math.floor(box.__v / 10000), t: '기준시가에 주택 부수토지 밖 땅이 들어 있는데 엔진이 따로 계산하지 못했어요(산 때, 판 때 중 한쪽만 넣음 등) — 특수 사례 「주택 부수토지 밖 땅」 칸 확인' }; var mo = document.createElement('div'); mo.className = 'gsg-ok'; mo.textContent = '주택 밖 땅 칸(특수 사례)에 넣었어요 : ' + (sale ? '판' : '산') + ' 때 이 땅 ' + wonT(f.l) + ' / 합계 ' + wonT(f.t) + ' → 결과 = 주택 몫, 밖 땅 따로 + 합계'; var o2 = g.querySelector('.gsg-out'); if (o2) o2.appendChild(mo); return; } }
+      else put(g, { v: box.__v });
       MEM.note = f && f.two && S0 ? { id: S0.id, man: Math.floor(box.__v / 10000), t: '기준시가에 주택 밖 부분(주택 부수토지 밖 땅, 주택 아닌 건물)이 들어 있어요' + (f.pct != null ? '(주택 몫 ' + f.pct.toFixed(2) + '%)' : '') + ' — ' + triNote(f.F) } : MEM.note; return; }
     if (c === 'tmix' && box.__f) { var F = box.__f.F, S1 = curStep(), pc = S1 && /[cC]vS$/.test(S1.id) ? box.__f.pct : null;
       var okk = toMix(a2n(F.bc), a2n(F.other), pc), m = g.querySelector('.gsg-ok') || document.createElement('div'); m.className = 'gsg-ok';
       m.textContent = okk ? '겸용주택 칸에 넣었어요 : 주택 연면적 ' + a2(F.bc) + '㎡, 주택 외 ' + a2(F.other) + '㎡' + (pc != null ? ', 주택 부분 가액 비율 ' + pc.toFixed(2) + '%(판 때 기준시가 비율 · 대법원 2017두66107)' : '(가액 비율은 판 때 질문에서)') + ' — 특수 사례 「겸용주택(주택 + 상가)」에서 고칠 수 있어요' : '겸용주택 칸을 못 찾았어요 — 특수 사례 더 보기에서 「겸용주택(주택 + 상가)」를 골라 직접 넣어 주세요';
       g.querySelector('.gsg-out').appendChild(m); return; }
   }, true);
+  var OLNOTE = '주택 부수토지 밖 땅이 있어요 — [넣기]를 누르면 특수 사례 「주택 부수토지 밖 땅」 칸에도 넣어 이 땅을 주택과 따로 토지로 계산(1세대1주택 비과세, 고가 판정, 장특 80% 밖 · 양도가액, 취득가액 = 기준시가 비율 안분 · 소득세법 §100②)';
   function a2n(x) { return Math.round(x * 100) / 100; }
   /* 세 몫 칸을 고치면 바로 다시 계산 · 집 고르기 */
   document.addEventListener('input', function (e) { var t = e.target; if (!t || !t.closest) return; var box = t.closest('.gsg-tri'); if (box && box.__q && box.__q.mode === 'tri') triCalc(box); }, true);
@@ -4214,6 +4228,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
   function noteMount() {
     var box = $('pkWz'); if (!box) return; var H = CFG.h(), W = H && H.W, n = MEM.note, old = box.querySelector('.gsg-rn');
     var on = !!(n && W && W.done && W.a && +W.a[n.id] === n.man);
+    if (on && TAB === 'cgt' && W.o && W.o.outLand && W.o.outLand.res) on = false;   /* 2026-11-21 밖 땅을 엔진이 따로 계산함(특수 사례 「주택 부수토지 밖 땅」) → 결과에 두 몫 따로 + 합계 · 노란 줄 뺌 */
     if (!on) { if (old) old.remove(); return; } if (old) return;
     var d = document.createElement('div'); d.className = 'gsg-rn gsg-w'; d.innerHTML = '<b style="display:block">[확인 필요] 땅 면적 검토</b>' + esc(n.t); box.insertAdjacentElement('afterbegin', d);
   }

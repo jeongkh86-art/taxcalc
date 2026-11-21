@@ -1498,6 +1498,19 @@ var HTX = (function () {
     var SPJ = null;
     if (I.kind === 'house' && I.sp && I.sp.type) { SPJ = RD.special(I.sp, I.saleDate); I.temp2 = SPJ.ok; if (SPJ.ok && SPJ.free) I._ntFree = true; }
     
+    
+    
+    var OL = null, XO = I._outLand;
+    if (I.kind === 'house' && XO && XO.xs > 0 && XO.xs < 1) {
+      var ss = function (v) { return Math.round((+v || 0) * XO.xs); }, sa = function (v) { return Math.round((+v || 0) * XO.xa); };
+      OL = Object.assign({}, XO, { sale: ss(I.sale), acq: sa(I.acq), exp: sa(I.exp) });
+      var JO = Object.assign({}, I, { whole: 0, kind: XO.nonbiz ? 'nonbiz' : 'land', sale: OL.sale, acq: OL.acq, exp: OL.exp, adjSale: false, adjAcq: false, temp2: false, sangsaeng: false, fake: null, gift: { on: false }, landX: null, _mix: null, _outLand: null, sp: null, others: [] });
+      if (XO.nonbiz && !JO._nbHist && typeof YS !== 'undefined' && YS.nbHist) { var NHo = YS.nbHist(JO); if (NHo) JO._nbHist = NHo; }
+      I.sale -= OL.sale; I.acq -= OL.acq; I.exp -= OL.exp;
+      if (I.gift && I.gift.on) I.gift = Object.assign({}, I.gift, { acq: Math.round((+I.gift.acq || 0) * (1 - XO.xa)), tax: Math.round((+I.gift.tax || 0) * (1 - XO.xa)) });
+      OL.res = one(JO, { label: '주택 부수토지 밖 땅', acq: JO.acq, acqDate: I.acqDate, exp: JO.exp, rateFrom: I._rateFrom });
+    }
+    
     var LX = null, X = I.landX;
     if (I.kind === 'house' && X && X.on) {
       var la = +X.landArea || 0, ba = +X.bldArea || 0, mu = +X.mult || 0, lp = Math.min(100, Math.max(0, +X.landPct || 0));
@@ -1549,12 +1562,14 @@ var HTX = (function () {
       if (apply) out.res = A;
     }
     out.landX = LX;
+    if (OL) out.outLand = OL;
     if (MX) out.mixed = MX;
     if (NX) out.nbArea = NX;
     
     var others = (I.others || []).filter(function (o) { return o && +o.income > 0; });
-    if ((LX && LX.res) || (MX && MX.res) || (NX && NX.res) || others.length) {
+    if ((OL && OL.res) || (LX && LX.res) || (MX && MX.res) || (NX && NX.res) || others.length) {
       var r0 = out.res, its = [{ name: '이 자산', saleDate: I.saleDate, income: r0.income || 0, k: (r0.rate && r0.rate.k) || 'b', unreg: !!I.unreg, nat: r0.nat || 0 }];
+      if (OL && OL.res) its.push({ name: '주택 부수토지 밖 땅', saleDate: I.saleDate, income: OL.res.income || 0, k: (OL.res.rate && OL.res.rate.k) || 'b', nat: OL.res.nat || 0 });
       if (LX && LX.res) its.push({ name: '부수토지 배율 초과분', saleDate: I.saleDate, income: LX.res.income || 0, k: (LX.res.rate && LX.res.rate.k) || 'b', nat: LX.res.nat || 0 });
       if (MX && MX.res) its.push({ name: '겸용주택 주택 외 부분', saleDate: I.saleDate, income: MX.res.income || 0, k: (MX.res.rate && MX.res.rate.k) || 'b', nat: MX.res.nat || 0 });
       if (NX && NX.res) its.push({ name: '비사업용 면적 부분', saleDate: I.saleDate, income: NX.res.income || 0, k: (NX.res.rate && NX.res.rate.k) || 'b', nat: NX.res.nat || 0 });
@@ -4120,6 +4135,24 @@ var HTX = (function () {
     
     if (I.cost && I.kind !== 'ipju') { var C = YS.cost(I); if (C) { X.cost = C.o; if (C.o.sale) { I.sale = C.o.sale; } I.acq = C.o.acq; I.exp = C.o.exp; } F = F.concat(C ? C.F : []); D = D.concat(C ? C.D : []); if (!C) F.push('취득가액 방식 칸이 모자라 실지거래가액으로 계산'); }
     
+    if (I.kind === 'house' && I.outLand && I.outLand.on) {
+      var OLi = I.outLand, oSL = +OLi.saleStd || 0, oST = +OLi.saleTot || 0, oAL = +OLi.acqStd || 0, oAT = +OLi.acqTot || 0;
+      var xs = oST > 0 ? oSL / oST : 0, xa = oAT > 0 && oAL >= 0 ? oAL / oAT : xs;
+      if (!(xs > 0 && xs < 1)) F.push('주택 부수토지 밖 땅 : 판 때 기준시가(이 땅 / 집 전체 합계) 칸이 비었거나 비율이 0~100% 밖 — 따로 계산 안 함');
+      else if (I.mix && I.mix.on) CK.push('주택 부수토지 밖 땅 + 겸용주택 함께 : 겸용주택 계산이 주택 외 부분(건물, 땅)을 이미 나눔 — 주택 부수토지 밖 땅 칸은 계산에 안 넣음 [확인 필요]');
+      else {
+        I._outLand = { xs: xs, xa: xa, nonbiz: !!OLi.nonbiz, saleStd: oSL, saleTot: oST, acqStd: oAL, acqTot: oAT };
+        X.outLandIn = I._outLand;
+        F.push('주택 부수토지 밖 땅(개별주택가격에 안 든 땅) = 주택과 따로 ' + (OLi.nonbiz ? '비사업용 토지(+10%p)' : '토지(기본세율)') + ' — 1세대1주택 비과세, 고가주택 12억원 판정, 장기보유특별공제 표2(80%) 밖 · 양도가액 × 판 때 기준시가 비율 ' + (xs * 100).toFixed(4) + '%(' + won0(oSL) + ' / ' + won0(oST) + '), 취득가액, 필요경비 × 산 때 비율 ' + (xa * 100).toFixed(4) + '%' + (oAT > 0 ? '(' + won0(oAL) + ' / ' + won0(oAT) + ')' : '(산 때 칸 없음 → 판 때 비율)') + ' — 소득세법 §100②, 시행령 §166⑥(부가세법 시행령 §64①1호 기준시가 비율) · 사전-2016-법령해석재산-0437(2017.05.01.) 「주택 및 그 부수토지와 그 외 토지를 일괄양도 … 자산별 기준시가 비율로 안분」');
+        if (!(oAT > 0)) D.push('주택 부수토지 밖 땅 산 때 비율 = 판 때 기준시가 비율(outLand.acqStd · acqTot)');
+        D.push('주택 부수토지 밖 땅 필요경비 = 산 때 기준시가 비율로 나눔(양도비, 그 땅에만 든 비용이면 실제 귀속 — §100② 후단 「해당 자산의 가액에 비례」)');
+        if (I.landX && I.landX.on) CK.push('주택 부수토지 밖 땅 + 부수토지 배율 초과 함께 : 배율 칸 「부수토지 면적」 = 주택 부수토지(산정 대지면적)만 넣어야 함(밖 땅 면적 빼고) [확인 필요]');
+        if (+I.whole > 0) CK.push('공유 지분 「집 전체 양도가액(whole)」 칸 = 주택 부분만(밖 땅 빼고) 넣어야 고가주택 판정이 맞음 [확인 필요]');
+        if (+I.stdPrice > 0) CK.push('양도 당시 기준시가(stdPrice · 중과 제외 3억원 판정) = 주택 + 부수토지만(밖 땅 빼고) [확인 필요]');
+        if (OLi.nonbiz) CK.push('주택 부수토지 밖 땅 비사업용 = 답(판정 이미 앎) — 판정 질문(지목별 기간, 재산세 종합합산 여부 등)은 이 땅만 「토지」로 따로 넣어 판정 [확인 필요]');
+      }
+    }
+    
     if (I.kind === 'house' && I.mix && I.mix.on) { var MXr = YS.mix(I); F = F.concat(MXr.F); if (MXr.ratio > 0) I._mix = MXr; X.mix = MXr; if (I.landX && I.landX.on) CK.push('겸용주택 + 부수토지 배율 초과 함께 : 배율 초과 면적은 주택 부분 부수토지(§154④)로 넣어야 함 [확인 필요]'); }
     if (I.kind === 'house' && I.landX && I.landX.on && I.landX.zone && YS.LXZ[I.landX.zone]) {
       var z = YS.LXZ[I.landX.zone], mu = z[0];
@@ -4150,7 +4183,15 @@ var HTX = (function () {
     YS.b3Post(o, I, F, CK, DU, D, X);   
     o.flags = F.concat(o.flags || []);
     Object.keys(X).forEach(function (k) { if (k !== 'rlPre') o[k] = X[k]; });
-    return finish(o, I0, I, CK, DU, D, X);
+    var FO = finish(o, I0, I, CK, DU, D, X);
+    
+    if (X.outLandIn && FO.outLand && FO.outLand.res) {
+      var AL = calc(Object.assign({}, I0, { outLand: null })), t10 = function (q) { if (!q || q.err) return null; var m = q.multi || q.res; return m ? (m.total10 != null ? m.total10 : m.total) : null; };
+      var vA = t10(FO), vB = t10(AL);
+      FO.outLandAlt = { sep: vA, asHouse: vB };
+      FO.dual.push('⚠ 주택 부수토지 밖 땅 : 따로 토지로 계산(기본) ' + won0(vA) + ' / 한 울타리 안 같은 생활영역(마당 등)이라 주택 부수토지로 보면 ' + (vB == null ? '계산 못 함' : won0(vB)) + '(배율 안 = 비과세 · 넘는 부분 = 「부수토지 배율 초과」) — 「주택」 = 사실상 주거용(소득세법 §88 7호) · 사회통념상 하나의 주택이면 대지 필지와 상관없이 부수토지(대법원 91누10367, 1992.08.18.) · 주택과 구분된 생활영역 땅은 부수토지 아님(조심 2023서7425, 2023.12.26.) · 추천 = 기본(따로 토지) — 개별주택가격에 안 든 땅은 공시상 주택 아님, 현황이 마당이면 사진·현황측량으로 다투어 볼 일');
+    }
+    return FO;
   }
   function finish(o, I0, I, CK, DU, D, X) {
     var r = o.res, F = o.flags || [];
