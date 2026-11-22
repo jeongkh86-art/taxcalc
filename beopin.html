@@ -239,7 +239,11 @@ html.fwait body{visibility:hidden}
   #pkRoot .cv-req .ng b{color:var(--ver)}
   #pkRoot .cv-as{display:grid;grid-template-columns:1fr;gap:8px;margin-top:6px}
   #pkRoot .cv-as label{display:block;font-size:16px;color:var(--ink2)}
-  #pkRoot .cv-as .pk-wm{margin-top:4px}
+  #pkRoot .cv-as label{min-width:0;display:flex!important;flex-direction:column;justify-content:flex-end}
+  #pkRoot .cv-box button{white-space:nowrap}
+  #pkRoot .cv-as .pk-wm{margin-top:4px;display:flex;align-items:center;gap:6px;max-width:100%}
+  #pkRoot .cv-as .pk-wm input{flex:1 1 auto;min-width:0;width:auto;max-width:100%;box-sizing:border-box}
+  #pkRoot .cv-as .pk-wm span{flex:none;white-space:nowrap}   
   #pkRoot .cv-stop{border-left:4px solid var(--ver)}
   #pkRoot .card{margin-top:12px;border:1px solid var(--rule);border-radius:10px;padding:8px 10px;background:#fff}
   #pkRoot .card h3{margin:2px 0 4px;font-size:17px}
