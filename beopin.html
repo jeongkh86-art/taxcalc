@@ -244,6 +244,21 @@ html.fwait body{visibility:hidden}
   #pkRoot .card{margin-top:12px;border:1px solid var(--rule);border-radius:10px;padding:8px 10px;background:#fff}
   #pkRoot .card h3{margin:2px 0 4px;font-size:17px}
   @media(min-width:600px){#pkRoot .cv-as{grid-template-columns:1fr 1fr}}
+  
+  #pkRoot .pk-wo button,#pkRoot .pk-wo button:has(small.pk-wos){flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:0}
+  #pkRoot .pk-wo button>span,#pkRoot .pk-wo button small.pk-wos{display:block;width:100%;text-align:center}
+  
+  #pkRoot .cv-ex{margin:8px 0 12px}
+  #pkRoot .cv-ex summary{cursor:pointer;font-size:16px;font-weight:700;color:var(--ink2)}
+  #pkRoot .cv-ex ul{margin:6px 0 0;padding-left:18px;font-size:16px;line-height:1.55;color:var(--ink2)}
+  #pkRoot .cv-ex li{margin:4px 0}
+  #pkRoot .cv-sh{display:grid;gap:8px}
+  #pkRoot .cv-shr{display:flex;align-items:center;gap:10px}
+  #pkRoot .cv-shn{flex:0 0 6.2em;font-size:17px;font-weight:700}
+  #pkRoot .cv-shr .pk-wm{flex:1 1 auto;margin:0}
+  #pkRoot input.cv-auto{background:#F2F4F6;color:var(--ink2)}
+  #pkRoot .cv-shs{font-size:16px;color:var(--ink2);text-align:right}
+  #pkRoot .cv-shs.ng{color:var(--ver);font-weight:700}
 </style>
 <style id="pubDesign">@media screen{
 :root{--pd-bg:#FFFFFF;--pd-surface:#FFFFFF;--pd-surface2:#F5F7FA;--pd-ink:#111827;--pd-ink2:#374151;--pd-ink3:#6B7280;--pd-line:#E5E7EB;--pd-line2:#D1D5DB;
@@ -1136,16 +1151,16 @@ if (typeof module !== 'undefined') module.exports = ACQ;
     var relief = o.obj === 'biz' && (compat || deferOk);   
     var acqMain = price * r.main, acqEdu = price * r.edu, acqNong = price * r.nong;
     var cutMain = relief ? price * r.main * R.reliefPct : 0;
-    var cutEdu = relief && !compat ? acqEdu * R.reliefPct : 0;          
+    var cutEdu = relief ? acqEdu * R.reliefPct : 0;                     
     var nongRelief = cutMain * R.reliefNong;                              
-    var acqTax = compat ? price * r.sum - cutMain + nongRelief : acqMain + acqEdu + acqNong - cutMain - cutEdu + nongRelief;
+    var acqTax = compat ? price * r.sum - cutMain - cutEdu + nongRelief : acqMain + acqEdu + acqNong - cutMain - cutEdu + nongRelief;
 
     
     var regMain = capital * R.regRate;
-    if (!compat) regMain = Math.max(regMain, R.regMin);
+    regMain = Math.max(regMain, R.regMin);                               
     if (metro) regMain *= R.regHeavy;
     var regEdu = regMain * R.regEdu;
-    var regTax = compat ? capital * (metro ? Math.round(0.012 * 1.2 * 1e8) / 1e8 : Math.round(0.004 * 1.2 * 1e8) / 1e8) : regMain + regEdu;
+    var regTax = compat ? regMain * (1 + R.regEdu) : regMain + regEdu;   
 
     
     var single = appraisalFeeCalc(price), needTwo = (stdSum > 0 ? stdSum : price) > 1e9, appr = needTwo ? single * 2 : single;
@@ -1845,11 +1860,23 @@ if (typeof module !== 'undefined') module.exports = ACQ;
   var QS = [
     { id: 'obj', st: 'basic', t: 'b', q: '무엇을 법인으로 바꾸나요?', o: [['rent', '임대 부동산', '상가, 사무실, 공장, 토지를 빌려주는 사업'], ['biz', '개인사업 전체', '제조, 도소매 등 사업과 그 사업에 쓰는 부동산'], ['house', '주택', '주택 임대, 주택을 살 권리 포함']] },
     { id: 'consum', st: 'basic', t: 'b', on: function (a) { return a.obj === 'biz'; }, q: '호텔, 여관, 유흥주점처럼 소비성 서비스업이에요?', h: '관광숙박업은 여기에 들지 않아요', o: [['n', '아니요'], ['y', '예']] },
-    { id: 'way', st: 'basic', t: 'b', q: '어떤 방법으로 바꾸나요?', o: [['inkind', '현물출자', '부동산(사업)을 새 법인에 출자하고 주식을 받음'], ['transfer', '사업양수도', '먼저 법인을 세우고, 세운 날부터 3개월 안에 사업을 넘김'], ['u', '아직 몰라요', '현물출자로 계산']] },
-    { id: 'allIn', st: 'basic', t: 'b', q: '사업의 모든 권리와 의무를 그대로 넘겨요?', h: '임대보증금, 대출, 임대차 계약까지 통째로 넘기면 「예」', o: [['y', '예, 통째로(포괄 승계)'], ['n', '아니요, 부동산만 골라서']] },
-    { id: 'loc', st: 'basic', t: 'b', q: '부동산과 새 법인 본점은 어디에 있어요?', h: '과밀억제권역이라도 산업단지 안이면 「그 밖 지역」', o: [['seoul', '서울'], ['inc', '인천', '과밀억제권역 안(강화, 옹진, 경제자유구역 등 제외)'], ['gg', '경기 과밀억제권역', '수원, 성남, 고양, 부천, 안양, 의정부 등'], ['city', '부산, 대구, 광주, 대전, 울산'], ['other', '그 밖 지역', '세종, 그 밖 시, 군 포함'], ['u', '잘 모르겠어요', '세금이 많은 쪽(서울)으로 계산']] },
+    { id: 'way', st: 'basic', t: 'b', q: '어떤 방법으로 바꾸나요?', o: [['inkind', '현물출자', '부동산(사업)을 새 법인에 출자하고 주식을 받음'], ['transfer', '사업양수도', '먼저 법인을 세우고, 세운 날부터 3개월 안에 사업을 넘김'], ['u', '아직 몰라요', '현물출자로 계산']], ex: function () { return ['현물출자와 사업양수도, 무엇이 달라요?', [
+      ['같은 것', '요건을 맞추면 양도소득세 이월과세, 취득세 50% 감면(부동산 임대업 제외)이 둘 다 같음'],
+      ['현물출자', '부동산(사업)을 그대로 내고 주식을 받음, 현금이 거의 필요 없음, 법원 검사인 조사 또는 감정인 감정 절차 필요'],
+      ['사업양수도', '먼저 현금으로 법인을 세움(자본금 = 순자산가액 이상), 3개월 안에 사업 전체를 법인에 넘기고 대금을 받음, 법원 절차 없음'],
+      ['이런 분께', '현금이 부족하면 현물출자, 순자산가액만큼 현금이 있고 법원 절차 없이 하려면 사업양수도']]]; } },
+    { id: 'allIn', st: 'basic', t: 'b', q: '사업의 모든 권리와 의무를 그대로 넘겨요?', h: '임대보증금, 대출, 임대차 계약까지 통째로 넘기면 「예」', o: [['y', '예, 통째로(포괄 승계)'], ['n', '아니요, 부동산만 골라서']], ex: function (a) { return ['통째로와 부동산만, 무엇이 달라요?', [
+      ['통째로(포괄 승계)', '사업에 딸린 부동산, 보증금, 대출, 임대차 계약을 모두 넘김 → 부가가치세 없음(사업 양도 = 재화 공급 아님)'],
+      ['부동산만 골라서', '건물분 부가가치세 10%를 법인이 먼저 냄(나중에 돌려받음)' + (a.way === 'transfer' ? ', 사업양수도는 이월과세가 안 돼 양도소득세를 바로 냄' : '')],
+      ['이런 분께', '보통은 통째로, 남겨 둘 자산이나 넘기지 않을 대출이 있을 때만 부동산만']]]; } },
+    { id: 'loc', st: 'basic', t: 'b', q: '부동산과 새 법인 본점은 어디에 있어요?', h: '과밀억제권역이라도 산업단지 안이면 「그 밖 지역」', ex: function () { return ['지역마다 다른 것', [
+      ['서울, 인천, 경기 과밀억제권역', '취득세, 등록면허세 중과는 셋이 같음(대도시 = 과밀억제권역)'],
+      ['다른 것은 국민주택채권 하나', '특별시, 광역시(서울, 인천, 부산 등)는 사는 비율이 조금 높고, 경기는 「그 밖 지역」 비율'],
+      ['부산, 대구, 광주, 대전, 울산', '과밀억제권역이 아니라 중과 없음, 채권만 광역시 비율']]]; },
+      o: [['seoul', '서울, 인천', '인천 강화, 옹진, 경제자유구역 등은 「그 밖 지역」'], ['gg', '경기 과밀억제권역', '수원, 성남, 고양, 부천, 안양, 의정부 등'], ['city', '부산, 대구, 광주, 대전, 울산'], ['other', '그 밖 지역', '세종, 그 밖 시, 군 포함'], ['u', '잘 모르겠어요', '세금이 많은 쪽(서울)으로 계산']] },
     { id: 'own', st: 'basic', t: 'b', q: '혼자 하는 사업이에요, 공동사업이에요?', o: [['solo', '혼자'], ['co', '공동사업(지분을 나눠 가짐)']] },
-    { id: 'shares', st: 'basic', t: 's', on: function (a) { return a.own === 'co'; }, q: '사람마다 지분을 %로 적어 주세요', h: '쉼표로 나눠서, 예 : 50,50 또는 60,30,10' },
+    { id: 'nOwn', st: 'basic', t: 'n', on: function (a) { return a.own === 'co'; }, q: '공동사업자는 몇 명이에요?', h: '본인 포함' },
+    { id: 'shares', st: 'basic', t: 's', on: function (a) { return a.own === 'co'; }, q: '사람마다 지분을 %로 적어 주세요', h: '마지막 사람은 100에서 나머지를 빼 자동으로 채워요' },
     { id: 'price', st: 'cg', t: 'e', q: '부동산 시가(감정가액)는 얼마예요?', h: '토지와 건물을 합친 값, 공동이면 전체' },
     { id: 'acq', st: 'cg', t: 'e', q: '그 부동산을 처음 산 값(취득가액)은요?', h: '산 값 + 취득세, 중개수수료 등 필요경비, 공동이면 전체', unk: '0원으로' },
     { id: 'hold', st: 'cg', t: 'y', q: '산 지 몇 년 됐어요?', h: '장기보유특별공제(3년부터)에 써요' },
@@ -1864,11 +1891,14 @@ if (typeof module !== 'undefined') module.exports = ACQ;
   function next(id) { var V = vis(), i = V.map(function (s) { return s.id; }).indexOf(id); return V[i + 1] ? V[i + 1].id : null; }
   function ansTxt(s, v) {
     if (v === undefined) return '';
-    if (s.t === 'b') { var o = (s.o || []).filter(function (x) { return x[0] === v; })[0]; return o ? o[1] : v; }
+    if (s.t === 'b') { var o = (s.o || []).filter(function (x) { return x[0] === v; })[0]; return o ? o[1] : s.id === 'loc' && LOC[v] ? LOC[v][2] : v; }
+    if (s.t === 'n') return v + '명';
+    if (s.t === 's') return String(v).split(',').map(function (x, i) { return (i + 1) + '번 ' + x + '%'; }).join(', ');
     if (s.t === 'e') { if (v === '') return s.unk || ''; var t = wonToEok(v).split('.'); return Number(t[0]).toLocaleString('ko-KR') + (t[1] ? '.' + t[1] : '') + '억'; }   
     if (s.t === 'y') return v + '년';
     return v;
   }
+  function shN() { var n = +W.a.nOwn; return n >= 2 ? n : 2; }
   function parseShares(t) { var L = String(t || '').split(/[,\s/]+/).filter(Boolean).map(Number); if (L.length < 2 || L.some(function (x) { return !(x > 0); })) return null; return L; }
 
   
@@ -1912,19 +1942,33 @@ if (typeof module !== 'undefined') module.exports = ACQ;
     if (W.done) { result(); return; }
     var s = step(W.cur), v = W.a[s.id], h = top();
     h += '<div class="pk-wq">' + esc(s.q) + '</div>' + (s.h ? '<div class="pk-wh">' + esc(s.h) + '</div>' : '');
+    if (s.ex) { var X = s.ex(W.a); h += '<details class="pk-easy cv-ex"><summary>' + esc(X[0]) + '</summary><ul>' + X[1].map(function (r) { return '<li><b>' + esc(r[0]) + '</b> : ' + esc(r[1]) + '</li>'; }).join('') + '</ul></details>'; }
     if (s.t === 'b') h += '<div class="pk-wo">' + s.o.map(function (o) { return '<button type="button" class="' + (v === o[0] ? 'on' : '') + '" data-pkwv="' + o[0] + '"><span>' + esc(o[1]) + '</span>' + (o[2] ? '<small class="pk-wos">' + esc(o[2]) + '</small>' : '') + '</button>'; }).join('') + '</div>';
     else {
       var inpH;
       if (s.t === 'e') inpH = '<div class="pk-wm"><input type="text" inputmode="decimal" data-pkwi="0" value="' + esc(v == null || v === '' ? '' : wonToEok(v)) + '"><span>억</span></div><div class="pk-we" id="pkWe"></div>' + (s.unk ? '<div class="pk-wbl">빈칸으로 [다음] = 「' + esc(s.unk) + '」</div>' : '');
       else if (s.t === 'y') inpH = '<div class="pk-wm"><input type="number" inputmode="decimal" min="0" step="any" data-pkwi="0" value="' + esc(v == null ? '' : v) + '"><span>년</span></div>';
-      else inpH = '<div class="pk-wm"><input type="text" inputmode="decimal" data-pkwi="0" value="' + esc(v == null ? '' : v) + '" placeholder="50,50"><span>%</span></div>';
+      else if (s.t === 'n') inpH = '<div class="pk-wm"><input type="number" inputmode="numeric" min="2" max="20" step="1" data-pkwi="0" value="' + esc(v == null ? '' : v) + '" placeholder="2"><span>명</span></div>';
+      else {
+        var nn = shN(), old = String(v == null ? '' : v).split(',');
+        if (old.length !== nn) old = nn === 2 ? ['50', '50'] : [];
+        inpH = '<div class="cv-sh">' + Array.apply(null, Array(nn)).map(function (_, k) { var last = k === nn - 1;
+          return '<label class="cv-shr"><span class="cv-shn">' + (k + 1) + '번' + (k === 0 ? '(본인)' : '') + '</span><span class="pk-wm"><input type="text" inputmode="decimal" data-pkwi="' + (k === 0 ? '0' : 's' + k) + '" data-cvsh="' + k + '"' + (last ? ' readonly tabindex="-1" class="cv-auto"' : '') + ' value="' + esc(old[k] || '') + '"><span>%</span></span></label>'; }).join('') +
+          '<div class="cv-shs" id="cvShS"></div></div>';
+      }
       h += '<div class="pk-wi">' + inpH + '</div><div class="pk-wn"><button type="button" class="pk-go" data-pkwn="1">다음</button>' + (s.unk ? '<button type="button" class="pk-wz0" data-pkwu="1">' + esc(s.unk) + '</button>' : '') + '</div><div class="pk-wer" id="pkWer"></div>';
     }
     box.innerHTML = h;
+    if (s.t === 's') { var sh = function () { var L = [].slice.call(box.querySelectorAll('[data-cvsh]')), last = L[L.length - 1], sum = 0;
+        L.slice(0, -1).forEach(function (x) { sum += +String(x.value).replace(/,/g, '') || 0; });
+        var rest = Math.round((100 - sum) * 1e6) / 1e6; last.value = rest > 0 ? String(rest) : '';
+        var o = $('cvShS'); if (o) { o.textContent = rest > 0 ? '합계 100%' : '앞사람 합계가 100% 이상 — 줄여 주세요'; o.className = 'cv-shs' + (rest > 0 ? '' : ' ng'); } };
+      [].forEach.call(box.querySelectorAll('[data-cvsh]'), function (x) { x.addEventListener('input', sh); }); sh(); }
     var i = box.querySelector('[data-pkwi="0"]'); if (i && s.t === 'e') { var f = function () { var w = eokToWon(i.value); $('pkWe').textContent = w > 0 ? '= ' + won(w) : ''; }; i.addEventListener('input', f); f(); }
   }
   function go(v) {
-    var s = step(W.cur); W.a[s.id] = v;
+    var s = step(W.cur); if (s.id === 'nOwn' && W.a.shares !== undefined && String(W.a.shares).split(',').length !== +v) delete W.a.shares;
+    W.a[s.id] = v;
     W.path = W.path.filter(function (x) { return x !== s.id; }); W.path.push(s.id);
     if (s.id === 'obj' && v === 'house') { W.done = true; draw(); return; }
     var n = next(s.id);
@@ -1941,8 +1985,13 @@ if (typeof module !== 'undefined') module.exports = ACQ;
       return go(w);
     }
     if (s.t === 'y') { var y = +raw; if (raw === '' || !(y >= 0)) return bad('연수를 숫자로 넣어 주세요(예 12)'); return go(y); }
-    var L = parseShares(raw); if (!L) return bad('지분을 2명 이상, 쉼표로 넣어 주세요(예 50,50)');
-    return go(L.join(','));
+    if (s.t === 'n') { var n = +raw; if (!(n >= 2 && n <= 20 && Math.floor(n) === n)) return bad('2명부터 20명까지 숫자로 넣어 주세요'); return go(n); }
+    var X = [].slice.call($('pkWz').querySelectorAll('[data-cvsh]')).map(function (x) { return String(x.value).replace(/,/g, '').trim(); });
+    var pre = X.slice(0, -1).reduce(function (t, x) { return t + (+x || 0); }, 0); if (pre >= 100) return bad('앞사람 지분 합계가 ' + (Math.round(pre * 1e4) / 1e4) + '%예요, 합쳐서 100%가 되게 줄여 주세요');
+    if (X.some(function (x) { return x === '' || !/^\d*\.?\d+$/.test(x) || !(+x > 0); })) return bad('사람마다 0보다 큰 지분을 넣어 주세요');
+    var tot = X.reduce(function (a, x) { return a + +x; }, 0);
+    if (Math.abs(tot - 100) > 1e-6) return bad('지분 합계가 100%가 아니에요(지금 ' + (Math.round(tot * 1e4) / 1e4) + '%)');
+    return go(X.join(','));
   }
   function goBack() { if (W.done) { W.done = false; W.cur = W.path.pop() || 'obj'; draw(); return; } var V = vis().map(function (s) { return s.id; }); while (W.path.length) { var p = W.path.pop(); if (V.indexOf(p) >= 0) { W.cur = p; break; } } draw(); }
   function restart() { W.a = {}; W.cur = 'obj'; W.path = []; W.done = false; draw(); }
@@ -2048,7 +2097,7 @@ if (typeof module !== 'undefined') module.exports = ACQ;
     return { M: TXTBL.model(o, { title: '법인전환 비용', via: '질문형(바로 계산)' }), o: TXTBL.opts({ title: '법인전환 비용', eng: '법인전환 비용 계산기', file: '법인전환비용' }) };
   });
   
-  function play(A) { restart(); for (var g = 0; g < 40 && !W.done; g++) { var s = step(W.cur); if (!(s.id in A)) break; go(A[s.id]); } return W.done ? window.CVWZ.last : null; }
+  function play(A) { restart(); for (var g = 0; g < 40 && !W.done; g++) { var s = step(W.cur); if (s.id === 'nOwn' && !('nOwn' in A) && A.shares) { go(String(A.shares).split(/[,\s/]+/).filter(Boolean).length); continue; } if (!(s.id in A)) break; go(A[s.id]); } return W.done ? window.CVWZ.last : null; }
   window.CVWZ = { W: W, QS: QS, play: play, inp: inp, restart: restart, last: null };
   draw();
 })();
