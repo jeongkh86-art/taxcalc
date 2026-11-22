@@ -3823,7 +3823,13 @@ if (__SEV_NODE) {
     var cap = CONST.GIFT_DEDUCT[p.relation] !== undefined
       ? CONST.GIFT_DEDUCT[p.relation] : 0;
     
-    var deduction = Math.max(0, cap - num(p.usedDeduction));
+    
+    var smallDed = 0;
+    if (priorBelowFloor) {
+      var pd0 = (p.priorDeduction !== undefined && p.priorDeduction !== null && p.priorDeduction !== '') ? Math.max(0, num(p.priorDeduction)) : num(p.priorGifts);
+      smallDed = Math.min(pd0, num(p.priorGifts), Math.max(0, cap - num(p.usedDeduction)));
+    }
+    var deduction = Math.max(0, cap - num(p.usedDeduction) - smallDed);
     var capLeft = deduction;   
     var priorDedIn = (p.priorDeduction !== undefined && p.priorDeduction !== null && p.priorDeduction !== '') ? Math.max(0, num(p.priorDeduction)) : null;
     if (priorDedIn !== null && priorDedIn > capLeft) priorDedIn = capLeft;   
@@ -3867,7 +3873,8 @@ if (__SEV_NODE) {
     var prepaidIn = prepaid > 0 ? prepaid : 0, prepaidCapped = false;
     if (prepaid > 0) {
       if (prepaid > prepaidCap) { prepaid = prepaidCap; prepaidCapped = true; }
-    } else if (prior > 0 && taxBase > 0 && pBase > 0) {
+    } else if (prior > 0 && taxBase > 0 && pBase > 0 && !(p.prepaidTax !== undefined && p.prepaidTax !== null && p.prepaidTax !== '')) {
+      
       var pTax = Math.max(0, calcBaseTax(pBase).tax);
       prepaid = Math.min(pTax, prepaidCap);
     } else prepaid = 0;
@@ -20572,6 +20579,8 @@ var SC45=(function(){
   function credited(current,prior,rel,useSkip){
     prior=prior||0;
     var ded=DED[rel]===undefined?0:DED[rel];
+    
+    if(prior>0&&prior<10000000){ ded=Math.max(0,ded-Math.min(prior,ded)); prior=0; }
     var comb=current+prior;
     var base=Math.max(0,comb-ded);
     var raw=giftTax(base);

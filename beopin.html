@@ -1207,7 +1207,7 @@ if (typeof module !== 'undefined') module.exports = ACQ;
       fees: fees, nowTotal: nowTotal, grandTotal: nowTotal, checks: checks, notes: notes
     };
   }
-  var API = { R: R, calc: calc };
+  var API = { R: R, calc: calc, CGT: CGT };   
   if (typeof module !== 'undefined' && module.exports) module.exports = API;
   root.CONVC = API;
 })(typeof window !== 'undefined' ? window : globalThis);
@@ -1632,8 +1632,8 @@ if (typeof module !== 'undefined') module.exports = ACQ;
   function build(M, o, X) {
     var EX = X || lib(); if (!EX) return Promise.reject(new Error('엑셀 라이브러리 없음'));
     var st = stamp(), wb = new EX.Workbook(); wb.creator = ''; wb.created = new Date(); wb.calcProperties = { fullCalcOnLoad: true };
-    var FN = 'Freesentation', C = { ink: 'FF191F28', ink2: 'FF4E5968', ink3: 'FF7A848F', ver: 'FFE4572E', band: 'FFF1EDE6', in: 'FF0000FF', inbg: 'FFEAF0FD', eng: 'FFFFF1E6', jd: 'FFC2410C', rule: 'FFE5E1DA', white: 'FFFFFFFF' };
-    var fill = function (c) { return { type: 'pattern', pattern: 'solid', fgColor: { argb: c } }; }, thin = { style: 'thin', color: { argb: C.rule } };
+    var FN = 'Freesentation', C = { ink: 'FF191F28', ink2: 'FF4E5968', ink3: 'FF7A848F', ver: 'FFE4572E', band: 'FFF1EDE6', in: 'FF0000FF', inbg: 'FFEAF0FD', eng: 'FFFFF1E6', jd: 'FFC2410C', rule: 'FFE5E1DA', white: 'FFFFFFFF', fd: 'FF241B14', fb: 'FF513528', fg: 'FFB09250', fc: 'FFF7F1E6', fl: 'FFD9C9A3' };   
+    var fill = function (c) { return { type: 'pattern', pattern: 'solid', fgColor: { argb: c } }; }, thin = { style: 'thin', color: { argb: C.fl } };
     var NF = { w: '#,##0"원";[Red]-#,##0"원"', m: '#,##0.##"만원";[Red]-#,##0.##"만원"', r: '0.0##%', y: '0.##', p: '0.##"%"', n: '#,##0.##', g: '#,##0' };
     var font = function (x) { return Object.assign({ name: FN, size: 12, color: { argb: C.ink } }, x || {}); };
     var FOOT = '본 자료 = 일반적 정보 제공 목적, 실제 적용 시 개별 사안별 법률적 검토 및 전문가 자문 필수';
@@ -1643,11 +1643,11 @@ if (typeof module !== 'undefined') module.exports = ACQ;
       ws.headerFooter.oddFooter = '&L&12' + FOOT + '&R&12&P / &N';
       ws.columns = cols.map(function (w) { return { width: w }; });
       var last = colL(cols.length);
-      ws.mergeCells('A1:' + last + '1'); var t = ws.getCell('A1'); t.value = title; t.font = font({ size: 16, bold: true, color: { argb: C.white } }); t.fill = fill(C.ink); t.alignment = { vertical: 'middle', indent: 1 }; ws.getRow(1).height = 32;
-      ws.mergeCells('A2:' + last + '2'); var s = ws.getCell('A2'); s.value = '작성 ' + st.t + '    ' + o.eng; s.font = font({ color: { argb: C.ink2 } }); s.fill = fill(C.band); s.alignment = { vertical: 'middle', indent: 1 }; ws.getRow(2).height = 20;
+      ws.mergeCells('A1:' + last + '1'); var t = ws.getCell('A1'); t.value = title; t.font = font({ size: 16, bold: true, color: { argb: C.fg } }); t.fill = fill(C.fd); t.alignment = { vertical: 'middle', indent: 1 }; ws.getRow(1).height = 32;
+      ws.mergeCells('A2:' + last + '2'); var s = ws.getCell('A2'); s.value = '작성 ' + st.t + '    ' + o.eng; s.font = font({ color: { argb: C.fb } }); s.fill = fill(C.fc); s.alignment = { vertical: 'middle', indent: 1 }; ws.getRow(2).height = 20;
       return ws;
     }
-    function hdr(ws, r, vals) { var row = ws.getRow(r); vals.forEach(function (v, i) { var c = row.getCell(i + 1); c.value = v; c.font = font({ bold: true, color: { argb: C.white } }); c.fill = fill(C.ink2); c.alignment = { vertical: 'middle', horizontal: i ? 'center' : 'left', indent: i ? 0 : 1, wrapText: true }; }); row.height = 22; }
+    function hdr(ws, r, vals) { var row = ws.getRow(r); vals.forEach(function (v, i) { var c = row.getCell(i + 1); c.value = v; c.font = font({ bold: true, color: { argb: C.fg } }); c.fill = fill(C.fd); c.alignment = { vertical: 'middle', horizontal: i ? 'center' : 'left', indent: i ? 0 : 1, wrapText: true }; }); row.height = 22; }
     function footRow(ws, r, n) { ws.mergeCells(r, 1, r, n); var c = ws.getCell(r, 1); c.value = FOOT; c.font = font({ color: { argb: C.ink3 } }); c.alignment = { wrapText: true, vertical: 'middle' }; ws.getRow(r).height = 36; }
 
     
@@ -1680,46 +1680,81 @@ if (typeof module !== 'undefined') module.exports = ACQ;
     
     if (typeof o.pre === 'function') o.pre(wb, { fx: function (t) { return fx(t, null); }, ADDR: ADDR, M: M, font: font, fill: fill, C: C, NF: NF, thin: thin, sheet: sheet, hdr: hdr, footRow: footRow, colL: colL, SN: SN, FOOT: FOOT });
     
-    var ws = sheet(SN.calc, [44, 22, 12, 26, 44], o.title);
-    hdr(ws, 4, ['요약', '금액', '구분', '판정', '']);
+    
+    var LAB = {};   
+    M.TB.forEach(function (t) { if (t.sec) return; if (t.range) { t.keys.forEach(function (k, j) { LAB['#' + k] = t.n + (t.head && t.head[j] ? ' ' + t.head[j] : ''); }); return; }
+      if (t.cols) ['하한', '세율', '누진공제'].forEach(function (w, j) { LAB['$' + t.k + 'LRD'[j]] = t.n + ' ' + w; }); else LAB['$' + t.k] = t.n; });
+    var lb = function (t) { return String(t).trim().replace(/^[=−+\-]\s*/, ''); };
+    M.blocks.forEach(function (B) { B.rows.forEach(function (x) { if (!x.sec) LAB[x.id] = lb(x.label); }); });
+    M.sums.forEach(function (x) { LAB[x.id] = lb(x.label); });
+    function nfmt(n) { var v = +n; if (!isFinite(v)) return n; return Math.abs(v) >= 1000 && !(v >= 1900 && v <= 2100 && v === Math.floor(v)) ? v.toLocaleString('en-US', { maximumFractionDigits: 6 }) : String(n); }
+    function eqText(x, id) {
+      if (x.t == null) return x.src === '입력' ? '입력값' : x.src === '엔진 값' ? '시뮬레이터 값' : x.src === '엔진 판정' ? '시뮬레이터 판정' : x.src || '';
+      var t = absT(x.t, id), out = '', i = 0;
+      while (i < t.length) {
+        var c = t[i];
+        if (c === '{') { var j = t.indexOf('}', i); var k = t.slice(i + 1, j); out += '[' + (LAB[k] || k) + ']'; i = j + 1; continue; }
+        if (c === '"') { var j2 = t.indexOf('"', i + 1); out += t.slice(i, j2 + 1); i = j2 + 1; continue; }
+        var m = /^[0-9]+(\.[0-9]+)?(E[+-]?[0-9]+)?/i.exec(t.slice(i));
+        if (m && !/[A-Z]$/.test(out)) { out += nfmt(m[0]); i += m[0].length; continue; }
+        out += c === '*' ? ' × ' : c === '/' ? ' ÷ ' : c === '+' ? ' + ' : c === '-' ? ' − ' : c === ',' ? ', ' : c; i++;
+      }
+      out = out.replace(/\s+/g, ' ').replace(/\(\s/g, '(').trim();
+      if ((out.match(/IF\(/g) || []).length >= 2 && /구간/.test(out)) {   
+        var bl = (out.match(/\[[^\]]+\]/g) || []).filter(function (z) { return !/구간/.test(z); }), bs = bl.filter(function (z) { return /과세표준|과표/.test(z); })[0] || bl[0] || '[과세표준]';
+        return /누진공제/.test(out) && /×/.test(out) ? bs + ' × 해당 구간 세율 − 누진공제 (「세율표」 시트)' : bs + '에 해당하는 구간 세율 (「세율표」 시트)';
+      }
+      return out.length > 160 ? out.slice(0, 158) + ' …' : out;
+    }
+    function dw(v) { if (v == null) return 0; if (typeof v === 'number') return Math.round(v).toLocaleString('en-US').length + 2; var s0 = String(v), w = 0; for (var q = 0; q < s0.length; q++) w += s0.charCodeAt(q) > 0x2E7F ? 2 : 1; return w; }
+    var CW = [10, 14, 10, 10, 10], CMAX = [44, 24, 62, 62, 44];
+    function want(j, v) { var w = dw(v) * 1.05 + 3; if (w > CW[j]) CW[j] = Math.min(CMAX[j], w); }
+    function lines(j, v) { return Math.max(1, Math.ceil(dw(v) * 1.05 / Math.max(8, CW[j] - 2))); }
+    var isTot = function (x) { return !!x.big || (x.t != null && /합계|낼 세액|납부할|총 ?비용|최종/.test(x.label)); };
+    
+    want(0, '항목'); want(1, '금액'); want(2, '계산식'); want(3, '비고'); want(4, '근거 조문');
+    M.sums.forEach(function (x) { want(0, x.label.trim()); want(1, x.v); });
+    M.blocks.forEach(function (B) { B.rows.forEach(function (x) { if (x.sec) return; want(0, x.label.trim()); if (x.fmt !== 't') want(1, x.v); want(2, eqText(x, B.id)); want(3, strip(x.d || '')); want(4, x.law || ''); }); });
+    var ws = sheet(SN.calc, CW, o.title);
+    hdr(ws, 4, ['요약', '금액', '판정', '', '']); ws.mergeCells(4, 3, 4, 5);
     M.sums.forEach(function (x, i) {
-      var rw = ws.getRow(x.r); rw.getCell(1).value = x.label.trim(); rw.getCell(1).font = font({ bold: i === 0 }); rw.getCell(1).alignment = { indent: /^  /.test(x.label) ? 2 : 1, wrapText: true, vertical: 'middle' };
+      var rw = ws.getRow(x.r); rw.getCell(1).value = x.label.trim(); rw.getCell(1).font = font({ bold: i === 0, color: { argb: C.fd } }); rw.getCell(1).alignment = { indent: /^  /.test(x.label) ? 2 : 1, wrapText: true, vertical: 'middle' };
       var b = rw.getCell(2); putCell(b, x, null, SN.calc); if (i === 0) b.font = font({ bold: true, size: 14, color: { argb: x.fb ? C.jd : C.ver } });
-      rw.getCell(3).value = x.src; rw.getCell(3).font = font({ color: { argb: C.ink3 } }); rw.getCell(3).alignment = { horizontal: 'center' };
-      [1, 2, 3].forEach(function (j) { rw.getCell(j).border = { bottom: thin }; }); rw.height = i === 0 ? 24 : 20;
+      if (i === 0) { rw.getCell(1).fill = fill(C.fc); if (x.t != null) b.fill = fill(C.fc); }
+      [1, 2].forEach(function (j) { rw.getCell(j).border = { bottom: thin }; }); rw.height = i === 0 ? 24 : 20;
     });
     var lastTop = M.sums.length ? sumR0 + M.sums.length - 1 : sumR0;
     if (hasDue) {
-      var rwD = ws.getRow(dueR); rwD.getCell(1).value = '신고·납부 기한'; rwD.getCell(1).font = font(); rwD.getCell(1).alignment = { indent: 1 };
-      rwD.getCell(2).value = M.info.due; rwD.getCell(2).font = font({ bold: true }); rwD.getCell(2).alignment = { horizontal: 'right', wrapText: true };
-      rwD.getCell(3).value = M.info.dueWhy; rwD.getCell(3).font = font({ color: { argb: C.ink2 } }); rwD.getCell(3).alignment = { wrapText: true, vertical: 'middle' };
+      var rwD = ws.getRow(dueR); rwD.getCell(1).value = '신고·납부 기한'; rwD.getCell(1).font = font(); rwD.getCell(1).alignment = { indent: 1, vertical: 'middle' };
+      rwD.getCell(2).value = M.info.due + (M.info.dueWhy ? '\n' + M.info.dueWhy : ''); rwD.getCell(2).font = font({ bold: true }); rwD.getCell(2).alignment = { horizontal: 'right', wrapText: true, vertical: 'middle' };
       lastTop = dueR;
     }
-    ws.mergeCells('D' + sumR0 + ':E' + lastTop); var dd = ws.getCell('D' + sumR0);
-    dd.value = '판정 : ' + (M.info.why.map(strip).join(' → ') || '—') + (M.info.sp.length ? '\n특수 사례 반영 : ' + M.info.sp.join(', ') : '') + (M.info.via ? '\n입력 : ' + M.info.via : ''); dd.font = font(); dd.alignment = { wrapText: true, vertical: 'top' };
-    var need = (Math.ceil(String(dd.value).length / 34) + String(dd.value).split('\n').length) * 17 + 8, nRow = lastTop - sumR0 + 1;
-    for (var q = sumR0; q <= lastTop; q++) ws.getRow(q).height = Math.max(q === sumR0 ? 24 : 20, Math.ceil(need / nRow));
-    hdr(ws, calcHdr, ['항목', '금액, 값', '구분', '근거', '식, 비고']);
+    ws.mergeCells('C' + sumR0 + ':E' + lastTop); var dd = ws.getCell('C' + sumR0);
+    dd.value = (M.info.why.map(strip).join(' → ') || '—') + (M.info.sp.length ? '\n특수 사례 반영 : ' + M.info.sp.join(', ') : '') + (M.info.via ? '\n입력 : ' + M.info.via : ''); dd.font = font({ color: { argb: C.fb } }); dd.alignment = { wrapText: true, vertical: 'top', indent: 1 };
+    var wCE = CW[2] + CW[3] + CW[4], need = (Math.ceil(dw(dd.value) / Math.max(20, wCE - 4)) + String(dd.value).split('\n').length) * 17 + 8, nRow = lastTop - sumR0 + 1;
+    for (var q = sumR0; q <= lastTop; q++) ws.getRow(q).height = Math.max(q === sumR0 ? 24 : 20, Math.ceil(need / nRow), q === dueR && hasDue ? 40 : 0);
+    hdr(ws, calcHdr, ['항목', '금액', '계산식', '비고', '근거 조문']);
     M.blocks.forEach(function (B) {
-      ws.mergeCells(B.hr, 1, B.hr, 5); var h0 = ws.getCell(B.hr, 1); h0.value = B.label; h0.font = font({ bold: true, size: 13, color: { argb: C.white } }); h0.fill = fill(C.ink2); h0.alignment = { indent: 1, vertical: 'middle' }; ws.getRow(B.hr).height = 24;
+      ws.mergeCells(B.hr, 1, B.hr, 5); var h0 = ws.getCell(B.hr, 1); h0.value = B.label; h0.font = font({ bold: true, size: 13, color: { argb: C.white } }); h0.fill = fill(C.fb); h0.alignment = { indent: 1, vertical: 'middle' }; ws.getRow(B.hr).height = 24;
       B.rows.forEach(function (x) {
         var rw = ws.getRow(x.r);
-        if (x.sec) { ws.mergeCells(x.r, 1, x.r, 5); var s0 = rw.getCell(1); s0.value = x.sec; s0.font = font({ bold: true }); s0.fill = fill(C.band); s0.alignment = { indent: 1, vertical: 'middle', wrapText: true }; rw.height = Math.max(22, Math.ceil(x.sec.length / 70) * 18 + 4); return; }
-        var a = rw.getCell(1), b = rw.getCell(2), cc = rw.getCell(3), d = rw.getCell(4), e = rw.getCell(5);
-        a.value = x.label.trim(); a.font = font({ bold: !!x.big }); a.alignment = { indent: Math.min(3, 1 + (x.label.match(/^ */)[0].length >> 1)), vertical: 'middle', wrapText: true };
-        putCell(b, x, B.id, SN.calc);
-        cc.value = x.src; cc.font = font({ color: { argb: x.src === '입력' ? C.in : x.src === '수식' ? C.ink3 : C.jd }, bold: x.src !== '입력' && x.src !== '수식' }); cc.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
-        d.value = x.law || ''; d.font = font({ color: { argb: C.ink2 } }); d.alignment = { wrapText: true, vertical: 'middle' };
-        e.value = strip(x.d || ''); e.font = font({ color: { argb: C.ink2 } }); e.alignment = { wrapText: true, vertical: 'middle' };
-        [1, 2, 3, 4, 5].forEach(function (j) { rw.getCell(j).border = { bottom: thin }; });
-        var ln = Math.max(1, Math.ceil(String(e.value).length / 24), Math.ceil(x.label.trim().length / 20), x.fmt === 't' ? Math.ceil(String(x.v).length / 11) : 1, Math.ceil(String(d.value).length / 14));
+        if (x.sec) { ws.mergeCells(x.r, 1, x.r, 5); var s0 = rw.getCell(1); s0.value = x.sec; s0.font = font({ bold: true, color: { argb: C.fb } }); s0.fill = fill(C.band); s0.alignment = { indent: 1, vertical: 'middle', wrapText: true }; rw.height = Math.max(22, Math.ceil(dw(x.sec) / (wCE + CW[0] + CW[1] - 4)) * 18 + 4); return; }
+        var a = rw.getCell(1), b = rw.getCell(2), cc = rw.getCell(3), d = rw.getCell(4), e = rw.getCell(5), tot = isTot(x);
+        a.value = x.label.trim(); a.font = font({ bold: tot, color: { argb: C.fd } }); a.alignment = { indent: Math.min(3, 1 + (x.label.match(/^ */)[0].length >> 1)), vertical: 'middle', wrapText: true };
+        putCell(b, x, B.id, SN.calc); if (tot && x.t != null) b.font = font({ bold: true, color: { argb: C.ink } });
+        cc.value = eqText(x, B.id); cc.font = font({ color: { argb: x.t == null ? (x.src === '입력' ? C.in : C.jd) : C.ink2 } }); cc.alignment = { wrapText: true, vertical: 'middle' };
+        d.value = strip(x.d || ''); d.font = font({ color: { argb: C.ink2 } }); d.alignment = { wrapText: true, vertical: 'middle' };
+        e.value = x.law || ''; e.font = font({ color: { argb: C.ink3 } }); e.alignment = { wrapText: true, vertical: 'middle' };
+        [1, 2, 3, 4, 5].forEach(function (j) { var c0 = rw.getCell(j); c0.border = { bottom: thin }; if (tot && !(j === 2 && x.t == null)) c0.fill = fill(C.fc); });
+        var ln = Math.max(lines(0, a.value), x.fmt === 't' ? lines(1, x.v) : 1, lines(2, cc.value), lines(3, d.value), lines(4, e.value));
         rw.height = Math.max(20, ln * 16 + 4);
       });
     });
     var nr = cr; ws.mergeCells(nr, 1, nr, 5); var nt = ws.getCell(nr, 1);
-    nt.value = '파란 글자 = 입력 칸 · 주황 = 엔진 판정, 화면 조건(시뮬레이터가 정한 값 — 요건을 바꾸면 직접 고침) · 검은 글자 = 수식 · 세율, 공제 숫자 = 「세율표」 시트(엔진 값) · 수식으로 옮기지 않은 판정 = 「근거 확인」 시트';
-    nt.font = font({ color: { argb: C.ink3 } }); nt.alignment = { wrapText: true }; ws.getRow(nr).height = 52;
+    nt.value = '파란 글자 = 입력값(바꾸면 다시 계산) · 주황 = 시뮬레이터 판정(요건이 바뀌면 직접 고침) · 검은 글자 = 수식 · 계산식 = 수식을 글로 푼 것 · 세율, 공제 숫자 = 「세율표」 시트 · 수식으로 옮기지 않은 판정 = 「근거 확인」 시트';
+    nt.font = font({ color: { argb: C.ink3 } }); nt.alignment = { wrapText: true, vertical: 'middle' }; ws.getRow(nr).height = Math.max(36, Math.ceil(dw(nt.value) / (wCE + CW[0] + CW[1] - 4)) * 17 + 8);
     footRow(ws, nr + 1, 5);
+    ws.pageSetup.orientation = 'landscape';
 
     
     var ts = sheet(SN.tb, [40, 20, 14, 18, 36], '세율표 (엔진 값 그대로 · 입력 칸 · 바꾸면 계산 시트가 다시 계산)');
@@ -1852,6 +1887,138 @@ if (typeof module !== 'undefined') module.exports = ACQ;
   if (typeof module !== 'undefined' && module.exports) module.exports = API;
   root.TXTBL = API;
 })(typeof window !== 'undefined' ? window : globalThis);
+</script>
+<script>
+
+(function (root) {
+  'use strict';
+  function TX() { return root.TXXL || (typeof require === 'function' ? require(require('path').join(__dirname, '../세금엑셀_공용/엑셀틀.js')) : null); }
+  function CG() { return root.CGT || (typeof require === 'function' ? require('./계산.js').CGT : null); }
+  var won = function (v) { return Math.round(v).toLocaleString('ko-KR') + '원'; };
+
+  function model(R, I, via) {
+    var X = TX(), C = root.CONVC || (typeof require === 'function' ? require('./계산.js') : null), CGT = CG();
+    if (!R || !I) throw new Error('먼저 질문에 답해 계산해 주세요');
+    var K = C.R, T = CGT.R.basic, YN = X.YN;
+    var TB = [{ sec: '양도소득세 기본세율 (소득세법 §104①1호 · §55①)' }].concat(X.rateRows('CG', '양도세 기본세율', T, '소득세법 §55①'))
+      .concat([{ sec: '취득세, 등록면허세, 감면' },
+        { k: 'RELIEF', n: '취득세 감면율', v: K.reliefPct, fmt: 'r', law: '지방세특례제한법 §57의2④' },
+        { k: 'RNONG', n: '감면분 농어촌특별세율', v: K.reliefNong, fmt: 'r', law: '농어촌특별세법 §5①1호' },
+        { k: 'REGR', n: '등록면허세율(법인 설립 출자액)', v: K.regRate, fmt: 'r', law: '지방세법 §28①6호가목1)' },
+        { k: 'REGMIN', n: '등록면허세 최저세액', v: K.regMin, fmt: 'w', law: '지방세법 §28①6호가목1)' },
+        { k: 'REGH', n: '대도시 중과 배수', v: K.regHeavy, fmt: 'n', law: '지방세법 §28②' },
+        { k: 'REGE', n: '등록분 지방교육세율', v: K.regEdu, fmt: 'r', law: '지방세법 §151①2호' },
+        { k: 'LOCAL', n: '지방소득세율(양도소득세의)', v: K.localCg, fmt: 'r', law: '지방세법 §103의3' },
+        { k: 'VAT', n: '부가가치세율', v: K.vat, fmt: 'r', law: '부가가치세법 §30' }]);
+    var M = X.model(TB), multi = R.cg.rows.length >= 2;
+
+    
+    M.block('CG', '① 양도소득세 ' + (R.deferOk ? '이월과세' : '(이월과세 요건 안 됨 → 지금 냄)'), function (b) {
+      R.cg.rows.forEach(function (x, i) {
+        var p = 'P' + i + '_';
+        if (multi) b.sec('공동 사업자 ' + (i + 1) + ' (지분 ' + Math.round(x.ratio * 10000) / 100 + '%)');
+        b.IN(p + 'TR', '양도가액(시가' + (multi ? ' × 지분' : '') + ')', x.transfer, { law: '소득세법 §96①', d: '현물출자·사업양수도 = 법인에 시가로 넘긴 것으로 봄' });
+        b.IN(p + 'AC', '취득가액' + (multi ? '(지분만큼)' : ''), x.acq, { law: '소득세법 §97①1호' });
+        b.F(p + 'GA', '양도차익', 'MAX(0,{' + p + 'TR}-{' + p + 'AC})', x.gain, { law: '소득세법 §95①' });
+        b.JD(p + 'LR', '장기보유특별공제율(%)', x.ltdRate, { fmt: 'n', law: '소득세법 §95② 표1', d: '보유 ' + I.hold + '년 → ' + x.ltdRate + '%' });
+        b.F(p + 'LA', '장기보유특별공제', '{' + p + 'GA}*{' + p + 'LR}/100', x.ltdAmt, { law: '소득세법 §95②' });
+        if (i === 0) b.IN('BD', '기본공제', CGT.R.basicDed, { law: '소득세법 §103', d: '연 250만원 · 같은 해 다른 양도가 없다는 가정' });
+        b.F(p + 'BA', '과세표준', 'IF({' + p + 'TR}>0,MAX(0,{' + p + 'GA}-{' + p + 'LA}-{BD}),0)', x.base, { law: '소득세법 §92' });
+        if (x.shortTerm) b.JD(p + 'TX', '양도소득세(단기 보유 세율)', x.tax, { law: '소득세법 §104①2호·3호', d: '보유 2년 미만 → 단기 세율이 더 큼(시뮬레이터 값)' });
+        else b.F(p + 'TX', '양도소득세', X.progF('{' + p + 'BA}', 'CG', T.length), x.tax, { law: '소득세법 §104①1호, §55①', d: '과세표준 구간 세율 − 누진공제' });
+        b.F(p + 'LO', '지방소득세', '{' + p + 'TX}*{$LOCAL}', x.local, { law: '지방세법 §103의3' });
+        b.F(p + 'TT', '양도소득세 + 지방소득세', '{' + p + 'TX}+{' + p + 'LO}', x.total, {});
+      });
+      var sumT = R.cg.rows.map(function (x, i) { return '{P' + i + '_TT}'; }).join('+');
+      b.JD('DEF', '이월과세 요건 충족', YN(R.deferOk), { fmt: 't', law: '조세특례제한법 §32, 시행령 §29', d: R.reqs.map(function (q) { return (q.ok ? '✓ ' : '✗ ') + q.t; }).join(' / ') });
+      b.F('DEFAMT', '이월과세액(지금 안 냄)', 'IF({DEF}="예",' + sumT + ',0)', R.deferred, { law: '조세특례제한법 §32①', d: '지금 내지 않고, 법인이 나중에 이 자산을 팔 때 법인세로 냄' });
+      b.F('NOWCG', '지금 내는 양도소득세', 'IF({DEF}="예",0,' + sumT + ')', R.immediateCG, { law: '소득세법 §105', d: '요건이 안 되면 양도일이 속한 달 말일부터 2개월 안 예정신고' });
+    });
+
+    
+    var a = R.acq;
+    M.block('AQ', '② 취득세 (법인이 부동산 취득)', function (b) {
+      b.IN('P', '과세표준(취득가액)', R.price, { law: '지방세법 §10의3', d: '현물출자 = 유상취득, 시가 기준' });
+      b.JD('RM', '취득세율(본세)', a.rate.main, { fmt: 'r', law: R.metro ? '지방세법 §13②' : '지방세법 §11①7호나목', d: R.metro ? '과밀억제권역 안 설립 5년 안 법인 → 중과' : '법인 일반 유상취득' });
+      b.JD('RE', '지방교육세율', a.rate.edu, { fmt: 'r', law: '지방세법 §151①1호' });
+      b.JD('RN', '농어촌특별세율', a.rate.nong, { fmt: 'r', law: '농어촌특별세법 §5①6호' });
+      b.JD('RF', '감면 대상(개인사업 법인전환)', YN(a.relief), { fmt: 't', law: '지방세특례제한법 §57의2④', d: a.relief ? '조특법 §32 현물출자·사업양수도' : '부동산 임대·공급업은 감면 제외' });
+      b.F('MAIN', '취득세 본세', '{P}*{RM}', a.main, { law: '지방세법 §11, §13' });
+      b.F('EDU', '지방교육세', '{P}*{RE}', a.edu, { law: '지방세법 §151①1호' });
+      b.F('NONG', '농어촌특별세', '{P}*{RN}', a.nong, { law: '농어촌특별세법 §5①6호' });
+      b.F('CUT', '취득세 감면', 'IF({RF}="예",{MAIN}*{$RELIEF},0)', a.cutMain, { law: '지방세특례제한법 §57의2④', d: '본세 × 감면율(일몰 확인 대상)' });
+      b.F('CUTE', '지방교육세 감면', 'IF({RF}="예",{EDU}*{$RELIEF},0)', a.cutEdu, { law: '지방세법 §151①1호 다목, 라목', d: '본세 감면율만큼 함께 줄어듦' });
+      b.F('NR', '감면분 농어촌특별세', '{CUT}*{$RNONG}', a.nongRelief, { law: '농어촌특별세법 §5①1호', d: '감면받은 만큼 20%를 다시 냄' });
+      b.F('ACQT', '취득세 합계', '{MAIN}+{EDU}+{NONG}-{CUT}-{CUTE}+{NR}', a.tax, { d: '지금 내는 돈' });
+    });
+
+    
+    M.block('RG', '③ 등록면허세 (법인 설립등기)', function (b) {
+      b.IN('PR', '부동산 시가', R.price, {});
+      b.IN('DB', '함께 넘기는 부채', R.debt, {});
+      b.F('CAP', '자본금(= 순자산가액)', 'MAX(0,{PR}-{DB})', R.capital, { law: '조세특례제한법 시행령 §29⑤', d: '이월과세 요건 = 자본금이 순자산가액 이상(가정 : 같게 설립)' });
+      b.JD('MET', '과밀억제권역(대도시) 중과', YN(R.metro), { fmt: 't', law: '지방세법 §28②' });
+      b.F('RMAIN', '등록면허세 본세', 'MAX({CAP}*{$REGR},{$REGMIN})*IF({MET}="예",{$REGH},1)', R.reg.main, { law: '지방세법 §28①6호가목1), ②', d: '자본금 × 0.4%, 최저 112,500원 · 대도시 3배' });
+      b.F('REDU', '지방교육세(등록분)', '{RMAIN}*{$REGE}', R.reg.edu, { law: '지방세법 §151①2호' });
+      b.F('REGT', '등록면허세 합계', '{RMAIN}+{REDU}', R.reg.tax, {});
+    });
+
+    
+    var bd = R.bond;
+    M.block('BN', '④ 국민주택채권 (매입 후 바로 팔 때 손실)', function (b) {
+      if (!bd.rows.length) { b.IN('BUY', '채권 매입액', 0, { d: '해당 없음' }); }
+      bd.rows.forEach(function (x, i) {
+        var p = 'B' + i + '_';
+        if (bd.rows.length >= 2) b.sec('공동 사업자 ' + (i + 1));
+        b.IN(p + 'L', '토지 시가표준액' + (bd.rows.length >= 2 ? '(지분)' : ''), x.land, { law: '주택도시기금법 시행령 §8② 별표', d: bd.stdKnown ? '' : '모름 → 시가 전부를 토지로 봄(보수적 가정)' });
+        b.JD(p + 'LR', '토지 매입률', x.landRate, { fmt: 'r', law: '별표 부표 15호 가목 2)', d: R.big ? '특별시·광역시' : '그 밖 지역' });
+        b.IN(p + 'B', '건물 시가표준액' + (bd.rows.length >= 2 ? '(지분)' : ''), x.bldg, {});
+        b.JD(p + 'BR', '건물 매입률', x.bldgRate, { fmt: 'r', law: '별표 부표 15호 가목 3)' });
+        b.F(p + 'BUY', '채권 매입액', '{' + p + 'L}*{' + p + 'LR}+{' + p + 'B}*{' + p + 'BR}', x.buy, {});
+      });
+      if (bd.rows.length) b.F('BUY', '채권 매입액 합계', bd.rows.map(function (x, i) { return '{B' + i + '_BUY}'; }).join('+'), bd.buy, {});
+      b.IN('DISC', '바로 팔 때 깎이는 비율(가정)', bd.disc, { fmt: 'r', d: '날마다 바뀜 — 은행 창구에서 그날 값 확인' });
+      b.F('BCOST', '채권 비용', '{BUY}*{DISC}', bd.cost, { d: '매입액 × 할인율' });
+    });
+
+    
+    M.block('FE', '⑤ 인지세, 수수료', function (b) {
+      b.JD('ST', '인지세', R.stamp, { law: '인지세법 §3①1호', d: '부동산 소유권 이전 계약서 1통 가정 · 기재금액 10억 초과 35만원' });
+      b.IN('ADV', '법무사, 세무사 수수료(가정)', R.advisorFee, { d: '고정 가정 값 — 실제 견적으로 바꿔 넣기' });
+      b.JD('AP1', '감정평가 수수료(1곳)', R.appr.single, { d: '감정평가 보수 요율표 기준(법정 금액 아님 · 가정)' });
+      b.JD('AP2', '감정평가 2곳', YN(R.appr.two), { fmt: 't', law: '상속세 및 증여세법 시행령 §49① 단서', d: '기준시가 10억 이하면 1곳' });
+      b.F('APF', '감정평가 수수료', 'IF({AP2}="예",{AP1}*2,{AP1})', R.appr.fee, {});
+      b.F('FEES', '수수료 합계', '{ADV}+{APF}', R.fees, {});
+    });
+
+    
+    M.block('VT', '⑥ 부가가치세 (합계 밖 · 법인이 돌려받음)', function (b) {
+      b.JD('ALL', '사업 포괄 승계', YN(R.vat.allIn), { fmt: 't', law: '부가가치세법 §10⑨2호, 시행령 §23', d: R.vat.allIn ? '포괄 승계 = 재화 공급 아님 → 부가세 없음' : '포괄 승계 아님 → 건물분 10%' });
+      b.IN('VP', '건물분 공급가액', R.vat.bldgPrice, { d: '시가 × 건물 시가표준액 ÷ (토지 + 건물) — 부가가치세법 시행령 §64' });
+      b.F('VATT', '부가가치세', 'IF({ALL}="예",0,{VP}*{$VAT})', R.vat.tax, { d: '법인이 매입세액공제로 돌려받음' });
+    });
+
+    M.sum('NOW', '지금 낼 비용 합계', '{CG:NOWCG}+{AQ:ACQT}+{RG:REGT}+{BN:BCOST}+{FE:ST}+{FE:FEES}', R.nowTotal, { big: 1 });
+    M.sum('S1', '  취득세 합계', '{AQ:ACQT}', a.tax);
+    M.sum('S2', '  등록면허세 합계', '{RG:REGT}', R.reg.tax);
+    M.sum('S3', '  국민주택채권 비용', '{BN:BCOST}', bd.cost);
+    M.sum('S4', '  인지세 + 수수료', '{FE:ST}+{FE:FEES}', R.stamp + R.fees);
+    if (R.immediateCG) M.sum('S5', '  지금 내는 양도소득세', '{CG:NOWCG}', R.immediateCG);
+    M.sum('S6', '이월과세액(지금 안 냄)', '{CG:DEFAMT}', R.deferred);
+    if (R.vat.tax) M.sum('S7', '부가가치세(돌려받음)', '{VT:VATT}', R.vat.tax);
+    M.info.why = [(I.way === 'transfer' ? '사업양수도' : '현물출자') + ' 법인전환', R.deferOk ? '이월과세 요건 충족' : '이월과세 요건 안 됨', R.metro ? '과밀억제권역 안' : '과밀억제권역 밖'];
+    M.info.flags = (R.checks || []).slice(); M.info.notes = (R.notes || []).slice();
+    M.info.dflt = ['법무사, 세무사 수수료 ' + won(R.advisorFee) + '(가정)', '채권 할인율 ' + Math.round(bd.disc * 10000) / 100 + '%(가정)', '자본금 = 순자산가액(가정)', '인지세 계약서 1통(가정)'];
+    if (via) M.info.via = via;
+    return M;
+  }
+  function opts() { return { title: '법인전환 비용 계산 (수식)', eng: '법인전환 비용 계산기 엔진 계산값', file: '법인전환비용', tbNote: '세율, 감면율 = 엔진 값 · 바꾸면 계산 시트가 다시 계산 · 장기보유특별공제율, 취득세율, 채권 매입률, 감정평가 수수료 = 시뮬레이터 판정(주황 칸)' }; }
+  function build(R, I, via, EX) { var X = TX(); return X.build(model(R, I, via), opts(), EX); }
+  var API = { model: model, opts: opts, build: build };
+  if (typeof module !== 'undefined' && module.exports) module.exports = API;
+  root.CVXL = API;
+})(typeof window !== 'undefined' ? window : globalThis);
+
 </script>
 <script>
 
@@ -2054,7 +2221,7 @@ if (typeof module !== 'undefined') module.exports = ACQ;
     h += '<div class="pk-wdf"><b>[확인 필요]</b><br>' + C.map(esc).join('<br>') + '</div>';
     h += answers();
     h += '<details class="pk-wd"><summary>자세히(계산 단계, 근거 조문)</summary><div class="pk-wdet" id="cvDet">' + detail(R, I) + '</div></details>';
-    h += '<button type="button" class="pk-go pk-xl" data-cvtb="1">엑셀 받기 (결과표)</button><div class="pk-xlm cvtb-m"></div>';
+    h += '<button type="button" class="pk-go pk-xl" data-cvtb="1">엑셀 받기 (수식)</button><div class="pk-xlm cvtb-m"></div>';
     h += '<div class="pk-wbt"><button type="button" class="pk-go2" data-pkwre="1">처음부터</button></div>';
     box.innerHTML = h;
   }
@@ -2101,9 +2268,9 @@ if (typeof module !== 'undefined') module.exports = ACQ;
     }
   });
   document.addEventListener('keydown', function (e) { var t = e.target; if (e.key !== 'Enter' || !t || !t.dataset || t.dataset.pkwi === undefined) return; e.preventDefault(); numIn(false); }, true);
-  if (window.TXXL && window.TXTBL) TXXL.wire('cvtb', 'cvtb-m', function () {
-    var o = $('cvDet'); if (!o) throw new Error('먼저 질문에 답해 계산해 주세요');
-    return { M: TXTBL.model(o, { title: '법인전환 비용', via: '질문형(바로 계산)' }), o: TXTBL.opts({ title: '법인전환 비용', eng: '법인전환 비용 계산기', file: '법인전환비용' }) };
+  if (window.TXXL && window.CVXL) TXXL.wire('cvtb', 'cvtb-m', function () {   
+    if (!window.CVWZ.last) throw new Error('먼저 질문에 답해 계산해 주세요');
+    return { M: CVXL.model(window.CVWZ.last, window.CVWZ.lastIn, '질문형(바로 계산)'), o: CVXL.opts() };
   });
   
   function play(A) { restart(); for (var g = 0; g < 40 && !W.done; g++) { var s = step(W.cur); if (s.id === 'nOwn' && !('nOwn' in A) && A.shares) { go(String(A.shares).split(/[,\s/]+/).filter(Boolean).length); continue; } if (!(s.id in A)) break; go(A[s.id]); } return W.done ? window.CVWZ.last : null; }

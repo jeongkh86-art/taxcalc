@@ -7096,6 +7096,132 @@ PKD.KTERMS = {
 
 
 (function () {
+
+(function (root) {
+  if (root.FOXL) return;
+  var P = { ink: 'FF191F28', ink2: 'FF4E5968', ink3: 'FF7A848F', band: 'FFF1EDE6', rule: 'FFE5E1DA', white: 'FFFFFFFF', in: 'FF0000FF', jd: 'FFC2410C',
+    fd: 'FF241B14', fb: 'FF513528', fg: 'FFB09250', fc: 'FFF7F1E6', fl: 'FFD9C9A3' };
+  var fill = function (c) { return { type: 'pattern', pattern: 'solid', fgColor: { argb: c } }; };
+  function argbOf(f) { return f && f.fgColor && f.fgColor.argb; }
+  function txt(v) { if (v == null) return ''; if (typeof v === 'object') { if (v.richText) return v.richText.map(function (t) { return t.text; }).join(''); if ('result' in v) return v.result == null ? '' : String(v.result); if (v.text) return v.text; } return String(v); }
+  function dw(v) { if (v == null) return 0; if (typeof v === 'number') return Math.round(v).toLocaleString('en-US').length + 2; var s = String(v), w = 0; for (var i = 0; i < s.length; i++) w += s.charCodeAt(i) > 0x2E7F ? 2 : 1; return w; }
+  function font(c, x) { var f = Object.assign({}, c.font || {}); delete f.color; return Object.assign(f, x); }
+  function colN(L) { var n = 0; for (var i = 0; i < L.length; i++) n = n * 26 + L.charCodeAt(i) - 64; return n; }
+  function nfmt(s) { var v = +s; return isFinite(v) && Math.abs(v) >= 1000 && !(v >= 1900 && v <= 2100 && v === Math.floor(v)) ? v.toLocaleString('en-US', { maximumFractionDigits: 6 }) : s; }   
+  function fullMerged(ws, r, n) { var a = ws.getCell(r, 1), z = ws.getCell(r, n); return a.isMerged && z.isMerged && z.master && z.master.address === a.address; }
+
+  
+  function eqText(wb, ws, f) {
+    var hdrCache = {};
+    function lab(sn, L, r) {
+      var w = sn ? wb.getWorksheet(sn) : ws; if (!w) return (sn ? sn + '!' : '') + L + r;
+      var a = txt(w.getCell(r, 1).value).trim().replace(/^[=−+\-]\s*/, '');
+      if (!a) return (sn ? sn + ' ' : '') + L + r;
+      if (L !== 'B') { var key = (sn || '') + L; if (!(key in hdrCache)) { var h = ''; for (var q = r - 1; q >= 1 && !h; q--) { var hv = txt(w.getCell(q, colN(L)).value).trim(); var a2 = txt(w.getCell(q, 1).value).trim(); if (hv && a2 && w.getCell(q, colN(L)).fill && argbOf(w.getCell(q, colN(L)).fill)) h = hv; } hdrCache[key] = h; } if (hdrCache[key]) a += ' ' + hdrCache[key]; }
+      return a;
+    }
+    var re = /"[^"]*"|(?:'([^']+)'!|([A-Za-zㄱ-힣_][A-Za-z0-9ㄱ-힣_]*)!)?\$?([A-Z]{1,3})\$?([0-9]+)(?::\$?([A-Z]{1,3})\$?([0-9]+))?(?![0-9A-Za-z(])|[0-9]+(?:\.[0-9]+)?(?:E[+-]?[0-9]+)?/g;
+    var keep = [], hold = function (t) { keep.push(t); return '\u0001' + (keep.length - 1) + '\u0002'; };   
+    var out = String(f).replace(re, function (m, q1, q2, L, r, L2, r2) {
+      if (m[0] === '"') return hold(m);
+      if (!L) return hold(nfmt(m));
+      var sn = q1 || q2 || null;
+      if (L2) return '[' + (sn ? '「' + sn + '」 ' : '') + lab(sn, L, +r) + ' ~ 표]';
+      return hold('[' + lab(sn, L, +r) + ']');
+    });
+    out = out.replace(/\*/g, ' × ').replace(/\//g, ' ÷ ').replace(/([^\s(,])\+/g, '$1 + ').replace(/\+([^\s])/g, '+ $1').replace(/([^\s(,E])-/g, '$1 − ').replace(/,(?=\S)/g, ', ').replace(/\s+/g, ' ').trim();
+    out = out.replace(/\u0001(\d+)\u0002/g, function (m, i) { return keep[+i]; });
+    if ((out.match(/IF\(/g) || []).length >= 2 && /구간|세율표|~ 표/.test(out)) {
+      var bl = (out.match(/\[[^\]]+\]/g) || []).filter(function (z) { return !/구간|~ 표|세율/.test(z); });
+      var bs = bl.filter(function (z) { return /과세표준|과표/.test(z); })[0] || bl[0] || '[과세표준]';
+      return /누진|공제/.test(out) && /×/.test(out) ? bs + ' × 해당 구간 세율 − 누진공제 (「세율표」 시트)' : bs + '에 해당하는 구간 값 (「세율표」 시트)';
+    }
+    return out.length > 160 ? out.slice(0, 158) + ' …' : out;
+  }
+
+  function recolor(ws, n) {
+    ws.eachRow({ includeEmpty: false }, function (row, r) {
+      for (var j = 1; j <= n; j++) {
+        var c = row.getCell(j), fg = argbOf(c.fill);
+        if (c.border && c.border.bottom && c.border.bottom.color) c.border = Object.assign({}, c.border, { bottom: { style: c.border.bottom.style || 'thin', color: { argb: P.fl } } });
+        if (fg === P.ink) { c.fill = fill(P.fd); c.font = font(c, { color: { argb: P.fg } }); }
+        else if (fg === P.ink2) {
+          var full = c.isMerged && fullMerged(ws, r, n);
+          c.fill = fill(full ? P.fb : P.fd); c.font = font(c, { color: { argb: full ? P.white : P.fg } });
+        } else if (fg === P.band && r === 2) { c.fill = fill(P.fc); c.font = font(c, { color: { argb: P.fb } }); }
+        else if (fg === P.band && c.isMerged) { c.font = font(c, { color: { argb: P.fb }, bold: true }); }
+      }
+    });
+  }
+
+  function restyle(wb) {
+    wb.eachSheet(function (ws) { recolor(ws, Math.max(2, ws.columnCount || 5)); });
+    var ws = wb.getWorksheet('계산'); if (!ws) return wb;
+    var calcHdr = 0, sumHdr = 0, last = ws.rowCount;
+    for (var r = 1; r <= last; r++) {
+      var a = txt(ws.getCell(r, 1).value), c3 = txt(ws.getCell(r, 3).value), e5 = txt(ws.getCell(r, 5).value);
+      if (a === '항목' && /비고/.test(e5) && !calcHdr) calcHdr = r;
+      if (/^요약/.test(a) && c3 === '구분' && !sumHdr) sumHdr = r;
+    }
+    if (!calcHdr) return wb;
+    var CW = [10, 14, 10, 10, 10], CMAX = [44, 24, 62, 62, 44];
+    function want(j, v) { var w = dw(v) * 1.05 + 3; if (w > CW[j]) CW[j] = Math.min(CMAX[j], w); }
+    function lines(j, v) { return Math.max(1, Math.ceil(dw(v) * 1.05 / Math.max(8, CW[j] - 2))); }
+    var srcT = function (s) { return s === '입력' ? '입력값' : s === '엔진 값' ? '시뮬레이터 값' : /판정|조건/.test(s) ? '시뮬레이터 판정' : s === '나누기 칸' ? '나누기 칸' : s; };
+    
+    if (sumHdr) {
+      var r0 = sumHdr + 1, rl = r0; while (rl + 1 < calcHdr && txt(ws.getCell(rl + 1, 1).value)) rl++;
+      var dm = ws.getCell(r0, 4), dv = txt(dm.value).replace(/^판정\s*:\s*/, '');
+      try { ws.unMergeCells(r0, 4, rl, 5); } catch (e) {}
+      for (var q = r0; q <= rl; q++) {
+        var A = txt(ws.getCell(q, 1).value), C3 = ws.getCell(q, 3);
+        if (/기한/.test(A) && txt(C3.value)) { var B = ws.getCell(q, 2); B.value = txt(B.value) + '\n' + txt(C3.value); B.alignment = Object.assign({}, B.alignment, { wrapText: true, vertical: 'middle' }); }
+        C3.value = null; ws.getCell(q, 4).value = null; ws.getCell(q, 5).value = null;
+        if (C3.border) C3.border = {};
+        want(0, A); want(1, ws.getCell(q, 2).value && typeof ws.getCell(q, 2).value === 'object' ? ws.getCell(q, 2).value.result : ws.getCell(q, 2).value);
+      }
+      ws.getCell(r0, 1).fill = fill(P.fc); var b0 = ws.getCell(r0, 2); if (b0.value && b0.value.formula) b0.fill = fill(P.fc);
+      ws.getCell(r0, 3).value = dv; ws.mergeCells(r0, 3, rl, 5); var dd = ws.getCell(r0, 3);
+      dd.font = font(dd, { color: { argb: P.fb } }); dd.alignment = { wrapText: true, vertical: 'top', indent: 1 };
+      var hs = ws.getRow(sumHdr); hs.getCell(3).value = '판정'; hs.getCell(4).value = ''; hs.getCell(5).value = '';
+      try { ws.mergeCells(sumHdr, 3, sumHdr, 5); } catch (e) {}
+      [3].forEach(function (j) { var c = hs.getCell(j); c.fill = fill(P.fd); c.font = font(c, { color: { argb: P.fg }, bold: true }); c.alignment = { horizontal: 'center', vertical: 'middle' }; });
+    }
+    
+    var H = ws.getRow(calcHdr); ['항목', '금액', '계산식', '비고', '근거 조문'].forEach(function (t, j) { H.getCell(j + 1).value = t; });
+    var rows = [];
+    for (var r2 = calcHdr + 1; r2 <= last; r2++) {
+      var ca = ws.getCell(r2, 1), va = txt(ca.value);
+      if (!va && !txt(ws.getCell(r2, 2).value)) continue;
+      if (ca.isMerged && fullMerged(ws, r2, 5)) { if (/^파란 글자/.test(va)) ca.value = '파란 글자 = 입력값(바꾸면 다시 계산) · 주황 = 시뮬레이터 판정(요건이 바뀌면 직접 고침) · 검은 글자 = 수식 · 계산식 = 수식을 글로 푼 것 · 세율 숫자 = 「세율표」 시트 · 수식으로 옮기지 않은 판정 = 「근거 확인」 시트'; continue; }
+      var cb = ws.getCell(r2, 2), src = txt(ws.getCell(r2, 3).value), law = txt(ws.getCell(r2, 4).value), note = txt(ws.getCell(r2, 5).value);
+      var isF = cb.value && typeof cb.value === 'object' && cb.value.formula;
+      var eq = isF ? eqText(wb, ws, cb.value.formula) : srcT(src);
+      var tot = !!(ca.font && ca.font.bold) || (isF && /합계|낼 세액|납부할|총 ?비용|최종/.test(va));
+      rows.push({ r: r2, eq: eq, note: note, law: law, isF: isF, src: src, tot: tot });
+      want(0, va); if (!(cb.alignment && cb.alignment.horizontal === 'left')) want(1, isF ? cb.value.result : cb.value); want(2, eq); want(3, note); want(4, law);
+    }
+    rows.forEach(function (x) {
+      var rw = ws.getRow(x.r), c = rw.getCell(3), d = rw.getCell(4), e = rw.getCell(5);
+      c.value = x.eq; c.font = font(c, { bold: false, color: { argb: x.isF ? P.ink2 : (x.src === '입력' ? P.in : P.jd) } }); c.alignment = { wrapText: true, vertical: 'middle' };
+      d.value = x.note; d.font = font(d, { bold: false, color: { argb: P.ink2 } }); d.alignment = { wrapText: true, vertical: 'middle' };
+      e.value = x.law; e.font = font(e, { bold: false, color: { argb: P.ink3 } }); e.alignment = { wrapText: true, vertical: 'middle' };
+      var a = rw.getCell(1); a.font = font(a, { color: { argb: P.fd } });
+      if (x.tot) [1, 2, 3, 4, 5].forEach(function (j) { var k = rw.getCell(j); if (j === 2 && !x.isF) return; k.fill = fill(P.fc); if (j <= 2) k.font = font(k, { bold: true }); });
+    });
+    CW.forEach(function (w, j) { ws.getColumn(j + 1).width = w; });
+    rows.forEach(function (x) {
+      var rw = ws.getRow(x.r), v1 = rw.getCell(2).value;
+      var ln = Math.max(lines(0, txt(rw.getCell(1).value)), rw.getCell(2).alignment && rw.getCell(2).alignment.horizontal === 'left' ? lines(1, txt(v1)) : 1, lines(2, x.eq), lines(3, x.note), lines(4, x.law));
+      rw.height = Math.max(20, ln * 16 + 4);
+    });
+    ws.pageSetup.orientation = 'landscape';
+    return wb;
+  }
+  var API = { restyle: restyle, eqText: eqText };
+  root.FOXL = API;
+})(typeof window !== 'undefined' ? window : globalThis);
+
   if (typeof window === 'undefined') return;
   var KN = { house: '주택', bunyang: '분양권', ipju: '조합원입주권', land: '토지, 건물(주택 외)', nonbiz: '비사업용 토지', stock: '주식', foreign: '국외자산', exit: '국외전출' };
   var YN = function (b) { return b ? '예' : '아니요'; };
@@ -7437,6 +7563,7 @@ PKD.KTERMS = {
     if (window.PKLAW && window.PKLAW.list) window.PKLAW.list(M.rows.map(function (x) { return x.law || ''; }).join(' ') + ' ' + (o.dual || []).concat(o.checks || []).join(' ')).forEach(function (p) { g('원문 링크', p[0], p[1]); });
 
     var name = '양도세_계산_' + (ctx.co ? '공동명의_' : '') + st.f + '.xlsx';
+    (function () { var _fo = (typeof window !== 'undefined' ? window : globalThis).FOXL; if (_fo) _fo.restyle(wb); })();   
     return wb.xlsx.writeBuffer().then(function (buf) { return { blob: new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }), name: name, M: M, addr: addr, y4: Y4X, co: COS.map(function (c) { return { nm: c.nm, addr: c.addr, M: c.M, err: !!c.err }; }) }; });
   }
   function saveBlob(blob, name) {
