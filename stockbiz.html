@@ -8129,6 +8129,21 @@ var SEV = (function () {
       Object.keys(fs).forEach(function (k) { var q = fs[k]; if (q && has(q.cur) && isFinite(num(q.cur))) { y[k] = num(q.cur); var s0 = srcOf(y[k], x.file, 'fs'); if (s0) y.__src[k] = s0; } });
       if (fs.shortTermInv && fs.shortTermInv.stdFin) y.__fin = fs.shortTermInv.stdFin.map(function (p) { return { code: p.code, name: p.name, amt: p.amt }; });
       if (!has(y.cash)) { var l3 = (d.stdLines || []).filter(function (q) { return q && q.code === 3 && has(q.v) && num(q.v) >= 1000; })[0]; if (l3) { y.cash = num(l3.v); y.__src.cash = (srcOf(y.cash, x.file, 'fs') || String(x.file || '').split('/').pop() + ' p.' + l3.page) + ' · 표준재무상태표 코드 3'; } }
+      
+      (function () {
+        var SL = (d.stdLines || []).filter(function (q) { return q && has(q.v) && isFinite(num(q.v)) && num(q.v) > 0 && !q.total; });
+        var NM = { 4: /단기예금/, 5: /유가증권/, 9: /매출채권/, 24: /단기대여금/, 31: /미수금/, 82: /장기예금/, 83: /장기투자증권/, 86: /지분법/, 87: /장기대여금/, 97: /투자부동산/ };   
+        var cv = function (c) { var l = SL.filter(function (q) { return q.code === c && NM[c].test(String(q.name || '').replace(/\s/g, '')); })[0]; return l ? { v: num(l.v), page: l.page } : null; };
+        [['shortTermInv', [4, 5], '단기예금, 유가증권'], ['tradeReceivable', [9], '매출채권(순액)'], ['shortTermLoan', [24], '단기대여금'], ['otherReceivable', [31], '미수금'],
+         ['longTermFin', [82], '장기예금'], ['otherSecurities', [83], '장기투자증권'], ['equityMethodInv', [86], '지분법적용투자주식'], ['longTermLoan', [87], '장기대여금'], ['investRealEstate', [97], '투자부동산']].forEach(function (m) {
+          if (has(y[m[0]])) return;
+          var got = m[1].map(cv).filter(Boolean); if (!got.length) return;
+          y[m[0]] = got.reduce(function (a, g) { return a + g.v; }, 0);
+          y.__src[m[0]] = String(x.file || '').split('/').pop() + (got[0].page ? ' p.' + got[0].page : '') + ' · 표준재무상태표 코드 ' + m[1].join('+') + ' ' + m[2];
+        });
+      })();
+      
+      if (!has(y.developmentCost) && has(y.development)) { y.developmentCost = y.development; if (y.__src.development) y.__src.developmentCost = y.__src.development; }
       inp.bsYears[e] = y;
     });
     (function () { var f1 = (ds[0] && ds[0].d && ds[0].d.f1) || null; if (f1 && (f1.bizType || f1.bizItem || f1.bizCode)) inp.bizInd = [f1.bizType, f1.bizItem].filter(Boolean).join(' ') + (f1.bizCode ? ' 주업종코드 ' + f1.bizCode : ''); })();
@@ -11549,7 +11564,7 @@ window.__FSPDF={M:"AAEAAAAMAIAAAwBARFNJRwAAAAEACfTYAAAACEdQT1MBV/JlAAnmoAAADjZPU
     var AT = R.assetTotal || {};
     var pre = Math.max(0, N(AT.prepaid) - N(res.dta) - N(res.devCost));   
     if (pre > 0.5) { var pr = (+RW[60].g || 0) > 0 ? 60 : 38; if (RW[pr].h === null) RW[pr].h = 0; addH(pr, -pre, '비용 확정분 등 자산 제외 ' + Math.round(pre).toLocaleString('ko-KR') + '(상증칙 §17의2 · 엔진 순자산과 같게)', '비용 확정분 제외'); }
-    if (N(AT.yubo)) { if (RW[134].h === null) RW[134].h = 0; RW[134].g = RW[134].g || 0; addH(134, N(AT.yubo), '법인세법상 유보 ' + Math.round(N(AT.yubo)).toLocaleString('ko-KR') + ' 가산(엔진 순자산과 같게)', '법인세법상 유보 가산'); }
+    if (N(AT.yubo)) { if (RW[134].h === null) RW[134].h = 0; RW[134].g = RW[134].g || 0; addH(134, N(AT.yubo), '법인세법상 유보 ' + Math.round(N(AT.yubo)).toLocaleString('ko-KR') + ' 가산(엔진 순자산과 같게)', N(AT.yubo) < 0 ? '법인세법상 △유보 차감' : '법인세법상 유보 가산'); }   
     if (N(AT.etc)) { if (RW[131].h === null) RW[131].h = 0; addH(131, N(AT.etc), '그 밖 가산(엔진 순자산 「기타」)', '그 밖 가산'); }
     if (N(AT.surplus)) { if (RW[131].h === null) RW[131].h = 0; addH(131, -N(AT.surplus), '잉여금 처분 등 차감(엔진 순자산과 같게)', '잉여금 처분 등 차감'); }
     var capInc = ok(U.cashAdd) ? +U.cashAdd : N(AT.capInc);
@@ -11591,7 +11606,11 @@ window.__FSPDF={M:"AAEAAAAMAIAAAwBARFNJRwAAAAEACfTYAAAACEdQT1MBV/JlAAnmoAAADjZPU
     
     var per = B.per, sh = B.shares, stock = per * sh;
     var target = Math.floor(stock * biz / ta + 1e-7);   
-    var start = U.startDate || (inp.corp && (inp.corp.startDate || inp.corp.founded)) || '';
+    
+    
+    var firstFy = (function () { var g = (inp.income || []).filter(function (y) { return y && y.yearStart && y.yearEnd; }), o0 = g[g.length - 1]; if (!o0) return ''; var dd = (Date.parse(o0.yearEnd) - Date.parse(o0.yearStart)) / 86400000 + 1; return (dd < 365 || +o0.term === 1 || o0.term1) ? String(o0.yearStart).slice(0, 10) : ''; })();
+    var startSrc = U.startDate ? '입력' : (inp.corp && inp.corp.startDate) ? '사업개시일 입력' : (inp.corp && inp.corp.founded) ? '설립일' : firstFy ? '세무조정계산서 첫 사업연도 개시일' : '';
+    var start = U.startDate || (inp.corp && (inp.corp.startDate || inp.corp.founded)) || firstFy || '';
     var yrs = ok(U.years) ? +U.years : (start && evalDate ? yearsBetween(start, evalDate) : null);
     
     var fdY = null, fdT = ''; (inp.income || []).forEach(function (y) { if (y && +y.founded > 1900 && (!fdY || +y.founded < fdY)) { fdY = +y.founded; fdT = '제' + y.term + '기 ' + String(y.yearEnd || '').slice(0, 4) + '년'; } });
@@ -11606,13 +11625,13 @@ window.__FSPDF={M:"AAEAAAAMAIAAAwBARFNJRwAAAAEACfTYAAAACEdQT1MBV/JlAAnmoAAADjZPU
     
     if (!U.evalDate) dflt.push('상속개시일(평가기준일) = ' + evalDate + (inp.corp && inp.corp.evalDate ? '(자료 값)' : '(결산일 다음 날)'));
     if (!ok(U.shares)) dflt.push('피상속인 보유 주식수 = ' + (B.sharesWho ? '최대주주 「' + B.sharesWho + '」 ' : '') + sh.toLocaleString('ko-KR') + '주(자료 주주 명부)');
-    if (!ok(U.years)) dflt.push('피상속인 가업 영위기간 = ' + (yrs === null ? '모름 → 한도 미적용' + (yrsMax !== null ? ' · 세무조정계산서 기수 「' + fdT + '」 → 설립 ' + fdY + '년 → 최대 ' + yrsMax + '년 [확인 필요 — 사업개시일]' : '') : byFd ? '세무조정계산서 기수 「' + fdT + '」 → 설립 ' + fdY + '년 → 상속개시일까지 최대 ' + yrsMax + '년(설립 해 1월 1일부터 셈 · 실제 경영기간은 더 짧거나 같음)' : start + ' ~ ' + evalDate + ', ' + yrs + '년(사업개시일 또는 설립일 기준)'));
+    if (!ok(U.years)) dflt.push('피상속인 가업 영위기간 = ' + (yrs === null ? '모름 → 한도 미적용' + (yrsMax !== null ? ' · 세무조정계산서 기수 「' + fdT + '」 → 설립 ' + fdY + '년 → 최대 ' + yrsMax + '년 [확인 필요 — 사업개시일]' : '') : byFd ? '세무조정계산서 기수 「' + fdT + '」 → 설립 ' + fdY + '년 → 상속개시일까지 최대 ' + yrsMax + '년(설립 해 1월 1일부터 셈 · 실제 경영기간은 더 짧거나 같음)' : start + ' ~ ' + evalDate + ', ' + yrs + '년(' + (startSrc || '사업개시일 또는 설립일') + ' 기준)'));
     var known = 1 + (CB.prev || []).filter(ok).length, filled = 5 - known - cf.filter(ok).length;
     var cashAssume = filled > 0;
     if (cashAssume) flags.push('가정 : 자료 없는 연도 = 아는 연도 평균 — 라목 직전 5개 사업연도 말 현금 중 ' + filled + '개 해 [확인 필요]');
     if (!Object.keys(U.ov || {}).some(function (k) { return ok((U.ov[k] || {}).j); })) dflt.push('사업용/사업무관 구분 = 엔진 기본(부동산 전부 사업용, 대여금 다목, 금융상품, 주식 마목)');
     (T.fix || B.fix || []).forEach(function (f) { if (f && f.amt) flags.push('서식 줄로 못 나눈 차이 ' + Math.round(f.amt).toLocaleString('ko-KR') + '원 → 「기타」 줄 [확인 필요]'); });
-    rows.forEach(function (r) { (r.why || []).forEach(function (w) { if (/\[확인 필요\]/.test(w) && !/증자대금/.test(w)) flags.push(r.label + ' : ' + String(w).replace(/\s*\[확인 필요\]\s*/g, ' ').trim() + ' [확인 필요]'); }); if (r.book < 0 || r.ap < 0) flags.push(r.label + ' 금액이 음수(' + Math.round(r.ap).toLocaleString('ko-KR') + '원) — 자료 판독 중복 가능, 원본 재무상태표로 계정 확인 [확인 필요]'); });
+    rows.forEach(function (r) { (r.why || []).forEach(function (w) { if (/\[확인 필요\]/.test(w) && !/증자대금/.test(w)) flags.push(r.label + ' : ' + String(w).replace(/\s*\[확인 필요\]\s*/g, ' ').trim() + ' [확인 필요]'); }); if ((r.book < 0 || r.ap < 0) && !/유보/.test(r.label || '')) flags.push(r.label + ' 금액이 음수(' + Math.round(r.ap).toLocaleString('ko-KR') + '원) — 자료 판독 중복 가능, 원본 재무상태표로 계정 확인 [확인 필요]'); });
     if (capInc) flags.push('결산일 뒤 증자대금 ' + Math.round(capInc).toLocaleString('ko-KR') + '원 = 상속개시일 현재 현금으로 남아 있다고 봄(라목에 들어감) [확인 필요]');
     if (yrs !== null && yrs < rule.min) flags.push('가업 영위기간 ' + yrs + '년 — ' + rule.min + '년 미만 = 가업상속공제 대상 아님(' + (reformOn ? '2026 세제개편안 정부안 · 상속개시 2027.7.1. 이후' : '상증법 §18의2①') + ')');
     if (reformOn && yrs !== null) flags.push('⚠ 상속개시일 ' + evalDate + ' = 2027.7.1. 이후 → 한도 = 2026 세제개편안 정부안(국회 미통과) 경영연수 ' + yrs + '년 × 20억(상한 1,000억, 20년 미만 대상 제외) ' + Math.round(cap).toLocaleString('ko-KR') + '원, 공제 ' + Math.round(ded).toLocaleString('ko-KR') + '원 / 현행 표(10·20·30년)면 한도 ' + Math.round(capCur).toLocaleString('ko-KR') + '원, 공제 ' + Math.round(dedCur).toLocaleString('ko-KR') + '원 · 개정안은 사후관리 ' + rule.follow + '년(10년 + 30년 부족분)');
@@ -11675,14 +11694,14 @@ window.__FSPDF={M:"AAEAAAAMAIAAAwBARFNJRwAAAAEACfTYAAAACEdQT1MBV/JlAAnmoAAADjZPU
     function newPage() { foot(); doc.addPage(); page++; y = TOP; }
     function need(h) { if (y + h > BOT) newPage(); }
     function title(t, sub) { f(true, 18, INK); need(60); doc.text(t, ML, y + 14); y += 24; if (sub) { f(false, 12, INK2); wrap(sub, CW).forEach(function (l) { doc.text(l, ML, y + 10); y += 16; }); } y += 4; }
-    function para(t, col, sz) { t = String(t).replace(/\s*·\s*/g, ', ').replace(/크레탑/g, '기업신용보고서').replace(/판독/g, '자료 읽기'); f(false, sz || 12, col || INK2); wrap(t, CW).forEach(function (l) { need(16); doc.text(l, ML, y + 11); y += 16; }); }
+    function para(t, col, sz) { t = String(t).replace(/\s*·\s*/g, ', ').replace(/크레탑/g, '기업신용보고서').replace(/자료\s*판독/g, '자료 읽기').replace(/판독/g, '자료 읽기'); f(false, sz || 12, col || INK2); wrap(t, CW).forEach(function (l) { need(16); doc.text(l, ML, y + 11); y += 16; }); }
     
     function table(cols, rows, head, o2) {
       o2 = o2 || {}; var fs = o2.fs || 12, lh = fs * 1.28, pad = 3.5;
       var tot = cols.reduce(function (a, c) { return a + c.w; }, 0), sc = (o2.width || CW) / tot; cols = cols.map(function (c) { return { w: c.w * sc, al: c.al || 'l' }; });
       cols.forEach(function (c, i) { if (c.al !== 'r') return; var need = 0; (head ? [head] : []).concat(rows).forEach(function (r) { if (r.span) return; f(r.b, fs); need = Math.max(need, tw(String(r.c[i] == null ? '' : r.c[i])) + 2 * pad + 1); });
         if (need > c.w) { var d = need - c.w, li = -1; cols.forEach(function (q, k) { if (q.al === 'l' && (li < 0 || q.w > cols[li].w)) li = k; }); if (li >= 0 && cols[li].w - d > 60) { cols[li].w -= d; c.w = need; } } });   
-      var clean = function (v) { return String(v == null ? '' : v).replace(/\s*·\s*/g, ', ').replace(/크레탑/g, '기업신용보고서').replace(/판독/g, '자료 읽기'); };   
+      var clean = function (v) { return String(v == null ? '' : v).replace(/\s*·\s*/g, ', ').replace(/크레탑/g, '기업신용보고서').replace(/자료\s*판독/g, '자료 읽기').replace(/판독/g, '자료 읽기'); };   
       rows.forEach(function (r) { r.c = r.c.map(clean); });
       function lines(r) { return r.c.map(function (v, i) { var w = r.span && i === 0 ? CW - 2 * pad : cols[i].w - 2 * pad; f(r.b, fs); return r.span && i > 0 ? [] : wrap(v, w); }); }
       function draw1(r, L) {
@@ -11705,104 +11724,303 @@ window.__FSPDF={M:"AAEAAAAMAIAAAwBARFNJRwAAAAEACfTYAAAACEdQT1MBV/JlAAnmoAAADjZPU
     }
     var H = function (arr) { return { c: arr, b: true, bg: LIGHT }; };
 
+    
+    var FL = 10.5, FV = 11, FLH = 1.28, FPAD = 3, FBOT = PH - 66, GRAY = [217, 217, 217], LINE = [60, 60, 60];
+    var BLON = '\u0001', BLOFF = '\u0002';
+    var bl = function (t) { return BLON + t + BLOFF; };
+    var meas = function (t) { return tw(String(t).replace(/[\u0001\u0002]/g, '').replace(/[㉮㉯]/g, '①')); };
+    function wrapM(t, w) {
+      var out = []; String(t == null ? '' : t).split('\n').forEach(function (para) {
+        var line = ''; para.split(/(\s+)/).forEach(function (tok) {
+          if (!tok) return;
+          if (meas(line + tok) <= w) { line += tok; return; }
+          if (line.trim()) { out.push(line.replace(/\s+$/, '')); line = ''; }
+          tok = tok.replace(/^\s+/, ''); if (!tok) return;
+          while (meas(tok) > w) { var k = 1; while (k < tok.length && meas(tok.slice(0, k + 1)) <= w) k++; out.push(tok.slice(0, k)); tok = tok.slice(k); }
+          line = tok;
+        });
+        out.push(line.replace(/\s+$/, ''));
+      });
+      return out;
+    }
+    
+    function drawRun(line, x, yb, sz, bold, col, st) {
+      var parts = line.split(/([\u0001\u0002㉮㉯])/);
+      parts.forEach(function (p) {
+        if (!p) return;
+        if (p === BLON) { st.blue = true; return; } if (p === BLOFF) { st.blue = false; return; }
+        if (st.blue) f(true, sz, BLUE); else f(bold, sz, col || INK);
+        if (p === '㉮' || p === '㉯') {
+          var d = tw('①'), cx = x + d / 2, cy = yb - sz * 0.34;
+          doc.setDrawColor.apply(doc, st.blue ? BLUE : (col || INK)); doc.setLineWidth(0.6); doc.circle(cx, cy, sz * 0.43, 'S');
+          var s2 = sz * 0.6; f(bold, s2, st.blue ? BLUE : (col || INK)); doc.text(p === '㉮' ? '가' : '나', cx, yb - sz * 0.34 + s2 * 0.35, { align: 'center' });
+          x += d; return;
+        }
+        doc.text(p, x, yb); x += tw(p);
+      });
+      return x;
+    }
+    
+    var fno = 0;
+    function fhead(no, cont) {
+      if (fno) { foot(); doc.addPage(); page++; }
+      fno = no; y = 38;
+      if (no === 1 && !cont) {
+        f(false, FL, INK); doc.text('<평가심의위원회 운영규정 별지 제4호 서식 부표3> (2020.4.1. 개정)', ML, y + 9); y += 16;
+        f(true, 19, INK); doc.text('비상장주식 등 평가서', PW / 2, y + 17, { align: 'center' }); y += 28;
+      }
+      f(false, FL, INK); doc.text('(단위 : ' + (no === 1 ? '주, 원' : '원') + ')', ML, y + 9); doc.text('(제' + no + '쪽' + (cont ? ' 계속' : '') + ')', PW - MR, y + 9, { align: 'right' }); y += 13;
+      doc.setDrawColor(0, 0, 0); doc.setLineWidth(1.6); doc.line(ML, y, PW - MR, y); y += 4;
+      doc.setLineWidth(1.2); doc.line(ML, FBOT + 2, PW - MR, FBOT + 2);
+      f(false, 10, INK); doc.text('210mm×297mm[일반용지 70g/㎡(재활용품)]', PW - MR, FBOT + 13, { align: 'right' });
+    }
+    function fsec(t) { f(true, 12, INK); doc.text(t, ML + 2, y + 12); y += 17; }
+    function fnote(lines) {   
+      if (!lines.length) return;
+      var L = []; f(false, 12, INK2); lines.forEach(function (t) { t = String(t).replace(/<\/?b>/g, '').replace(/\s*·\s*/g, ', '); wrap(t, CW).forEach(function (l) { L.push(l); }); });   
+      var y0 = Math.max(y + 8, FBOT - 4 - L.length * 15);
+      L.forEach(function (l, i) { f(false, 12, /^\[확인 필요\]/.test(l) ? VER : INK2); doc.text(l, ML, y0 + 11 + i * 15); });
+      y = y0 + L.length * 15;
+    }
+    
+    function fgrid(ws, rows, o2) {
+      o2 = o2 || {}; var X0 = [ML]; ws.forEach(function (w, i) { X0.push(X0[i] + w); });
+      var occ = {}, lay = [];
+      rows.forEach(function (r, ri) {
+        var ci = 0, cells = [];
+        r.c.forEach(function (c) {
+          while (occ[ri + ':' + ci]) ci++;
+          var s = c.s || 1, rs = c.rs || 1;
+          for (var a = 0; a < rs; a++) for (var b2 = 0; b2 < s; b2++) if (a || b2) occ[(ri + a) + ':' + (ci + b2)] = 1;
+          cells.push({ c: c, col: ci, x: X0[ci], w: X0[ci + s] - X0[ci], rs: rs }); ci += s;
+        });
+        lay.push(cells);
+      });
+      function fsOf(c) { return c.fs || (c.v ? FV : FL); }
+      function linesOf(L) {
+        var c = L.c, sz = fsOf(c), bo = !!(c.v || c.b) && !c.nb; f(bo, sz);
+        var t = c.v != null ? String(c.v) : (c.t == null ? '' : String(c.t));
+        if (c.v != null) { while (sz > 9 && meas(t) > L.w - 2 * FPAD) { sz -= 0.5; f(bo, sz); } L.sz = sz; return [t]; }   
+        L.sz = sz; return wrapM(t, L.w - 2 * FPAD);
+      }
+      var H = rows.map(function (r, ri) {
+        var h = r.h || 18;
+        lay[ri].forEach(function (L) { L.lines = linesOf(L); if (L.rs === 1) h = Math.max(h, L.lines.length * L.sz * FLH + 2 * FPAD + 1); });
+        return h;
+      });
+      
+      lay.forEach(function (cells, ri) { cells.forEach(function (L) { if (L.rs > 1) { var hh = 0; for (var a = 0; a < L.rs; a++) hh += H[ri + a]; var need = L.lines.length * L.sz * FLH + 2 * FPAD; if (need > hh) H[ri + L.rs - 1] += need - hh; } }); });
+      var cont = o2.cont || 0, ri = 0;
+      function drawRow(k) {
+        var h = H[k];
+        lay[k].forEach(function (L) {
+          var hh = 0; for (var a = 0; a < L.rs; a++) hh += H[k + a];
+          var c = L.c;
+          if (c.g) { doc.setFillColor.apply(doc, GRAY); doc.rect(L.x, y, L.w, hh, 'F'); }
+          if (c.bg) { doc.setFillColor.apply(doc, c.bg); doc.rect(L.x, y, L.w, hh, 'F'); }
+          doc.setDrawColor.apply(doc, LINE); doc.setLineWidth(0.6); doc.rect(L.x, y, L.w, hh);
+          var n = L.lines.length, lh = L.sz * FLH, ty = y + (hh - n * lh) / 2 + L.sz * 0.92, st = { blue: !!c.v && !c.nb };
+          L.lines.forEach(function (t, i) {
+            f(!!(c.b || c.v) && !c.nb, L.sz); var al = c.al || (c.v != null ? 'r' : 'l'), w = meas(t), xx = al === 'r' ? L.x + L.w - FPAD - w : al === 'c' ? L.x + (L.w - w) / 2 : L.x + FPAD;
+            drawRun(t, xx, ty + i * lh, L.sz, !!(c.b || c.v) && !c.nb, c.v != null ? BLUE : (c.col || INK), st);
+          });
+        });
+        y += h;
+      }
+      for (ri = 0; ri < rows.length; ri++) {
+        var span = 1; lay[ri].forEach(function (L) { span = Math.max(span, L.rs); });
+        var hh = 0; for (var a = 0; a < span; a++) hh += H[ri + a] || 0;
+        if (y + hh > FBOT && ri > cont) { fhead(fno, true); for (var k = 0; k < cont; k++) drawRow(k); }
+        drawRow(ri);
+      }
+      doc.setDrawColor(0, 0, 0);
+      y += o2.after == null ? 6 : o2.after;
+    }
     var X = o.X || {}, R = o.R || {}, AT = R.assetTotal || {}, LT = R.liabTotal || {};
+    var TXI = o.txadj, GI = o.group, inpS = (o.inp || {}).shares || {}, V0 = (root.TaxEngine && TaxEngine.CONST && TaxEngine.CONST.VALUATION) || {};
+    var FW = function (v) { return v === null || v === undefined || v === '' || !isFinite(+v) ? null : W(v); };   
+    var VC = function (v, o3) { var s = FW(v); return Object.assign(s === null ? { t: '' } : { v: s }, o3 || {}); };
+    var wI = (X.weightWeights || [3, 2])[0], wA = (X.weightWeights || [3, 2])[1], meth = X.method || '';
+    var only = /단독/.test(meth), re80 = /^부동산등 80%/.test(meth), st80 = /^주식등 80%/.test(meth);
+    var startD = String(o.start || (o.corp || {}).startDate || '').slice(0, 10), y3 = (function () { var a = /^(\d{4})-(\d{2})-(\d{2})/.exec(startD), b = /^(\d{4})-(\d{2})-(\d{2})/.exec(o.evalDate || ''); if (!a || !b) return null; return (+b[1] - +a[1]) * 12 + (+b[2] - +a[2]) - (+b[3] < +a[3] ? 1 : 0) < 36; })();
+    var CK = function (on) { return { t: on ? '[ ' + bl('v') + ' ]' : '[    ]', al: 'c' }; };
+    var shares1 = X.effectiveShares || X.shares;
+    var miss1 = [];
     
-    f(false, 12, INK2); doc.text('<평가심의위원회 운영규정 별지 제4호 서식 부표3>', ML, y + 10); y += 16;
-    title('1부. 비상장주식 등 평가서', '(단위 : 주, 원) 값 = 비상장평가 엔진 결과, 평가기준일 ' + dt(o.evalDate));
-    para('1. 평가대상 비상장법인', INK, 13);
-    table([{ w: 22 }, { w: 28, al: 'r' }, { w: 22 }, { w: 28, al: 'r' }], [
-      { c: ['법인명', name, '사업자등록번호', form.bizNo || ''] },
-      { c: ['① 발행주식총수', W(X.shares), '1주당 액면가액', W(((o.inp || {}).shares || {}).par)] },
-      { c: ['평가기준일', dt(o.evalDate), '대표자 성명', corp.ceo || ''] },
-      { c: ['② 부동산과다보유법인', (R.ratio && R.ratio.re >= 0.5) ? '해당' : '해당 없음', '부동산 등 비율', R.ratio ? P2(R.ratio.re) : ''] }
-    ]);
-    para('2. 순자산가치로만 평가하는 경우(상증령 §54④) — 엔진 판정 : ' + (R.kind || ''), INK, 13);
-    var only = /\[3\]/.test(R.kind || '');
-    table([{ w: 88 }, { w: 12, al: 'c' }], [
-      { c: ['가. 청산절차 진행 중, 사업자의 사망 등으로 사업 계속 곤란', only && /청산|사망/.test(X.method || '') ? '[v]' : '[ ]'] },
-      { c: ['나. 사업 개시 전, 사업개시 후 3년 미만, 휴업, 폐업 중 (사업개시일 ' + dt(o.start) + ')', only && /3년|개시|휴업|폐업/.test(X.method || '') ? '[v]' : '[ ]'] },
-      { c: ['라. 자산총액 중 부동산 등 비율 80% 이상 (' + (R.ratio ? P2(R.ratio.re) : '') + ')', only && R.ratio && R.ratio.re >= 0.8 ? '[v]' : '[ ]'] },
-      { c: ['마. 자산총액 중 주식등 비율 80% 이상 (' + (R.ratio ? P2(R.ratio.stock) : '') + ')', only && R.ratio && R.ratio.stock >= 0.8 ? '[v]' : '[ ]'] },
-      { c: ['바. 정관상 잔여 존속기한 3년 이내', '[ ]'] }
-    ]);
-    para('3. 1주당 가액의 평가', INK, 13);
-    var wI = (X.weightWeights || [3, 2])[0], wA = (X.weightWeights || [3, 2])[1];
-    table([{ w: 62 }, { w: 22, al: 'r' }, { w: 26 }], [
-      { c: ['③ 순자산가액(영업권 포함)', W(X.netAssetWithGoodwill), '2쪽 순자산가액 「마」'] },
-      { c: ['④ 1주당 순자산가액(③ ÷ ①)', W(X.assetPerShare), ''] },
-      { c: ['⑤ 1주당 순손익가치(3년 가중평균 ÷ ' + ((root.TaxEngine && TaxEngine.CONST) ? Math.round(TaxEngine.CONST.VALUATION.CAP_RATE * 100) : '') + '%)', W(X.incomePerShare), '5쪽 순손익액 「차」'] },
-      { c: ['⑥ 1주당 평가액((가), (나) 중 큰 금액)', W(X.beforePremium), ''] },
-      { c: ['  (가) (④ × ' + wA + ' + ⑤ × ' + wI + ') ÷ ' + (wA + wI), W(X.weightedValue), X.method || ''] },
-      { c: ['  (나) ④ × ' + Math.round((X.floorRate || 0.8) * 100) + '%', W(X.netAssetFloor), X.floorApplied ? '적용' : ''] },
-      { c: ['⑦ 최대주주등 할증(⑥ × 할증율)', W(X.premium), X.premiumNote || ''] },
-      { c: ['1주당 평가액(⑥ + ⑦)', W(o.per), '엔진 값'], b: true, bg: LIGHT }
-    ]);
+    var capital = null, capNote = '';
+    (function () { var bs = (o.inp || {}).bsYears || {}, ex = (o.inp || {}).extBs || {}, ks = Object.keys(bs).concat(Object.keys(ex)).filter(function (e) { return !o.evalDate || e < o.evalDate; }).sort().reverse();
+      for (var i = 0; i < ks.length && capital === null; i++) { var t = bs[ks[i]], x2 = ex[ks[i]]; var v = t && isFinite(+t.capitalStock) && +t.capitalStock > 0 ? +t.capitalStock : x2 && x2.v && isFinite(+x2.v.capitalStock) && +x2.v.capitalStock > 0 ? +x2.v.capitalStock : null; if (v !== null) { capital = v; capNote = ks[i].slice(0, 4) + '년 말 재무상태표'; } }
+      if (capital === null && isFinite(+shares1) && isFinite(+inpS.par) && +inpS.par > 0) { capital = +shares1 * +inpS.par; capNote = '① × 액면가 계산'; } })();
+    if (capital !== null && isFinite(+inpS.par) && +inpS.par > 0 && Math.abs(capital - (+X.shares || 0) * +inpS.par) >= 1) capNote += ' — 발행주식총수 × 액면가 ' + W((+X.shares || 0) * +inpS.par) + '원과 다름(증자, 감자, 자기주식 소각 확인)';
     
-    var TXI = o.txadj, GI = o.group;
-    para('4. 자료 기준', INK, 13);
+    var reR = +X.realEstateRatio || 0, reHeavy = reR >= ((V0 && V0.REALESTATE_RATIO_MID) || 0.5);
+    
+    var chkTxt = ((R.check || []).concat(R.defaults || [])).join(' ');
+    var newBiz = only && (y3 === true || /3년 미만/.test(chkTxt));
+    
+    fhead(1);
+    fsec('1. 평가대상 비상장법인');
+    var bizNo = form.bizNo || corp.bizNo || '';
+    if (!bizNo) miss1.push('사업자등록번호'); if (capital === null) miss1.push('자본금');
+    fgrid([70, 110, 84, 92, 70, 101.28], [
+      { c: [{ t: '법인명' }, { t: bl(name) }, { t: '사업자등록번호' }, { t: bizNo ? bl(bizNo) : '' }, { t: '대표자 성명' }, { t: corp.ceo ? bl(corp.ceo) : '' }] },
+      { c: [{ t: '①발행주식총수' }, VC(shares1), { t: '1주당 액면가액' }, VC(inpS.par), { t: '자본금' }, capital === null ? { t: '' } : VC(capital)] },
+      { c: [{ t: '평가기준일' }, { t: bl(dt(o.evalDate)) }, { t: '②부동산과다보유법인 해당여부', s: 2 }, { t: bl(reHeavy ? '해당' : '해당 없음'), al: 'c' }, CK(reHeavy)] }
+    ]);
+    fsec('2. 순자산가치로만 평가하는 경우 [v] 표시 (상속세 및 증여세법 시행령 제54조제4항 해당여부)');
+    if (only && !newBiz) miss1.push('순자산가치 단독 사유(가, 나 중 휴업, 폐업, 바 중 어느 것인지)');
+    fgrid([463, 64.28], [
+      { c: [{ t: '가. 신고기한 이내에 청산절차가 진행 중이거나, 사업자의 사망 등으로 사업의 계속이 곤란하다고 인정되는 경우\n      해산(합병)등기일 (          .      .      )' }, CK(false)] },
+      { c: [{ t: '나. 사업 개시전의 법인, 사업개시 후 3년 미만의 법인, 휴업, 폐업 중인 경우\n      사업개시일 ( ' + (startD ? bl(dt(startD)) : '          .      .      ') + ' ), 휴업, 폐업일 (          .      .      )' }, CK(newBiz)] },
+      { c: [{ t: '다. 평가기준일이 속하는 사업연도 전 3년 내의 사업연도부터 계속하여 「법인세법」상 각 사업연도에 속하거나 속하게 될 손금의 총액이 그 사업연도에 속하거나 속하게 될 익금의 총액을 초과하는 결손금이 있는 경우 (2018. 2. 13. 삭제)' }, CK(false)] },
+      { c: [{ t: '라. 법인의 자산총액 중 「소득세법」 제94조제1항제4호다목1) 및 2)의 합계액이 차지하는 비율이 100분의 80 이상인 경우' }, CK(re80)] },
+      { c: [{ t: '마. 법인의 자산총액 중 주식등의 가액의 합계액이 차지하는 비율이 100분의 80 이상인 법인의 주식등' }, CK(st80)] },
+      { c: [{ t: '바. 법인의 설립 시 정관에 존속기한이 확정된 법인으로서 평가기준일 현재 잔여 존속기한이 3년 이내인 법인의 주식등' }, CK(false)] }
+    ]);
+    fsec('3. 1주당 가액의 평가');
+    fgrid([274, 116, 137.28], [
+      { c: [{ t: '③순자산가액' }, VC(X.netAssetWithGoodwill), { t: '제2쪽 4. 순자산가액 “마”', b: true }] },
+      { c: [{ t: '④1주당 순자산가액(③ ÷ ①)' }, VC(X.assetPerShare), { g: 1 }] },
+      { c: [{ t: '⑤최근 3년간 순손익액의 가중평균액에 의한 1주당가액 또는 2이상의 신용평가전문기관(회계법인포함)이 산출한 1주당 추정이익의 평균액' }, VC(X.incomePerShare), { t: '제6쪽 7. 순손익액 “차”', b: true }] },
+      { c: [{ t: '⑥1주당 평가액\n(㉮ 평가액과 ㉯의 평가액 중 많은 금액)' }, VC(X.beforePremium), { g: 1 }] },
+      { c: [{ t: '   ㉮ [{(④×2)+(⑤×3)} ÷ 5]\n   (부동산과다보유법인 [{(④ × 3)+(⑤ × 2)} ÷ 5]' }, only ? { t: '' } : VC(X.weightedValue), only ? { t: '2. 해당 = 가중평균 안 함' } : { g: 1 }] },
+      { c: [{ t: '   ㉯ 1주당 순자산가액(④)의 ' + Math.round((X.floorRate || 0.8) * 100) + '%' }, VC(X.netAssetFloor), { g: 1 }] },
+      { c: [{ t: '⑦ 최대주주등에 해당하는 경우 1주당 평가액' }, X.premiumApplied ? VC(o.per) : { t: '' }, { g: 1 }] },
+      { c: [{ t: '   ㉮ 최대주주등의 주식등의 1주당 평가액 (⑥×할증율)' }, X.premiumApplied ? VC(X.premium) : { t: '' }, { g: 1 }] },
+      { c: [{ t: '   ㉯ (⑥ + ㉮)' }, X.premiumApplied ? VC(o.per) : { t: '' }, { g: 1 }] }
+    ]);
+    var n1 = ['파란 글씨 = 엔진 계산 값, 1주당 평가액 ' + W(o.per) + '원(' + meth + (X.premiumApplied ? ', ' + (X.premiumNote || '할증') : '') + ')'];
+    if (only) n1.push('순자산가치로만 평가(2. ' + (newBiz ? '나' : '해당 칸') + ') → ⑥ = ④ 1주당 순자산가액, ⑤ 순손익가치는 참고로만 적음(상증령 §54④)');
+    if (capital !== null) n1.push('자본금 = ' + capNote);
+    n1.push('② 부동산과다보유법인 = 부동산 등 비율 ' + P2(reR) + (reHeavy ? ' ≥ 50%' : ' < 50%') + '(상증령 §54① 단서)');
+    if (Math.round((X.floorRate || 0.8) * 100) !== 80) n1.push('㉯ 하한율 ' + Math.round(X.floorRate * 100) + '% = 상증령 §54④ 단서(2026.2.27. 개정)');
+    if (miss1.length) n1.push('[확인 필요] 공란 칸 = 엔진 자료에 없음 : ' + miss1.join(', ') + ' — 사업자등록증, 등기부등본으로 채움');
+    fnote(n1);
+    
+    fhead(2);
+    fsec('4. 순자산가액');
+    var G2 = function (lab, v, ref, b) { return { c: [{ t: lab, b: !!b }, VC(v), ref ? { t: ref, b: true } : { g: 1 }] }; };
+    var SUBR = function (t) { return { c: [{ t: t, s: 3, b: true }] }; };
+    fgrid([253, 137, 137.28], [
+      SUBR('가. 자산총액'),
+      G2('① 재무상태표상의 자산가액', AT.bs), G2('② 평가차액', AT.gap, '제4쪽 5. 평가차액 “가”'), G2('③ 법인세법상 유보금액', AT.yubo),
+      G2('④ 기타(평가기준일 현재 지급받을 권리가 확정된 가액 등)', N(AT.capInc) + N(AT.etc)), G2('⑤ 선급비용등', AT.prepaid), G2('⑥ 증자일 전의 잉여금의 유보액', AT.surplus),
+      G2('⑦ 소계 (① + ② + ③ + ④ − ⑤ − ⑥)', AT.total),
+      SUBR('나. 부채총액'),
+      G2('⑧ 재무상태표상의 부채액', LT.bs), G2('⑨ 법인세', LT.corpTax), G2('⑩ 농어촌특별세', LT.nong), G2('⑪ 지방소득세', LT.local), G2('⑫ 배당금, 상여금', LT.divBonus),
+      G2('⑬ 퇴직급여추계액', LT.retire), G2('⑭ 기타(충당금 중 평가기준일 현재 비용으로 확정된 것 등)', LT.etc), G2('⑮ 제준비금', LT.reserves), G2('⑯ 제충당금', LT.provisions),
+      G2('⑰ 기타(이연법인세대 등)', LT.deferred), G2('⑱ 소계(⑧+⑨+⑩+⑪+⑫+⑬+⑭−⑮−⑯−⑰)', LT.total),
+      G2('다. 영업권포함전 순자산가액(⑦−⑱)', R.netAsset, null, 1), G2('라. 영업권', X.goodwill, '제5쪽 6. 영업권 “자”', 1), G2('마. 순자산가액(다 + 라)', X.netAssetWithGoodwill, null, 1)
+    ]);
+    var n2 = [];
+    if (N(AT.capInc)) n2.push('④ = 결산일 뒤 유상증자 납입액 ' + W(AT.capInc) + '원(평가기준일 현재 받을 권리 확정)');
+    if (N(AT.prepaid)) n2.push('⑤ = 선급비용, 이연법인세자산, 개발비 등 엔진 한 칸');
+    if (N(X.netAssetIncTreasury) !== N(R.netAsset)) n2.push('자기주식 ' + (X.treasuryModeLabel || '') + ' 반영 자기자본 ' + W(X.netAssetIncTreasury) + '원(제5쪽 다)');
+    fnote(n2);
+    
+    fhead(4);
+    fsec('5. 평가차액');
+    fgrid([263.64, 131.82, 131.82], [{ c: [{ t: '가. 평가차액 계산 (① − ②)', b: true }, VC(R.evalGap), { t: '제2쪽 4. 순자산가액 “가”의 ② 기재', b: true }] }], { after: 4 });
+    var gA = [], gL = [];
+    (R.parcels || []).forEach(function (p) { gA.push([String(p.label || p.kind || '').replace(/^(토지|건물)\d+\s/, '$1 '), N(p.nav), N(p.book)]); });
+    (R.gapLines || []).forEach(function (g) { (g.side === 'liab' ? gL : gA).push([g.label, N(g.adopted), N(g.book)]); });
+    var NR = Math.max(19, gA.length, gL.length), sA = [0, 0, 0], sL = [0, 0, 0];
+    var c4 = function (a, s) { if (!a) return [{ t: '' }, { t: '' }, { t: '' }, { t: '' }]; s[0] += a[1]; s[1] += a[2]; s[2] += a[1] - a[2]; return [{ t: a[0], fs: 10 }, VC(a[1], { fs: 10, nb: 1 }), VC(a[2], { fs: 10, nb: 1 }), VC(a[1] - a[2], { fs: 10, nb: 1 })]; };
+    var r4 = [{ c: [{ t: '자산금액', s: 4, al: 'c' }, { t: '부채금액', s: 4, al: 'c' }] },
+      { c: ['계정과목', '상증법에 따른 평가액', '재무상태표상 금액', '차액', '계정과목', '상증법에 따른 평가액', '재무상태표상 금액', '차액'].map(function (t) { return { t: t, al: 'c', fs: 10 }; }) }];
+    for (var i4 = 0; i4 < NR; i4++) r4.push({ c: c4(gA[i4], sA).concat(c4(gL[i4], sL)), h: 17 });
+    r4.push({ c: [{ t: '① 합계', b: true, fs: 10 }, VC(sA[0], { fs: 10, nb: 1 }), VC(sA[1], { fs: 10, nb: 1 }), VC(sA[2], { fs: 10, nb: 1 }), { t: '② 합계', b: true, fs: 10 }, VC(sL[0], { fs: 10, nb: 1 }), VC(sL[1], { fs: 10, nb: 1 }), VC(sL[2], { fs: 10, nb: 1 })] });
+    fgrid([44, 74, 74, 71.64, 44, 74, 74, 71.64], r4, { cont: 2 });
+    fnote(['엔진 평가차액 줄만 적음(부동산 = 차액 0 이어도 적음, 그 밖 차액 0 계정은 비움), 근거 = 1부 부속']);   
+    
+    fhead(5);
+    fsec('6. 영업권');
+    var ni = X.netIncomesAdjusted || [], wni = isFinite(+X.weightedNetIncome) ? Math.floor(+X.weightedNetIncome + 1e-6) : null;
+    var GWI = V0.GOODWILL_INCOME_RATE || 0.5, GWE = V0.GOODWILL_EQUITY_RATE || 0.1;
+    
+    var gwOff = !(N(X.goodwill) > 0) && /미계상/.test(String(X.goodwillNote || '')) && wni !== null && +X.weightedNetIncome * GWI > N(X.netAssetIncTreasury) * GWE;
+    var G5 = function (lab, v, ref, b, cls) { return { c: [{ t: lab, b: !!b }, typeof v === 'string' ? { v: v, al: 'c' } : VC(v), ref ? { t: ref, b: true, al: cls || 'l' } : { g: 1 }] }; };
+    fgrid([242.5, 126.5, 158.28], [
+      G5('가. 평가기준일 이전 3년간 순손익액의 가중평균액', wni, '(①×3 + ②×2+③) /6', 1, 'c'),
+      G5('   ①평가기준일 이전 1년이 되는 사업연도 순손익액', ni[0]), G5('   ②평가기준일 이전 2년이 되는 사업연도 순손익액', ni[1]), G5('   ③평가기준일 이전 3년이 되는 사업연도 순손익액', ni[2]),
+      G5('나. 가 × ' + Math.round(GWI * 100) + '%', wni === null ? null : Math.floor(+X.weightedNetIncome * GWI + 1e-6), null, 1),
+      G5('다. 평가기준일 현재 자기자본', X.netAssetIncTreasury, null, 1),
+      G5('라. 기획재정부령이 정하는 이자율', Math.round(GWE * 100) + '%', null, 1),
+      G5('마. 다 × 라', isFinite(+X.netAssetIncTreasury) ? Math.floor(+X.netAssetIncTreasury * GWE + 1e-6) : null, null, 1),
+      G5('바. 영업권 지속연수', '5년', null, 1),
+      { c: [{ t: '사. 영업권 계산액\n   = n = 1 ~ 5 합계 [ (나 − 마) ÷ (1 + 0.1)의 n제곱 ]\n   n은 평가기준일부터의 경과연수', b: true }, gwOff ? { t: '미계상', al: 'c', b: true } : VC(N(X.goodwill) > 0 ? N(X.goodwill) + N((R.params || {}).purchasedGoodwill) : 0), gwOff ? { t: '계상 제외(아래 사유)' } : { g: 1 }] },
+      G5('아. 영업권 상당액에 포함된 매입한 무체재산권가액 중 평가기준일까지의 감가상각비를 공제한 금액', N((R.params || {}).purchasedGoodwill), null, 1),
+      G5('자. 영업권 평가액 (사 − 아)', X.goodwill, '제2쪽 4. 순자산가액 “라” 기재', 1)
+    ]);
+    fnote([].concat(X.goodwillNote ? ['영업권 = ' + X.goodwillNote] : [], ['①~③ = 제6쪽 「마. 순손익액(다 ± 라)」, 사 = 엔진 값(현가계수 ' + (V0.GOODWILL_ANNUITY || 0).toFixed(6) + ', 원 미만 버림)']));
+    
+    fhead(6);
+    fsec('7. 순손익액');
+    var inc = R.income || [], ins = (o.inp || {}).income || [], cc = X.capitalChange || {}, rest6 = [];
+    var PK = { '2': ['refund'], '3': ['divid'] }, MK = { '5': ['fine'], '6': ['levy'], '7': ['nonbiz'], '8': ['ptax'], '9': ['donation'], '10': ['ent'], '11': ['excess'], '12': ['interest'], '13': ['deprRecog'], '14': ['corpTax', 'foreignTax'], '15': ['nongTax'], '16': ['localTax'] };
+    var col6 = [0, 1, 2].map(function (k) {
+      var e = inc[k], b = ins[k] || {}, c = { year: (b.yearEnd || ((R.params || {}).fiscalYearEnds || [])[k] || '').slice(0, 4) };
+      if (e && e.given !== false && isFinite(+e.taxIncome)) {
+        var pl = b.plus || {}, mi = b.minus || {}, sp = 0, sm = 0;
+        c['1'] = N(e.taxIncome) + N(e.adj);
+        Object.keys(PK).forEach(function (q) { c[q] = PK[q].reduce(function (a, z) { return a + N(pl[z]); }, 0); sp += c[q]; });
+        c['4'] = N(e.plus) - sp;
+        Object.keys(MK).forEach(function (q) { c[q] = MK[q].reduce(function (a, z) { return a + N(mi[z]); }, 0); sm += c[q]; });
+        var rm = N(e.minus) - sm; if (Math.abs(rm) >= 0.5) { c['16'] += rm; rest6.push(c.year + '년 ⑯ 칸에 서식에 줄 없는 공제 ' + W(rm) + '원 포함'); }
+        if (Math.abs(c['4'] - N(pl.donationCarry)) >= 0.5) rest6.push(c.year + '년 ④ 칸 = 기부금 이월손금 외 가산 포함');
+        c.가 = N(e.taxIncome) + N(e.adj) + N(e.plus); c.나 = N(e.minus); c.다 = N(e.net);
+      } else c.다 = (X.netIncomesRaw || [])[k];
+      c.라 = (cc.adjustments || [])[k]; c.마 = ni[k]; c.바 = (X.incomeDenominators || [])[k]; c.사 = (X.incomePerShareByYear || [])[k];
+      return c;
+    });
+    var v6 = function (key, fs) { return col6.map(function (c) { var v = c[key]; return v === undefined || v === null || (v === 0 && /^\d+$/.test(key) && key !== '1') ? { t: '' } : VC(v, fs ? { fs: fs } : null); }); };
+    var L6 = [['1', '①각 사업연도 소득금액'], ['2', '②국세, 지방세 과오납에 대한 환급금이자', 'a'], ['3', '③수입배당금 중 익금불산입한 금액', 'a'], ['4', '④기부금의 손금산입한도액 초과금액의 이월손금 산입액 외', 'a'], ['가', '가. 소계(① + ② + ③ + ④)'],
+      ['5', '⑤벌금, 과료, 과태료 가산금과 체납처분비', 's'], ['6', '⑥손금 용인되지 않는 공과금', 's'], ['7', '⑦업무에 관련 없는 지출', 's'], ['8', '⑧각 세법에 규정하는 징수불이행 납부세액', 's'], ['9', '⑨기부금 한도초과액', 's'], ['10', '⑩접대비 한도초과액', 's'],
+      ['11', '⑪과다경비등의 손금불산입액', 's'], ['12', '⑫지급이자의 손금불산입액', 's'], ['13', '⑬감가상각비(시행령 제56조 제4항 라목)', 's'], ['14', '⑭법인세 총결정세액', 's'], ['15', '⑮농어촌특별세 총결정세액', 's'], ['16', '⑯지방소득세 총결정세액 등', 's'],
+      ['나', '나. 소계(⑤ ~ ⑯)'], ['다', '다. 순손익액(가 − 나)'], ['라', '라. 유상증자, 감자시 반영액'], ['마', '마. 순손익액(다 ± 라)'], ['바', '바. 사업연도말 주식수 또는 환산주식수']];
+    var r6 = [{ c: [{ t: '평가기준일 1년, 2년, 3년이 되는 사업연도', s: 2 }].concat(col6.map(function (c) { return c.year ? { v: c.year + '년', al: 'c' } : { t: '' }; })) }], gd = {};
+    L6.forEach(function (q) {
+      var cs = [];
+      if (q[2] && !gd[q[2]]) { gd[q[2]] = 1; cs.push({ t: q[2] === 'a' ? '소득에\n가산할\n금액' : '소득\n에서\n공제할\n금액', rs: q[2] === 'a' ? 3 : 12, al: 'c', fs: 10 }); }
+      cs.push(q[2] ? { t: q[1] } : { t: q[1], s: 2 });
+      r6.push({ c: cs.concat(v6(q[0])) });
+    });
+    var sa = (X.incomePerShareByYear || []);
+    r6.push({ c: [{ t: '사. 주당순손익액 (마 ÷ 바)', s: 2 }].concat([0, 1, 2].map(function (k) { var s = FW(sa[k]); return { t: ['⑰', '⑱', '⑲'][k] + (s === null ? '' : ' ' + bl(s)), al: 'l' }; })) });
+    r6.push({ c: [{ t: '아. 가중평균액 {(⑯ × 3 + ⑰ × 2 + ⑱) / 6}' + ((X.yearWeightsUsed || []).join(',') && (X.yearWeightsUsed || []).join(',') !== '3,2,1' ? ' (엔진 가중치 ' + X.yearWeightsUsed.join(', ') + ')' : ''), s: 2 }, VC(X.weightedIncomePerShare, { s: 3 })] });
+    r6.push({ c: [{ t: '자. 기획재정부령이 정하는 율', s: 2 }, { v: Math.round((V0.CAP_RATE || 0.1) * 100) + '%', s: 3 }] });
+    r6.push({ c: [{ t: '차. 최근 3년간 순손익액의 가중평균액에 의한 1주당 가액 (아÷자)', s: 2 }, VC(X.incomePerShare, { s: 3 })] });
+    fgrid([42, 216, 89.76, 89.76, 89.76], r6);
+    var n6 = rest6.slice();
+    
+    (X.annualized || []).forEach(function (an, k) { if (!an) return; var c = col6[k] || {}; n6.push(c.year + '년 = 1년 미만 사업연도(' + an.months + '개월) → 마 = (다 ± 라) × 12 ÷ ' + an.months + ' = ' + W(c.마) + '원(1년으로 환산 · 상증칙 §17의3②)'); });
+    if (!(ins.length && ins[0] && ins[0].taxIncome !== undefined)) n6.push('[확인 필요] ①~⑯ 공란 = 세무조정계산서 없이 손익계산서 기준 순손익액(다) — 법인세 신고 서류의 가감 반영 필요');
+    if (col6.some(function (c) { return N(c['1']) && N(((inc[col6.indexOf(c)] || {}).adj)); })) n6.push('① = 각 사업연도 소득금액 + 준비금 환입 안분 등 엔진 조정(상증령 §56④)');
+    fnote(n6);
+    
+    foot(); doc.addPage(); page++; y = TOP;
+    title('1부 부속. 평가서 계산 근거', '서식 칸 밖 보충 자료, 값 = 비상장평가 엔진 결과, 평가기준일 ' + dt(o.evalDate));
+    para('1. 평가 방법, 자료 기준', INK, 13);
     table([{ w: 30 }, { w: 70 }], [
+      { c: ['평가 방법(엔진 판정)', meth + (R.kind ? ', ' + R.kind : '')] },
+      { c: ['부동산 등 비율, 주식 등 비율', (R.ratio ? P2(R.ratio.re) + ', ' + P2(R.ratio.stock) : '')] },
+      { c: ['최대주주 할증', X.premiumNote || (X.premiumApplied ? '적용' : '미적용')] },
       { c: ['세무조정계산서', TXI && TXI.used ? TXI.years.join(', ') + '년 반영(유보, 가산, 차감 = 신고서 기준)' : '미반영(크레탑, 감사보고서 재무제표 기준)'] }
     ].concat(TXI && TXI.scans.length ? [{ c: ['뺀 스캔본', TXI.scans.join(', ') + ' — 글자층 없음, OCR 뒤 글자 PDF로 다시 넣기'] }] : []));
     if (GI) {
-      para('5. 여러 회사 묶어 평가(보유 주식 = 그 회사 1주 평가액 × 주식 수, 장부가액 하한)', INK, 13);
+      para('2. 여러 회사 묶어 평가(보유 주식 = 그 회사 1주 평가액 × 주식 수, 장부가액 하한)', INK, 13);
       table([{ w: 40 }, { w: 24, al: 'r' }, { w: 36 }], GI.cos.map(function (c) { return { c: [c.id + ' ' + c.name + (c.plan ? '(가업 회사)' : ''), c.per === null ? '' : W(c.per), c.method || ''], b: c.plan, bg: c.plan ? LIGHT : null }; }), H(['회사', '1주당 평가액', '평가 방법']));
       if (GI.links.length) table([{ w: 46 }, { w: 18, al: 'r' }, { w: 12, al: 'r' }, { w: 24, al: 'r' }], GI.links.map(function (e) { return { c: [e.from + ' → ' + e.to, W(e.shares), P2(e.pct || 0), W(e.adopted)] }; }), H(['가진 회사 → 발행 회사', '보유 주식 수', '지분율', '반영 금액']));
     }
-    
-    newPage();
-    title('1부. 평가서 — 순자산가액', '평가서 제2쪽 칸 순서, 값 = 엔진 순자산 칸(자산 − 부채)');
-    var L1 = [
-      ['자산', '재무상태표상 자산가액', AT.bs], ['', '평가차액(4쪽)', AT.gap], ['', '법인세법상 유보금액', AT.yubo], ['', '유상증자 등, 기타', N(AT.capInc) + N(AT.etc)],
-      ['', '(−) 선급비용, 이연법인세자산, 개발비 등', AT.prepaid], ['', '(−) 증자일 전 잉여금 유보 등', AT.surplus], ['', '자산 합계', AT.total, 1],
-      ['부채', '재무상태표상 부채액', LT.bs], ['', '법인세', LT.corpTax], ['', '농어촌특별세', LT.nong], ['', '지방소득세', LT.local], ['', '배당금, 상여금', LT.divBonus], ['', '퇴직급여추계액', LT.retire],
-      ['', '그 밖 부채', LT.etc], ['', '(−) 제준비금', LT.reserves], ['', '(−) 제충당금', LT.provisions], ['', '(−) 이연법인세부채', LT.deferred], ['', '부채 합계', LT.total, 1],
-      ['순자산', '다. 순자산가액(자산 − 부채)', R.netAsset, 1], ['', '라. 영업권 포함 여부에 따른 영업권', X.goodwill], ['', '마. 순자산가액(다 + 라)', X.netAssetWithGoodwill, 1]
-    ];
-    function N(v) { return isFinite(+v) ? +v : 0; }
-    table([{ w: 14 }, { w: 58 }, { w: 28, al: 'r' }], L1.map(function (l) { return { c: [l[0], l[1], W(l[2])], b: !!l[3], bg: l[3] ? LIGHT : null }; }), H(['구분', '항목', '금액']));
-    
-    title('1부. 평가서 — 평가차액 명세', '부동산 = 상증법 평가액(장부가 하한), 그 밖 = 엔진 평가차액 줄');
+    para((GI ? '3' : '2') + '. 평가차액 근거(제4쪽 줄)', INK, 13);
     var gl = [];
     (R.parcels || []).forEach(function (p) { gl.push({ c: [p.label || p.kind, W(p.nav), W(p.book), S(N(p.nav) - N(p.book)), p.navSrc || ''] }); });
     (R.gapLines || []).forEach(function (g) { gl.push({ c: [(g.side === 'liab' ? '(부채) ' : '') + g.label, W(g.adopted), W(g.book), S(N(g.adopted) - N(g.book)), g.note || ''] }); });
     if (!gl.length) gl.push({ c: ['평가차액 줄 없음(장부가액 = 평가액)', '', '', '0', ''] });
     gl.push({ c: ['평가차액 합계(자산 − 부채)', '', '', S(R.evalGap), ''], b: true, bg: LIGHT });
     table([{ w: 30 }, { w: 19, al: 'r' }, { w: 19, al: 'r' }, { w: 17, al: 'r' }, { w: 22 }], gl, H(['계정', '평가액', '장부가액', '차액', '근거']));
-    
-    newPage();
-    title('1부. 평가서 — 영업권', '상증령 §59②, 엔진 값');
-    var ni = X.netIncomesAdjusted || [], V = (root.TaxEngine && TaxEngine.CONST && TaxEngine.CONST.VALUATION) || {};
-    table([{ w: 62 }, { w: 38, al: 'r' }], [
-      { c: ['가. 최근 3년 순손익액 가중평균액', W(X.weightedNetIncome)] },
-      { c: ['  직전 1년, 2년, 3년 순손익액', ni.map(W).join(' / ')] },
-      { c: ['나. 가 × ' + Math.round((V.GOODWILL_INCOME_RATE || 0.5) * 100) + '%', W(N(X.weightedNetIncome) * (V.GOODWILL_INCOME_RATE || 0.5))] },
-      { c: ['다. 평가기준일 현재 자기자본(순자산가액)', W(X.netAssetIncTreasury)] },
-      { c: ['라. 자기자본이익률', Math.round((V.GOODWILL_EQUITY_RATE || 0.1) * 100) + '%'] },
-      { c: ['마. 다 × 라', W(N(X.netAssetIncTreasury) * (V.GOODWILL_EQUITY_RATE || 0.1))] },
-      { c: ['바. 환산 = 5년, 10% 현가계수', (V.GOODWILL_ANNUITY || 0).toFixed(6)] },
-      { c: ['사. 영업권 = (나 − 마) × 현가계수, 0 이하 = 0', W(X.goodwill)], b: true, bg: LIGHT },
-      { c: ['비고', X.goodwillNote || ''] }
-    ]);
-    
-    title('1부. 평가서 — 순손익액', '상증령 §56④, 증자, 감자 환산 후, 엔진 값');
-    var inc = R.income || [], ins = (o.inp || {}).income || [], cc = X.capitalChange || {};
-    var yh = ['항목'].concat([0, 1, 2].map(function (k) { return ((ins[k] || {}).yearEnd || '').slice(0, 4) + '년'; }));
-    var yr = function (lab, fn, b) { return { c: [lab].concat([0, 1, 2].map(function (k) { var v = fn(k); return v === null || v === undefined ? '' : W(v); })), b: b, bg: b ? LIGHT : null }; };
-    table([{ w: 34 }, { w: 22, al: 'r' }, { w: 22, al: 'r' }, { w: 22, al: 'r' }], [
-      yr('가. 각 사업연도 소득 + 가산', function (k) { return inc[k] ? N(inc[k].taxIncome) + N(inc[k].plus) + N(inc[k].adj) : null; }),
-      yr('나. 차감(법인세 등)', function (k) { return inc[k] ? N(inc[k].minus) : null; }),
-      yr('다. 순손익액(가 − 나)', function (k) { return inc[k] ? N(inc[k].net) : (X.netIncomesRaw || [])[k]; }, true),
-      yr('라. 증자, 감자 가감', function (k) { return (cc.adjustments || [])[k]; }),
-      yr('마. 순손익액(다 + 라)', function (k) { return ni[k]; }, true),
-      yr('바. 주식수', function (k) { return (X.incomeDenominators || [])[k]; }),
-      yr('사. 1주당 순손익액', function (k) { return (X.incomePerShareByYear || [])[k]; }, true)
-    ], H(yh));
-    table([{ w: 62 }, { w: 38, al: 'r' }], [
-      { c: ['아. 가중평균 1주당 순손익액(' + (X.yearWeightsUsed || []).join(', ') + ' 가중)', W(X.weightedIncomePerShare)] },
-      { c: ['자. 순손익가치환원율', Math.round((V.CAP_RATE || 0.1) * 100) + '%'] },
-      { c: ['차. 1주당 순손익가치(아 ÷ 자)', W(X.incomePerShare)], b: true, bg: LIGHT }
-    ]);
     if (!(ins.length && ins[0] && ins[0].taxIncome !== undefined)) para('순손익액 = 넣은 재무제표 PDF 손익계산서 기준 — 실제 신고 땐 법인세 신고 서류의 순손익액 가감 반영 [확인 필요]', VER);
+    function N(v) { return isFinite(+v) ? +v : 0; }
 
     
     var FM = root.SBZ_FORM || {};
@@ -11812,7 +12030,7 @@ window.__FSPDF={M:"AAEAAAAMAIAAAwBARFNJRwAAAAEACfTYAAAACEdQT1MBV/JlAAnmoAAADjZPU
     function put(x0, x1, y0, y1, t, al, sz) {
       if (t === undefined || t === null || t === '') return; t = String(t); sz = sz || 12; f(false, sz, BLUE);
       x0 = tx_(x0); x1 = tx_(x1); y0 = ty_(y0); y1 = ty_(y1);
-      while (sz > 12 && tw(t) > x1 - x0 - 3) { sz -= 0.5; f(false, sz, BLUE); }
+      while (sz > 8 && tw(t) > x1 - x0 - 6) { sz -= 0.5; f(false, sz, BLUE); }   
       if (tw(t) > x1 - x0 - 3) { var L = wrap(t, x1 - x0 - 4); t = L[0] + (L.length > 1 ? '…' : ''); }
       var w = tw(t), x = al === 'r' ? x1 - 3 - w : al === 'c' ? (x0 + x1 - w) / 2 : x0 + 3, yy = (y0 + y1) / 2 + sz * 0.36;
       doc.text(t, x, yy);
@@ -11820,18 +12038,20 @@ window.__FSPDF={M:"AAEAAAAMAIAAAwBARFNJRwAAAAEACfTYAAAACEdQT1MBV/JlAAnmoAAADjZPU
     var ck = function (on) { return on ? '√' : ''; };
     function tick(x0, x1, y0, y1) { var cx = tx_((x0 + x1) / 2), cy = ty_((y0 + y1) / 2); doc.setDrawColor.apply(doc, BLUE); doc.setLineWidth(1.3); doc.line(cx - 4, cy, cx - 1, cy + 3.5); doc.line(cx - 1, cy + 3.5, cx + 5, cy - 4.5); }   
     formPage(FM.p1);
-    put(164, 333, 124, 144, name); put(408, 538, 124, 144, form.bizNo);
+    put(164, 333, 124, 144, name); put(408, 538, 124, 144, form.bizNo || corp.bizNo || '');
     put(164, 333, 144, 163, corp.ceo || ''); put(164, 333, 163, 183, dt2(o.start)); put(408, 538, 163, 183, form.industry || '');
-    if (form.sme) { if (form.sme === 'y') tick(174.1, 191.1, 232, 255); if (form.sme === 'n') tick(233.7, 250.8, 232, 255); }
+    var smeV = form.sme || (corp.size === 'SME' ? 'y' : '');   
+    if (smeV) { if (smeV === 'y') tick(174.1, 191.1, 232, 255); if (smeV === 'n') tick(233.7, 250.8, 232, 255); }
     tick(492, 507, 232, 255);
     if (form.mid) { if (form.mid === 'y') tick(174.1, 191.1, 255, 279); if (form.mid === 'n') tick(233.7, 250.8, 255, 279); }
     put(178, 308, 309, 333, form.decedent || o.sharesWho || '');
     put(178, 308, 333, 357, o.start ? dt2(o.start) + '~' + dt2(o.evalDate) : '');
     put(178, 308, 357, 381, corp.isMaxShareholder === false ? '' : '해당');
     put(178, 308, 410, 427, form.heir); put(178, 308, 427, 446, form.heirWork); put(408, 538, 427, 446, form.heirExec);
+    
     put(59, 178, 509, 525, '비상장주식'); put(178, 311, 509, 525, W(o.shares) + '주', 'r'); put(311, 408, 509, 525, W(o.per) + '원', 'r');
-    put(408, 538, 509, 525, W(o.target), 'r'); put(486, 538, 525, 540, '부표1 ⑦');   
-    put(59, 311, 525, 540, name + ' 발행'); put(311, 486, 525, 540, '주식가액 ' + W(o.stock), 'r');
+    put(408, 486, 509, 525, W(o.stock), 'r'); put(486, 538, 509, 525, '부표1 ②', 'c');
+    put(59, 178, 525, 540, '가업상속 재산가액'); put(311, 408, 525, 540, '× ' + P2(o.ratio), 'r'); put(408, 486, 525, 540, W(o.target), 'r'); put(486, 538, 525, 540, '부표1 ⑦', 'c');
     put(330, 515, 549, 568, W(o.ded), 'r', 13);
     if (form.fileDate) { doc.setFillColor(255, 255, 255); doc.rect(tx_(440), ty_(587), 95 * FS_, 13 * FS_, 'F'); put(330, 538, 584, 603, form.fileDate, 'r'); }
     formPage(FM.p2);
@@ -11840,7 +12060,9 @@ window.__FSPDF={M:"AAEAAAAMAIAAAwBARFNJRwAAAAEACfTYAAAACEdQT1MBV/JlAAnmoAAADjZPU
     put(Vc, 540, 267, 286, W(o.stock), 'r'); put(Vc, 540, 286, 304, W(o.ta), 'r');
     put(Vc, 540, 304, 323, W(M.가), 'r'); put(Vc, 540, 323, 346, W(M.나), 'r'); put(Vc, 540, 346, 370, W(M.다), 'r'); put(Vc, 540, 370, 389, W(M.라), 'r'); put(Vc, 540, 389, 412, W(M.마), 'r');
     put(Vc, 540, 412, 431, W(o.idle), 'r'); put(Vc, 540, 431, 449, W(o.biz), 'r'); put(Vc, 540, 449, 468, P2(o.ratio), 'r'); put(Vc, 540, 468, 487, W(o.target), 'r');
-    put(167, 321, 538, 559, W(o.target), 'r'); put(400, 540, 538, 559, W(o.ded), 'r'); tick(59, 74, 538, 559);
+    
+    var yb = [[538, 559], [559, 580], [580, 601]], yi = o.years === null || o.years === undefined || o.years < 10 ? -1 : o.years < 20 ? 0 : o.years < 30 ? 1 : 2, yr = yb[yi < 0 ? 0 : yi];
+    put(167, 321, yr[0], yr[1], W(o.target), 'r'); put(400, 540, yr[0], yr[1], W(o.ded), 'r'); if (yi >= 0) tick(59, 74, yr[0], yr[1]);
 
     
     newPage();
@@ -11898,7 +12120,8 @@ window.__FSPDF={M:"AAEAAAAMAIAAAwBARFNJRwAAAAEACfTYAAAACEdQT1MBV/JlAAnmoAAADjZPU
       { c: ['과다보유현금 = 현재 현금 − 한도(0 미만 = 0)', W(C.over)], b: true }
     ]));
     var notes = [].concat(o.flags.map(function (t) { return '[확인 필요] ' + t; }), o.dflt.map(function (t) { return '[기본값으로 둔 것] ' + t; }),
-      ['정본 필요 : 사업자등록번호, 기준총급여액, 기준고용인원, 직전 3년 평균 매출액, 중소, 중견기업 요건 서류(신고서 공란 칸)', '자료 = 넣은 재무제표 PDF(크레탑, 감사보고서) — 실제 신고 땐 법인세 신고 서류, 상속개시일 현재 가결산 재무상태표로 다시 확인']);
+      (!form.sme && corp.size === 'SME' ? ['[기본값으로 둔 것] 신고서 중소기업 「해당」 = 엔진 판정(별지51호 중소기업 등 기준검토표) — 상증령 §15① 업종(별표), 자산총액 5천억원 미만 요건 확인'] : []),
+      ['정본 필요 : ' + (form.bizNo || corp.bizNo ? '' : '사업자등록번호, ') + '기준총급여액, 기준고용인원, 직전 3년 평균 매출액, 중견기업 요건 서류(신고서 공란 칸)', '자료 = 넣은 ' + (TXI && TXI.used ? '세무조정계산서' + (o.inp && o.inp.extBs && Object.keys(o.inp.extBs).length ? ', 재무제표 PDF' : '') : '재무제표 PDF(크레탑, 감사보고서)') + ' — 실제 신고 땐 상속개시일 현재 가결산 재무상태표로 다시 확인']);
     need(40); para('가정, 확인 필요', INK, 13); notes.forEach(function (t) { para('- ' + t); });
     foot();
     if (opt.doc) return doc;
@@ -12337,7 +12560,7 @@ window.__FSPDF={M:"AAEAAAAMAIAAAwBARFNJRwAAAAEACfTYAAAACEdQT1MBV/JlAAnmoAAADjZPU
       b.F('wni', '순손익액 가중평균(영업권용)', 'IF({w0}+{w1}+{w2}=0,0,({n0}*{w0}+{n1}*{w1}+{n2}*{w2})/({w0}+{w1}+{w2}))', N(X.weightedNetIncome));
     });
     M.block('V', '3. 1주당 평가액 (평가서 제1쪽)', function (b) {
-      b.JD('gon', '영업권 계상(1 = 계상)', X.goodwillApplied ? 1 : 0, { fmt: 'g', d: X.goodwillNote || '' });
+      b.JD('gon', '영업권 계상(1 = 계상)', X.goodwillApplied ? 1 : 0, { fmt: 'g', d: String(X.goodwillNote || '').replace(/<\/?b>/g, '').replace(/\s*·\s*/g, ', ') });
       b.F('gw', '영업권 = (가중평균 × 50% − 자기자본 × 10%) × 현가계수', 'IF({gon}=1,MAX(0,({I:wni}*{$GWI}-{N:nt}*{$GWE})*{$GWA}),0)', N(X.goodwill));
       b.F('naw', '③ 순자산가액(영업권 포함)', '{N:net}+{gw}', N(X.netAssetWithGoodwill));
       b.IN('sh', '① 발행주식총수(자기주식 처리 후)', N(X.effectiveShares || X.shares) || 1, { fmt: 'g' });
@@ -12406,6 +12629,58 @@ window.__FSPDF={M:"AAEAAAAMAIAAAwBARFNJRwAAAAEACfTYAAAACEdQT1MBV/JlAAnmoAAADjZPU
       if (GI) GI.cos.forEach(function (c, i) { b.JD('g' + i, c.id + ' ' + c.name + ' 1주당 평가액' + (c.plan ? '(가업 회사)' : ''), c.per === null ? 0 : c.per, { d: c.method || '' }); });
       if (GI) GI.links.forEach(function (e, i) { b.JD('l' + i, '  ' + e.from + ' → ' + e.to + ' 보유 주식 반영 금액(' + Math.round(e.shares).toLocaleString('ko-KR') + '주)', N(e.adopted), { d: e.how || '' }); });
     });
+    
+    var PL = { A: [], L: [] }, P6 = [];
+    (R.parcels || []).forEach(function (p) { PL.A.push([String(p.label || p.kind || '').replace(/^(토지|건물)\d+\s/, '$1 '), N(p.nav), N(p.book)]); });
+    (R.gapLines || []).forEach(function (g) { PL[g.side === 'liab' ? 'L' : 'A'].push([g.label, N(g.adopted), N(g.book)]); });
+    var inc = R.income || [], ins = (o.inp || {}).income || [], ccA = (X.capitalChange || {}).adjustments || [];
+    var PK = { 2: ['refund'], 3: ['divid'] }, MK = { 5: ['fine'], 6: ['levy'], 7: ['nonbiz'], 8: ['ptax'], 9: ['donation'], 10: ['ent'], 11: ['excess'], 12: ['interest'], 13: ['deprRecog'], 14: ['corpTax', 'foreignTax'], 15: ['nongTax'], 16: ['localTax'] };
+    [0, 1, 2].forEach(function (k) {
+      var e = inc[k], b = ins[k] || {}, c = { k: k, year: (b.yearEnd || ((R.params || {}).fiscalYearEnds || [])[k] || '').slice(0, 4), v: {} };
+      if (e && e.given !== false && isFinite(+e.taxIncome)) {
+        var pl = b.plus || {}, mi = b.minus || {}, sp = 0, sm = 0; c.det = true;
+        c.v[1] = N(e.taxIncome) + N(e.adj);
+        Object.keys(PK).forEach(function (q) { c.v[q] = PK[q].reduce(function (a, z) { return a + N(pl[z]); }, 0); sp += c.v[q]; });
+        c.v[4] = N(e.plus) - sp;
+        Object.keys(MK).forEach(function (q) { c.v[q] = MK[q].reduce(function (a, z) { return a + N(mi[z]); }, 0); sm += c.v[q]; });
+        c.v[16] += N(e.minus) - sm; c.net = N(e.net);
+      } else c.net = N((X.netIncomesRaw || [])[k]);
+      P6.push(c);
+    });
+    M.block('P', '8. 평가서 서식 칸 명세 (1부 평가서 제2쪽 ⑨~⑪, ⑮~⑰ · 제4쪽 평가차액 줄 · 제5쪽 아 · 제6쪽 순손익액 · 엔진 줄 값)', function (b) {
+      b.sec('제2쪽 부채 칸 나눔');
+      b.IN('l9', '⑨ 법인세', N(LT.corpTax)); b.IN('l10', '⑩ 농어촌특별세', N(LT.nong)); b.IN('l11', '⑪ 지방소득세', N(LT.local));
+      b.F('lc1', '  맞춤 : ⑨ + ⑩ + ⑪ − 1 구역 「법인세, 농특세, 지방소득세」(0 = 맞음)', '{l9}+{l10}+{l11}-{N:ltx}', 0);
+      b.IN('l15', '⑮ 제준비금', N(LT.reserves)); b.IN('l16', '⑯ 제충당금', N(LT.provisions)); b.IN('l17', '⑰ 기타(이연법인세대 등)', N(LT.deferred));
+      b.F('lc2', '  맞춤 : ⑮ + ⑯ + ⑰ − 1 구역 「제준비금, 제충당금, 이연법인세부채」(0 = 맞음)', '{l15}+{l16}+{l17}-{N:lrv}', 0);
+      b.sec('제4쪽 평가차액 (자산 = 부동산 상증법 평가액 + 엔진 평가차액 줄 · 부채 = 엔진 평가차액 줄)');
+      var sum = { A: [[], [], []], L: [[], [], []] }, tot = { A: [0, 0, 0], L: [0, 0, 0] };
+      ['A', 'L'].forEach(function (sd) {
+        PL[sd].forEach(function (q, i) {
+          var id = sd.toLowerCase() + i;
+          b.IN(id + 'a', (sd === 'L' ? '(부채) ' : '') + q[0] + ' — 상증법에 따른 평가액', q[1]); b.IN(id + 'b', '  재무상태표상 금액', q[2]);
+          b.F(id + 'd', '  차액', '{' + id + 'a}-{' + id + 'b}', q[1] - q[2]);
+          sum[sd][0].push('{' + id + 'a}'); sum[sd][1].push('{' + id + 'b}'); sum[sd][2].push('{' + id + 'd}');
+          tot[sd][0] += q[1]; tot[sd][1] += q[2]; tot[sd][2] += q[1] - q[2];
+        });
+        ['평가액', '재무상태표상 금액', '차액'].forEach(function (t, j) { b.F(sd.toLowerCase() + 's' + j, (sd === 'A' ? '① 자산' : '② 부채') + ' 합계 — ' + t, sum[sd][j].join('+') || '0', tot[sd][j]); });
+      });
+      b.F('gc', '  맞춤 : (① 차액 − ② 차액) − 1 구역 평가차액(0 = 맞음)', '{as2}-{ls2}-{N:gap}', 0);
+      b.sec('제5쪽 영업권');
+      b.IN('pgw', '아. 영업권 상당액에 포함된 매입한 무체재산권가액(감가상각비 공제 후)', N((R.params || {}).purchasedGoodwill));
+      b.sec('제6쪽 순손익액 (① = 각 사업연도 소득금액 + 엔진 조정 · ④ = 기부금 이월손금 외 가산 · ⑯ = 지방소득세 등, 서식에 줄 없는 공제 포함)');
+      P6.forEach(function (c) {
+        var y = c.k, yl = c.year ? c.year + '년 ' : '직전 ' + (y + 1) + '년 ';
+        if (c.det) {
+          [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16].forEach(function (q) { b.IN('y' + y + '_' + q, yl + ['', '①', '②', '③', '④', '⑤', '⑥', '⑦', '⑧', '⑨', '⑩', '⑪', '⑫', '⑬', '⑭', '⑮', '⑯'][q], c.v[q]); });
+          b.F('y' + y + 'ga', yl + '가. 소계(① + ② + ③ + ④)', '{y' + y + '_1}+{y' + y + '_2}+{y' + y + '_3}+{y' + y + '_4}', c.v[1] + c.v[2] + c.v[3] + c.v[4]);
+          b.F('y' + y + 'na', yl + '나. 소계(⑤ ~ ⑯)', [5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16].map(function (q) { return '{y' + y + '_' + q + '}'; }).join('+'), [5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16].reduce(function (a, q) { return a + c.v[q]; }, 0));
+          b.F('y' + y + 'da', yl + '다. 순손익액(가 − 나)', '{y' + y + 'ga}-{y' + y + 'na}', c.net);
+        } else b.IN('y' + y + 'da', yl + '다. 순손익액(손익계산서 기준 · 엔진)', c.net);
+        b.IN('y' + y + 'ra', yl + '라. 유상증자, 감자시 반영액', N(ccA[y]));
+        b.F('y' + y + 'mc', yl + '  맞춤 : (다 + 라) − 2 구역 순손익액(0 = 맞음)', '{y' + y + 'da}+{y' + y + 'ra}-{I:n' + y + '}', 0);
+      });
+    });
     M.sum('S1', '가업상속공제 대상금액(⑦)', '{D:tg}', o.target);
     M.sum('S2', '  사업관련 자산가액 비율(⑥)', '{D:ratio}', o.ratio, { fmt: 'r' });
     M.sum('S3', '  1주당 평가액', '{V:per}', o.per);
@@ -12448,43 +12723,225 @@ window.__FSPDF={M:"AAEAAAAMAIAAAwBARFNJRwAAAAEACfTYAAAACEdQT1MBV/JlAAnmoAAADjZPU
       var rowH = function (ws, r, n) { ws.getRow(r).height = Math.max(20, n * 17); };
       var ln = function (t, w) { return Math.max(1, Math.ceil(String(t || '').length / w)); };
       
-      var a = sh('1부 평가서', [40, 22, 30, 22], '비상장주식 등 평가서 (평가심의위원회 운영규정 별지 제4호 서식 부표3)', '단위 : 주, 원 · 값 = 「계산」 시트 수식 · 평가기준일 ' + o.evalDate);
-      var r = 4, put2 = function (l1, v1, l2, v2, o3) { cell(a, 'A' + r, l1, { b: true, bg: C.band }); cell(a, 'B' + r, v1, o3); cell(a, 'C' + r, l2, { b: true, bg: C.band }); cell(a, 'D' + r, v2, o3); rowH(a, r, ln(l1, 22)); r++; };
-      put2('법인명', o.corp.name || '', '사업자등록번호', form.bizNo || '', { inp: false });
-      put2('① 발행주식총수', { f: '{V:sh}' }, '평가기준일', o.evalDate);
-      put2('대표자', o.corp.ceo || '', '평가 방법(엔진)', o.X.method || '');
-      r++;
-      [['③ 순자산가액(영업권 포함)', '{V:naw}'], ['④ 1주당 순자산가치(③ ÷ ①)', '{V:aps}'], ['⑤ 1주당 순손익가치', '{I:ips}'], ['㉮ 가중평균', '{V:wv}'], ['㉯ 순자산가치 × 하한율', '{V:fl}'],
-        ['⑥ 1주당 평가액(㉮, ㉯ 중 큰 금액)', '{V:bp}'], ['⑦ 최대주주 할증액', '{V:pm}'], ['1주당 평가액(⑥ + ⑦)', '{V:per}']].forEach(function (q, i) {
-        a.mergeCells('A' + r + ':C' + r); cell(a, 'A' + r, q[0], { b: i === 7, bg: i === 7 ? C.band : null }); cell(a, 'D' + r, { f: q[1] }, { b: i === 7 }); r++; });
-      r++; a.mergeCells('A' + r + ':D' + r); cell(a, 'A' + r, '순자산가액 상세 = 「계산」 1, 순손익가치 = 2, 1주 평가 = 3 구역 · 평가차액 명세 = 「근거 확인」, PDF 1부'); rowH(a, r, 2);
+      var GRY = 'FFD9D9D9', thick = { style: 'medium', color: { argb: 'FF000000' } }, X = o.X || {};
+      function box(ws, a1, a2, v, o2) {   
+        o2 = o2 || {}; if (a2 && a2 !== a1) ws.mergeCells(a1 + ':' + a2);
+        if (v && typeof v === 'object' && v.f && !o2.fmt && typeof val(v.f) === 'number') o2 = Object.assign({}, o2, { fmt: 'w' });   
+        var c = cell(ws, a1, v === undefined ? '' : v, o2);
+        if (o2.g) c.fill = fill(GRY);
+        if (o2.sz || o2.vc) c.font = font({ bold: !!o2.b, size: o2.sz || 12, color: { argb: o2.inp ? C.in : C.ink } });
+        if (o2.wrap !== false && (c.alignment || {}).horizontal !== 'right') c.alignment = Object.assign({}, c.alignment, { wrapText: true, vertical: 'middle' });
+        if (a2 && a2 !== a1) { var m1 = /([A-Z]+)(\d+)/.exec(a1), m2 = /([A-Z]+)(\d+)/.exec(a2), cs = function (L) { var n = 0; for (var i = 0; i < L.length; i++) n = n * 26 + L.charCodeAt(i) - 64; return n; };
+          for (var rr = +m1[2]; rr <= +m2[2]; rr++) for (var cc = cs(m1[1]); cc <= cs(m2[1]); cc++) { var q = ws.getCell(rr, cc); q.border = { top: thin, bottom: thin, left: thin, right: thin }; if (o2.g) q.fill = fill(GRY); } }
+        return c;
+      }
+      function band(ws, r0, cols, t, o2) { ws.mergeCells('A' + r0 + ':' + H.colL(cols) + r0); var c = ws.getCell('A' + r0); c.value = t; c.font = font(Object.assign({ bold: true }, (o2 || {}).font || {})); c.alignment = Object.assign({ vertical: 'middle', wrapText: true }, (o2 || {}).al || {}); if ((o2 || {}).bg) c.fill = fill(o2.bg); ws.getRow(r0).height = (o2 || {}).h || 20; return c; }
+      function lnK(t, cw) { return String(t == null ? '' : t).split('\n').reduce(function (a, l) { var u = 0; for (var i = 0; i < l.length; i++) u += l.charCodeAt(i) < 0x1100 ? 1.05 : 1.9; return a + Math.max(1, Math.ceil(u / Math.max(1, cw - 1))); }, 0); }   
+      function hgt(ws, r0, texts) { var n = 1; texts.forEach(function (q) { n = Math.max(n, lnK(q[0], q[1])); }); ws.getRow(r0).height = Math.max(20, n * 16 + 4); }
+      function thickLine(ws, r0, cols) { for (var cc = 1; cc <= cols; cc++) { var q = ws.getCell(r0, cc); q.border = Object.assign({}, q.border, { bottom: thick }); } }
+      function unitRow(ws, r0, cols, no, unit) {
+        var L = H.colL(cols - 2), R2 = H.colL(cols - 1), R3 = H.colL(cols);
+        ws.mergeCells('A' + r0 + ':' + L + r0); ws.getCell('A' + r0).value = '(단위 : ' + unit + ')'; ws.getCell('A' + r0).font = font();
+        ws.mergeCells(R2 + r0 + ':' + R3 + r0); var c = ws.getCell(R2 + r0); c.value = no; c.font = font(); c.alignment = { horizontal: 'right' };
+        thickLine(ws, r0, cols);
+      }
+      var CKT = function (on) { return on ? '[ v ]' : '[    ]'; };
+      var meth = X.method || '', only = /단독/.test(meth), re80 = /^부동산등 80%/.test(meth), st80 = /^주식등 80%/.test(meth);
+      var startD = String(o.start || (o.corp || {}).startDate || '').slice(0, 10), y3 = (function () { var a1 = /^(\d{4})-(\d{2})-(\d{2})/.exec(startD), b1 = /^(\d{4})-(\d{2})-(\d{2})/.exec(o.evalDate || ''); if (!a1 || !b1) return null; return (+b1[1] - +a1[1]) * 12 + (+b1[2] - +a1[2]) - (+b1[3] < +a1[3] ? 1 : 0) < 36; })();
+      var inpS = (o.inp || {}).shares || {};
       
-      var s2 = sh('2부 신고서', [30, 30, 24, 30], '가업상속공제신고서 (상증칙 별지 제1호서식)', '파란 글자 = 입력(비우면 공란) · 금액 = 「계산」 시트 수식');
-      r = 4; var sec = function (ws, t) { ws.mergeCells('A' + r + ':D' + r); cell(ws, 'A' + r, t, { b: true, bg: C.band }); r++; };
-      var p2 = function (l1, v1, l2, v2, inp1, inp2) { cell(s2, 'A' + r, l1, { b: true }); cell(s2, 'B' + r, v1, { inp: inp1 }); cell(s2, 'C' + r, l2, { b: true }); cell(s2, 'D' + r, v2, { inp: inp2 }); r++; };
-      sec(s2, '가. 가업현황');
-      p2('상호(법인명)', o.corp.name || '', '사업자등록번호', form.bizNo || '', false, true);
-      p2('성명(대표자)', o.corp.ceo || '', '업종', form.industry || '', false, true);
-      p2('개업연월일', o.start || '', '기준총급여액, 기준고용인원', '', false, true);
-      sec(s2, '나. 중소기업 또는 중견기업 여부');
-      p2('중소기업 여부', form.sme === 'y' ? '해당' : form.sme === 'n' ? '해당 안 됨' : '', '중견기업 여부', form.mid === 'y' ? '해당' : form.mid === 'n' ? '해당 안 됨' : '', true, true);
-      sec(s2, '다. 피상속인');
-      p2('성명', form.decedent || o.sharesWho || '', '가업 영위기간', o.start ? o.start + ' ~ ' + o.evalDate : '', true, false);
-      sec(s2, '라. 가업상속인');
-      p2('성명', form.heir || '', '가업 종사기간', form.heirWork || '', true, true);
-      p2('임원, 대표이사 취임일', form.heirExec || '', '신고일', form.fileDate || '', true, true);
-      sec(s2, '마. 가업상속 재산가액');
-      cell(s2, 'A' + r, '종류', { b: true }); cell(s2, 'B' + r, '수량(주)', { b: true }); cell(s2, 'C' + r, '단가(원)', { b: true }); cell(s2, 'D' + r, '가액(부표1 ⑦)', { b: true }); r++;
-      cell(s2, 'A' + r, '비상장주식(' + (o.corp.name || '') + ' 발행)'); cell(s2, 'B' + r, { f: '{D:sh}' }, { fmt: 'g' }); cell(s2, 'C' + r, { f: '{V:per}' }); cell(s2, 'D' + r, { f: '{D:tg}' }); r++;
-      sec(s2, '바. 가업상속공제 신고액');
-      s2.mergeCells('A' + r + ':C' + r); cell(s2, 'A' + r, '가업상속공제 신고액(부표1 ⑪)', { b: true }); cell(s2, 'D' + r, { f: '{D:ded}' }, { b: true }); r++;
+      var capX = null; (function () { var bs = (o.inp || {}).bsYears || {}, ex = (o.inp || {}).extBs || {}, ks = Object.keys(bs).concat(Object.keys(ex)).filter(function (e) { return !o.evalDate || e < o.evalDate; }).sort().reverse();
+        for (var i = 0; i < ks.length && capX === null; i++) { var t = bs[ks[i]], x2 = ex[ks[i]]; capX = t && +t.capitalStock > 0 ? +t.capitalStock : x2 && x2.v && +x2.v.capitalStock > 0 ? +x2.v.capitalStock : null; }
+        if (capX === null && +inpS.par > 0 && +(X.effectiveShares || X.shares) > 0) capX = +(X.effectiveShares || X.shares) * +inpS.par; })();
+      var reHeavyX = (+X.realEstateRatio || 0) >= 0.5, newBizX = only && (y3 === true || /3년 미만/.test(((o.R.check || []).concat(o.R.defaults || [])).join(' ')));
       
-      var s3 = sh('3부 부표1', [50, 24, 40], '가업상속재산명세서 (별지 제1호서식 부표1)', '법인 가업 · 금액 = 「계산」 시트 수식');
-      r = 4; cell(s3, 'A' + r, '칸', { b: true, bg: C.band }); cell(s3, 'B' + r, '금액', { b: true, bg: C.band }); cell(s3, 'C' + r, '산식', { b: true, bg: C.band }); r++;
-      [['② 주식 등의 가액', '{D:stock}', '1주 평가액 × 주식수'], ['③ 총자산가액', '{D:ta}', '4부 적용가액 합계'], ['가목 법인세법 §55의2', '{D:m0}', ''], ['나목 법령 §49, 임대 부동산', '{D:m1}', ''], ['다목 법령 §61①2호 대여금', '{D:m2}', ''],
-        ['라목 과다보유현금', '{D:m3}', '「계산」 4 구역'], ['마목 영업 무관 주식, 채권, 금융상품', '{D:m4}', ''], ['④ 사업무관자산 계', '{D:idle}', '가목~마목 합'], ['⑤ 사업관련 자산가액', '{D:biz}', '③ − ④'],
-        ['⑥ 사업관련 자산가액 비율', '{D:ratio}', '⑤ ÷ ③'], ['⑦ 가업상속공제 대상금액', '{D:tg}', '② × ⑤ ÷ ③'], ['⑪ 가업상속공제액', '{D:ded}', '⑦, 한도 중 작은 금액']].forEach(function (q) {
-        var big = /^[④⑤⑥⑦⑪]/.test(q[0]); cell(s3, 'A' + r, q[0], { b: big }); cell(s3, 'B' + r, { f: q[1] }, { b: big, fmt: q[1] === '{D:ratio}' ? 'r' : 'w' }); cell(s3, 'C' + r, q[2]); r++; });
+      var a = sh('1부 평가서', [13, 17, 17, 17, 13, 17, 17, 17], '비상장주식 등 평가서 (평가심의위원회 운영규정 별지 제4호 서식 부표3)', '서식 칸 번호, 칸 순서 그대로(제1, 2, 4, 5, 6쪽, 제3쪽, 제8쪽 = 작성방법) / 값 = 「계산」 시트 수식, 파란 글자 = 입력, 회색 = 서식 빈 칸 / 평가기준일 ' + o.evalDate);
+      var r = 4;
+      band(a, r, 8, '<평가심의위원회 운영규정 별지 제4호 서식 부표3> (2020.4.1. 개정)', { font: { bold: false } }); r++;
+      band(a, r, 8, '비상장주식 등 평가서', { font: { size: 16 }, al: { horizontal: 'center' }, h: 28 }); r++;
+      unitRow(a, r, 8, '(제1쪽)', '주, 원'); r++;
+      band(a, r, 8, '1. 평가대상 비상장법인'); r++;
+      box(a, 'A' + r, null, '법인명'); box(a, 'B' + r, 'C' + r, o.corp.name || ''); box(a, 'D' + r, null, '사업자등록번호'); box(a, 'E' + r, 'F' + r, form.bizNo || o.corp.bizNo || '', { inp: true }); box(a, 'G' + r, null, '대표자 성명'); box(a, 'H' + r, null, o.corp.ceo || ''); hgt(a, r, [[o.corp.name, 34], ['사업자등록번호', 17]]); r++;
+      box(a, 'A' + r, null, '①발행주식총수'); box(a, 'B' + r, 'C' + r, { f: '{V:sh}' }, { fmt: 'g' }); box(a, 'D' + r, null, '1주당 액면가액'); box(a, 'E' + r, 'F' + r, isFinite(+inpS.par) && inpS.par !== '' && inpS.par != null ? +inpS.par : '', { inp: true, fmt: 'g' }); box(a, 'G' + r, null, '자본금'); box(a, 'H' + r, null, capX === null ? '' : capX, { inp: true, fmt: 'w' }); hgt(a, r, [['①발행주식총수', 13]]); r++;
+      box(a, 'A' + r, null, '평가기준일'); box(a, 'B' + r, 'C' + r, o.evalDate || ''); box(a, 'D' + r, 'F' + r, '②부동산과다보유법인 해당여부'); box(a, 'G' + r, 'H' + r, reHeavyX ? '[ v ] 해당' : '[    ] 해당 없음', { al: 'center' }); r++;   
+      band(a, r, 8, '2. 순자산가치로만 평가하는 경우 [v] 표시 (상속세 및 증여세법 시행령 제54조제4항 해당여부)', { h: 36 }); r++;
+      [['가. 신고기한 이내에 청산절차가 진행 중이거나, 사업자의 사망 등으로 사업의 계속이 곤란하다고 인정되는 경우\n      해산(합병)등기일 (        .    .    )', false],
+        ['나. 사업 개시전의 법인, 사업개시 후 3년 미만의 법인, 휴업, 폐업 중인 경우\n      사업개시일 ( ' + (startD || '        .    .    ') + ' ), 휴업, 폐업일 (        .    .    )', newBizX],
+        ['다. 평가기준일이 속하는 사업연도 전 3년 내의 사업연도부터 계속하여 「법인세법」상 각 사업연도에 속하거나 속하게 될 손금의 총액이 그 사업연도에 속하거나 속하게 될 익금의 총액을 초과하는 결손금이 있는 경우 (2018. 2. 13. 삭제)', false],
+        ['라. 법인의 자산총액 중 「소득세법」 제94조제1항제4호다목1) 및 2)의 합계액이 차지하는 비율이 100분의 80 이상인 경우', re80],
+        ['마. 법인의 자산총액 중 주식등의 가액의 합계액이 차지하는 비율이 100분의 80 이상인 법인의 주식등', st80],
+        ['바. 법인의 설립 시 정관에 존속기한이 확정된 법인으로서 평가기준일 현재 잔여 존속기한이 3년 이내인 법인의 주식등', false]].forEach(function (q) {
+        box(a, 'A' + r, 'G' + r, q[0]); box(a, 'H' + r, null, CKT(q[1]), { al: 'center' }); hgt(a, r, [[q[0], 111]]); r++; });
+      band(a, r, 8, '3. 1주당 가액의 평가'); r++;
+      var row3 = function (lab, f, ref, fmt) { box(a, 'A' + r, 'D' + r, lab); box(a, 'E' + r, 'F' + r, f ? { f: f } : '', { fmt: fmt || 'w', b: true }); if (ref) box(a, 'G' + r, 'H' + r, ref, { b: true }); else box(a, 'G' + r, 'H' + r, '', { g: 1 }); hgt(a, r, [[lab, 64]]); r++; };
+      row3('③순자산가액', 'INT({V:naw})', '제2쪽 4. 순자산가액 “마”');
+      row3('④1주당 순자산가액(③ ÷ ①)', '{V:aps}');
+      row3('⑤최근 3년간 순손익액의 가중평균액에 의한 1주당가액 또는 2이상의 신용평가전문기관(회계법인포함)이 산출한 1주당 추정이익의 평균액', '{I:ips}', '제6쪽 7. 순손익액 “차”');
+      row3('⑥1주당 평가액\n(㉮ 평가액과 ㉯의 평가액 중 많은 금액)', '{V:bp}'); a.getRow(r - 1).height = 38;
+      row3('   ㉮ [{(④×2)+(⑤×3)} ÷ 5]\n   (부동산과다보유법인 [{(④ × 3)+(⑤ × 2)} ÷ 5]', only ? null : '{V:wv}', only ? '2. 해당 = 가중평균 안 함' : null); a.getRow(r - 1).height = 38;
+      row3('   ㉯ 1주당 순자산가액(④)의 ' + Math.round((X.floorRate || 0.8) * 100) + '%', '{V:fl}');
+      row3('⑦ 최대주주등에 해당하는 경우 1주당 평가액', X.premiumApplied ? '{V:per}' : null);
+      row3('   ㉮ 최대주주등의 주식등의 1주당 평가액 (⑥×할증율)', X.premiumApplied ? '{V:pm}' : null);
+      row3('   ㉯ (⑥ + ㉮)', X.premiumApplied ? '{V:per}' : null);
+      r++; a.mergeCells('A' + r + ':H' + r); cell(a, 'A' + r, '1주당 평가액 = 「계산」 3 구역(' + meth + (X.premiumApplied ? ', ' + (X.premiumNote || '') : '') + ') / 사업자등록번호, 자본금 = 엔진 자료에 없음 [확인 필요] — 사업자등록증, 등기부등본으로 채움'); rowH(a, r, 2); r++;
+      a.getRow(r - 1).addPageBreak();
+      
+      unitRow(a, r, 8, '(제2쪽)', '원'); r++;
+      band(a, r, 8, '4. 순자산가액'); r++;
+      var row2 = function (lab, f, ref, b) { box(a, 'A' + r, 'D' + r, lab, { b: !!b }); box(a, 'E' + r, 'F' + r, f ? { f: f } : '', { b: !!b }); if (ref) box(a, 'G' + r, 'H' + r, ref, { b: true }); else box(a, 'G' + r, 'H' + r, '', { g: 1 }); hgt(a, r, [[lab, 64]]); r++; };
+      var sub2 = function (t) { box(a, 'A' + r, 'H' + r, t, { b: true }); r++; };
+      sub2('가. 자산총액');
+      row2('① 재무상태표상의 자산가액', '{N:bs}'); row2('② 평가차액', '{N:gap}', '제4쪽 5. 평가차액 “가”'); row2('③ 법인세법상 유보금액', '{N:yubo}');
+      row2('④ 기타(평가기준일 현재 지급받을 권리가 확정된 가액 등)', '{N:cap}'); row2('⑤ 선급비용등', '{N:pre}'); row2('⑥ 증자일 전의 잉여금의 유보액', '{N:sur}'); row2('⑦ 소계 (① + ② + ③ + ④ − ⑤ − ⑥)', '{N:at}');
+      sub2('나. 부채총액');
+      row2('⑧ 재무상태표상의 부채액', '{N:lbs}'); row2('⑨ 법인세', '{P:l9}'); row2('⑩ 농어촌특별세', '{P:l10}'); row2('⑪ 지방소득세', '{P:l11}'); row2('⑫ 배당금, 상여금', '{N:ldb}');
+      row2('⑬ 퇴직급여추계액', '{N:lre}'); row2('⑭ 기타(충당금 중 평가기준일 현재 비용으로 확정된 것 등)', '{N:let}'); row2('⑮ 제준비금', '{P:l15}'); row2('⑯ 제충당금', '{P:l16}'); row2('⑰ 기타(이연법인세대 등)', '{P:l17}');
+      row2('⑱ 소계(⑧+⑨+⑩+⑪+⑫+⑬+⑭−⑮−⑯−⑰)', '{N:lt}');
+      row2('다. 영업권포함전 순자산가액(⑦−⑱)', '{N:net}', null, 1); row2('라. 영업권', 'INT({V:gw})', '제5쪽 6. 영업권 “자”', 1); row2('마. 순자산가액(다 + 라)', 'INT({V:naw})', null, 1);
+      a.getRow(r - 1).addPageBreak();
+      
+      unitRow(a, r, 8, '(제4쪽)', '원'); r++;
+      band(a, r, 8, '5. 평가차액'); r++;
+      box(a, 'A' + r, 'D' + r, '가. 평가차액 계산 (① − ②)', { b: true }); box(a, 'E' + r, 'F' + r, { f: '{N:gap}' }, { b: true }); box(a, 'G' + r, 'H' + r, '제2쪽 4. 순자산가액 “가”의 ② 기재', { b: true }); hgt(a, r, [['제2쪽 4. 순자산가액 “가”의 ② 기재', 34]]); r++;
+      box(a, 'A' + r, 'D' + r, '자산금액', { al: 'center' }); box(a, 'E' + r, 'H' + r, '부채금액', { al: 'center' }); r++;
+      ['계정과목', '상증법에 따른 평가액', '재무상태표상 금액', '차액', '계정과목', '상증법에 따른 평가액', '재무상태표상 금액', '차액'].forEach(function (t, i) { box(a, H.colL(i + 1) + r, null, t, { al: 'center' }); }); a.getRow(r).height = 36; r++;
+      var GA = [], GLb = [];
+      (o.R.parcels || []).forEach(function (p) { GA.push(String(p.label || p.kind || '').replace(/^(토지|건물)\d+\s/, '$1 ')); });
+      (o.R.gapLines || []).forEach(function (g) { (g.side === 'liab' ? GLb : GA).push(g.label); });
+      var NR = Math.max(19, GA.length, GLb.length);
+      for (var i4 = 0; i4 < NR; i4++) {
+        [['A', GA, 'a'], ['L', GLb, 'l']].forEach(function (q, s) {
+          var c0 = s * 4, nm = q[1][i4];
+          box(a, H.colL(c0 + 1) + r, null, nm === undefined ? '' : nm);
+          ['a', 'b', 'd'].forEach(function (z, j) { box(a, H.colL(c0 + 2 + j) + r, null, nm === undefined ? '' : { f: '{P:' + q[2] + i4 + z + '}' }); });
+        });
+        hgt(a, r, [[GA[i4] || '', 13], [GLb[i4] || '', 13]]); r++;
+      }
+      box(a, 'A' + r, null, '① 합계', { b: true }); ['0', '1', '2'].forEach(function (j, k) { box(a, H.colL(2 + k) + r, null, { f: '{P:as' + j + '}' }, { b: true }); });
+      box(a, 'E' + r, null, '② 합계', { b: true }); ['0', '1', '2'].forEach(function (j, k) { box(a, H.colL(6 + k) + r, null, { f: '{P:ls' + j + '}' }, { b: true }); }); r++;
+      a.mergeCells('A' + r + ':H' + r); cell(a, 'A' + r, '차액 있는 계정만 적음(엔진 평가차액 줄) / 줄 값 = 「계산」 8 구역, 근거 = PDF 1부 부속'); r++;
+      a.getRow(r - 1).addPageBreak();
+      
+      unitRow(a, r, 8, '(제5쪽)', '원'); r++;
+      band(a, r, 8, '6. 영업권'); r++;
+      var row5 = function (lab, v, ref, b, o3) { box(a, 'A' + r, 'D' + r, lab, { b: !!b }); box(a, 'E' + r, 'F' + r, v, Object.assign({ b: true }, o3 || {})); if (ref) box(a, 'G' + r, 'H' + r, ref, { b: true, al: (o3 || {}).ral }); else box(a, 'G' + r, 'H' + r, '', { g: 1 }); hgt(a, r, [[lab, 64]]); r++; };
+      row5('가. 평가기준일 이전 3년간 순손익액의 가중평균액', { f: 'INT({I:wni})' }, '(①×3 + ②×2+③) /6', 1, { ral: 'center' });
+      row5('   ①평가기준일 이전 1년이 되는 사업연도 순손익액', { f: '{I:n0}' }); row5('   ②평가기준일 이전 2년이 되는 사업연도 순손익액', { f: '{I:n1}' }); row5('   ③평가기준일 이전 3년이 되는 사업연도 순손익액', { f: '{I:n2}' });
+      row5('나. 가 × ' + Math.round(root.TaxEngine.CONST.VALUATION.GOODWILL_INCOME_RATE * 100) + '%', { f: 'INT({I:wni}*{$GWI})' }, null, 1);
+      row5('다. 평가기준일 현재 자기자본', { f: '{N:nt}' }, null, 1);
+      row5('라. 기획재정부령이 정하는 이자율', { f: '{$GWE}' }, null, 1, { fmt: 'r' });
+      row5('마. 다 × 라', { f: 'INT({N:nt}*{$GWE})' }, null, 1);
+      row5('바. 영업권 지속연수', '5년', null, 1, { al: 'center' });
+      row5('사. 영업권 계산액\n   = n = 1 ~ 5 합계 [ (나 − 마) ÷ (1 + 0.1)의 n제곱 ]\n   n은 평가기준일부터의 경과연수', { f: 'IF({V:gw}>0,INT({V:gw})+{P:pgw},0)' }, null, 1); a.getRow(r - 1).height = 54;
+      row5('아. 영업권 상당액에 포함된 매입한 무체재산권가액 중 평가기준일까지의 감가상각비를 공제한 금액', { f: '{P:pgw}' }, null, 1);
+      row5('자. 영업권 평가액 (사 − 아)', { f: 'INT({V:gw})' }, '제2쪽 4. 순자산가액 “라” 기재', 1);
+      a.mergeCells('A' + r + ':H' + r); cell(a, 'A' + r, '①~③ = 제6쪽 「마. 순손익액(다 ± 라)」 / 영업권 = 「계산」 3 구역(' + String(X.goodwillNote || '').replace(/<\/?b>/g, '').replace(/\s*·\s*/g, ', ') + ')'); rowH(a, r, 2); r++;
+      a.getRow(r - 1).addPageBreak();
+      
+      unitRow(a, r, 8, '(제6쪽)', '원'); r++;
+      band(a, r, 8, '7. 순손익액'); r++;
+      var inc6 = (o.R.income || []), ins6 = (o.inp || {}).income || [], yrs = [0, 1, 2].map(function (k) { return ((ins6[k] || {}).yearEnd || ((o.R.params || {}).fiscalYearEnds || [])[k] || '').slice(0, 4); });
+      var det = [0, 1, 2].map(function (k) { var e = inc6[k]; return !!(e && e.given !== false && isFinite(+e.taxIncome)); });
+      box(a, 'A' + r, 'E' + r, '평가기준일 1년, 2년, 3년이 되는 사업연도'); yrs.forEach(function (t, k) { box(a, H.colL(6 + k) + r, null, t ? t + '년' : '', { al: 'center', b: true }); }); r++;
+      var L6 = [[1, '①각 사업연도 소득금액'], [2, '②국세, 지방세 과오납에 대한 환급금이자', 'a'], [3, '③수입배당금 중 익금불산입한 금액', 'a'], [4, '④기부금의 손금산입한도액 초과금액의 이월손금 산입액 외', 'a'], ['ga', '가. 소계(① + ② + ③ + ④)'],
+        [5, '⑤벌금, 과료, 과태료 가산금과 체납처분비', 's'], [6, '⑥손금 용인되지 않는 공과금', 's'], [7, '⑦업무에 관련 없는 지출', 's'], [8, '⑧각 세법에 규정하는 징수불이행 납부세액', 's'], [9, '⑨기부금 한도초과액', 's'], [10, '⑩접대비 한도초과액', 's'],
+        [11, '⑪과다경비등의 손금불산입액', 's'], [12, '⑫지급이자의 손금불산입액', 's'], [13, '⑬감가상각비(시행령 제56조 제4항 라목)', 's'], [14, '⑭법인세 총결정세액', 's'], [15, '⑮농어촌특별세 총결정세액', 's'], [16, '⑯지방소득세 총결정세액 등', 's'],
+        ['na', '나. 소계(⑤ ~ ⑯)'], ['da', '다. 순손익액(가 − 나)'], ['ra', '라. 유상증자, 감자시 반영액'], ['ma', '마. 순손익액(다 ± 라)'], ['ba', '바. 사업연도말 주식수 또는 환산주식수']];
+      var gd = {};
+      L6.forEach(function (q) {
+        if (q[2] && !gd[q[2]]) { gd[q[2]] = 1; var n = q[2] === 'a' ? 3 : 12; box(a, 'A' + r, 'A' + (r + n - 1), q[2] === 'a' ? '소득에\n가산할\n금액' : '소득에서\n공제할\n금액', { al: 'center' }); }
+        if (q[2]) box(a, 'B' + r, 'E' + r, q[1]); else box(a, 'A' + r, 'E' + r, q[1]);
+        [0, 1, 2].forEach(function (k) {
+          var ad = H.colL(6 + k) + r, key = q[0], f = null;
+          if (typeof key === 'number' || key === 'ga' || key === 'na') f = det[k] ? (typeof key === 'number' ? '{P:y' + k + '_' + key + '}' : '{P:y' + k + key + '}') : null;
+          else if (key === 'da' || key === 'ra') f = '{P:y' + k + key + '}';
+          else if (key === 'ma') f = '{I:n' + k + '}';
+          else if (key === 'ba') f = '{I:d' + k + '}';
+          box(a, ad, null, f ? { f: f } : '', { fmt: key === 'ba' ? 'g' : 'w', b: true });
+        });
+        hgt(a, r, [[q[1], q[2] ? 64 : 77]]); r++;
+      });
+      box(a, 'A' + r, 'E' + r, '사. 주당순손익액 (마 ÷ 바)'); [0, 1, 2].forEach(function (k) { var c = box(a, H.colL(6 + k) + r, null, { f: '{I:p' + k + '}' }, { b: true }); c.numFmt = '"' + ['⑰', '⑱', '⑲'][k] + ' "#,##0'; }); r++;
+      box(a, 'A' + r, 'E' + r, '아. 가중평균액 {(⑯ × 3 + ⑰ × 2 + ⑱) / 6}'); box(a, 'F' + r, 'H' + r, { f: '{I:wps}' }, { b: true }); r++;
+      box(a, 'A' + r, 'E' + r, '자. 기획재정부령이 정하는 율'); box(a, 'F' + r, 'H' + r, { f: '{$CAP}' }, { b: true, fmt: 'r' }); r++;
+      box(a, 'A' + r, 'E' + r, '차. 최근 3년간 순손익액의 가중평균액에 의한 1주당 가액 (아÷자)'); box(a, 'F' + r, 'H' + r, { f: '{I:ips}' }, { b: true }); hgt(a, r, [['차. 최근 3년간 순손익액의 가중평균액에 의한 1주당 가액 (아÷자)', 77]]); r++;
+      a.mergeCells('A' + r + ':H' + r); cell(a, 'A' + r, '①~⑯, 가, 나, 다, 라 = 「계산」 8 구역(엔진 줄 값), 마, 바, 사, 아, 차 = 「계산」 2 구역' + (det.every(function (x) { return x; }) ? '' : ' / ①~⑯ 공란 = 손익계산서 기준 순손익액 [확인 필요]')); rowH(a, r, 2); r++;
+      
+      (X.annualized || []).forEach(function (an, k) { if (!an) return; a.mergeCells('A' + r + ':H' + r); cell(a, 'A' + r, yrs[k] + '년 = 1년 미만 사업연도(' + an.months + '개월) → 마 = (다 ± 라) × 12 ÷ ' + an.months + ' (1년으로 환산, 상증칙 §17의3②)'); rowH(a, r, 2); r++; });
+      
+      var s2 = sh('2부 신고서', [20, 16, 16, 22, 16, 16], '가업상속공제신고서 (상속세 및 증여세법 시행규칙 별지 제1호서식)', '서식 칸 배치 그대로 / 금액 = 「계산」 시트 수식, 파란 글자 = 입력(비우면 공란)');
+      r = 4;
+      band(s2, r, 6, '■ 상속세 및 증여세법 시행규칙 [별지 제1호서식] <개정 2023. 3. 20.>', { font: { bold: false } }); r++;
+      band(s2, r, 6, '가업상속공제신고서', { font: { size: 16 }, al: { horizontal: 'center' }, h: 28 }); thickLine(s2, r, 6); r++;
+      var q2 = function (l1, v1, l2, v2, i1, i2, o3) { box(s2, 'A' + r, null, l1); box(s2, 'B' + r, 'C' + r, v1, Object.assign({ inp: i1 }, (o3 || {}).o1 || {})); box(s2, 'D' + r, null, l2); box(s2, 'E' + r, 'F' + r, v2, Object.assign({ inp: i2 }, (o3 || {}).o2 || {})); hgt(s2, r, [[l1, 20], [l2, 22], [String(v1 && v1.f ? '' : v1), 32], [String(v2 && v2.f ? '' : v2), 32]]); r++; };
+      var yn = function (v) { return v === 'y' ? '[ v ] 해당   [    ] 해당안됨' : v === 'n' ? '[    ] 해당   [ v ] 해당안됨' : '[    ] 해당   [    ] 해당안됨'; };
+      band(s2, r, 6, '가. 가업현황'); r++;
+      q2('상호(법인명)', o.corp.name || '', '사업자등록번호', form.bizNo || o.corp.bizNo || '', false, true);
+      q2('성명(대표자)', o.corp.ceo || '', '주민등록번호', '', false, true);
+      q2('개업연월일', o.start || '', '업종', form.industry || '', false, true);
+      q2('기준총급여액', '', '기준고용인원', '', true, true);
+      band(s2, r, 6, '나. 중소기업 또는 중견기업 여부(해당되는 곳에 √표 기재)'); r++;
+      q2('중소기업 여부', yn(form.sme || (o.corp.size === 'SME' ? 'y' : '')), '상장여부(상장일)', '[    ]상장(    .    .    )   [ v ]비상장', true, false);
+      q2('중견기업 여부', yn(form.mid), '직전 3개 사업연도 평균 매출액', '', true, true);
+      band(s2, r, 6, '다. 피상속인'); r++;
+      q2('성명', form.decedent || o.sharesWho || '', '주민등록번호', '', true, true);
+      q2('가업영위기간', o.start ? o.start + ' ~ ' + o.evalDate : '', '대표이사(대표자) 재직기간', '', false, true);
+      q2('최대주주등 여부', o.corp.isMaxShareholder === false ? '' : '해당', '특수관계인포함 보유 주식 등 지분율', '', false, true);
+      band(s2, r, 6, '라. 가업상속인'); r++;
+      q2('성명', form.heir || '', '주민등록번호', '', true, true);
+      q2('가업종사기간', form.heirWork || '', '임원/대표이사 취임일', form.heirExec || '', true, true);
+      box(s2, 'A' + r, null, '주소'); box(s2, 'B' + r, 'F' + r, '', { inp: true }); r++;
+      band(s2, r, 6, '마. 가업상속 재산가액'); r++;
+      ['종류', '수량(면적)', '단가', '가액', '', '비고'].forEach(function (t, i) { if (i === 4) return; if (i === 3) box(s2, 'D' + r, 'E' + r, t, { al: 'center' }); else box(s2, H.colL(i + 1) + r, null, t, { al: 'center' }); }); r++;
+      box(s2, 'A' + r, null, '비상장주식(' + (o.corp.name || '') + ' 발행)'); box(s2, 'B' + r, null, { f: '{D:sh}' }, { fmt: 'g' }); box(s2, 'C' + r, null, { f: '{V:per}' }); box(s2, 'D' + r, 'E' + r, { f: '{D:stock}' }); box(s2, 'F' + r, null, '부표1 ②'); hgt(s2, r, [['비상장주식(' + (o.corp.name || '') + ' 발행)', 20]]); r++;
+      
+      box(s2, 'A' + r, null, '가업상속 재산가액'); box(s2, 'B' + r, null, ''); box(s2, 'C' + r, null, { f: '{D:ratio}' }, { fmt: 'r' }); box(s2, 'D' + r, 'E' + r, { f: '{D:tg}' }); box(s2, 'F' + r, null, '부표1 ⑦'); r++;
+      s2.mergeCells('A' + r + ':C' + r); cell(s2, 'A' + r, '바. 가업상속공제 신고액 :', { b: true }); var cd = box(s2, 'D' + r, 'F' + r, { f: '{D:ded}' }, { b: true }); cd.numFmt = '#,##0"원"'; thickLine(s2, r, 6); r++;
+      s2.mergeCells('A' + r + ':F' + r); cell(s2, 'A' + r, '「상속세 및 증여세법」 제18조의2제3항 및 같은 법 시행령 제15조제22항에 따라 가업상속공제신고서를 제출합니다.'); rowH(s2, r, 2); r++;
+      s2.mergeCells('A' + r + ':C' + r); s2.mergeCells('D' + r + ':F' + r); cell(s2, 'D' + r, form.fileDate || '        년      월      일', { inp: true, al: 'right' }); r++;
+      s2.mergeCells('A' + r + ':C' + r); cell(s2, 'A' + r, '신고인', { al: 'right' }); s2.mergeCells('D' + r + ':F' + r); cell(s2, 'D' + r, '(서명 또는 인)', { al: 'right' }); r++;
+      s2.mergeCells('A' + r + ':F' + r); cell(s2, 'A' + r, '세무서장 귀하', { b: true }); r++;
+      s2.mergeCells('A' + r + ':F' + r); cell(s2, 'A' + r, '정본 필요 : 사업자등록번호, 주민등록번호, 기준총급여액, 기준고용인원, 직전 3개 사업연도 평균 매출액, 중소, 중견기업 요건 서류(공란 칸)'); rowH(s2, r, 2); r++;
+      
+      var s3 = sh('3부 부표1', [18, 18, 30, 18, 18, 22], '가업상속재산명세서 (상속세 및 증여세법 시행규칙 별지 제1호서식 부표1)', '서식 칸 배치 그대로 / 금액 = 「계산」 시트 수식(6 구역), 법인 가업 = 나 구역');
+      r = 4;
+      band(s3, r, 6, '■ 상속세 및 증여세법 시행규칙 [별지 제1호서식 부표 1] <개정 2025. 3. 21.>', { font: { bold: false } }); r++;
+      band(s3, r, 6, '가업상속재산명세서', { font: { size: 16 }, al: { horizontal: 'center' }, h: 28 }); thickLine(s3, r, 6); r++;
+      band(s3, r, 6, '가. 「소득세법」을 적용받는 가업'); r++;
+      box(s3, 'A' + r, null, '구분', { al: 'center' }); box(s3, 'B' + r, null, '자산종류', { al: 'center' }); box(s3, 'C' + r, null, '㉮ 금액', { al: 'center' }); box(s3, 'D' + r, null, '㉯ 담보채무액', { al: 'center' }); box(s3, 'E' + r, 'F' + r, '가업상속공제 대상금액(㉮−㉯)', { al: 'center' }); r++;
+      box(s3, 'A' + r, 'A' + (r + 4), '가업상속\n재산가액', { al: 'center' });
+      ['토지', '건축물', '기계장치', '기타', '① 계'].forEach(function (t) { box(s3, 'B' + r, null, t, { al: 'center' }); box(s3, 'C' + r, null, ''); box(s3, 'D' + r, null, ''); box(s3, 'E' + r, 'F' + r, ''); r++; });
+      band(s3, r, 6, '나. 「법인세법」을 적용받는 가업'); r++;
+      var v3 = function (ad, f, o3) { return box(s3, ad, null, { f: f }, Object.assign({ b: true }, o3 || {})); };
+      box(s3, 'A' + r, 'E' + r, '② 상속개시일 현재 주식 등의 가액'); v3('F' + r, '{D:stock}'); r++;
+      var r0 = r;
+      box(s3, 'A' + r, 'A' + (r + 8), '사업관련 자산\n가액 비율', { al: 'center' });
+      box(s3, 'B' + r, 'E' + r, '③ 총자산가액'); v3('F' + r, '{D:ta}'); r++;
+      box(s3, 'B' + r, 'B' + (r + 5), '사업무관자산 가액', { al: 'center' });
+      [['㉮「법인세법」 제55조의2 해당자산', '{D:m0}'], ['㉯「법인세법 시행령」 제49조 해당 자산 및 임대용부동산', '{D:m1}'], ['㉰「법인세법 시행령」 제61조제1항 제2호 해당자산', '{D:m2}'], ['㉱ 과다보유현금', '{D:m3}'], ['㉲ 영업활동과 직접 관련없이 보유하는 주식, 채권 및 금융상품', '{D:m4}'], ['④ 사업무관자산 가액 계', '{D:idle}']].forEach(function (q) {
+        box(s3, 'C' + r, 'E' + r, q[0]); v3('F' + r, q[1]); hgt(s3, r, [[q[0], 66]]); r++; });
+      box(s3, 'B' + r, 'E' + r, '⑤ 사업관련 자산가액 (③ − ④)'); v3('F' + r, '{D:biz}'); r++;
+      box(s3, 'B' + r, 'E' + r, '⑥ 사업관련 자산가액 비율 (⑤ ÷ ③)'); v3('F' + r, '{D:ratio}', { fmt: 'r' }); r++;
+      box(s3, 'A' + r, 'E' + r, '⑦ 가업상속공제 대상금액 (② × ⑥ )', { b: true }); v3('F' + r, '{D:tg}'); thickLine(s3, r, 6); r++;
+      band(s3, r, 6, '다. 한도액 계산'); r++;
+      box(s3, 'A' + r, 'B' + r, '⑧ 가업영위기간', { al: 'center' }); box(s3, 'C' + r, 'D' + r, '⑨ 가업상속공제 대상금액\n(① 또는 ⑦)', { al: 'center' }); box(s3, 'E' + r, null, '⑩ 한도액', { al: 'center' }); box(s3, 'F' + r, null, '⑪ 가업상속공제액\n(⑨와 ⑩ 중 적은 금액)', { al: 'center' }); s3.getRow(r).height = 38; r++;
+      var BI = root.IGT.R.bizInh, hit = -1;
+      BI.forEach(function (q, i) { var nx = BI[i + 1]; if (o.years !== null && o.years !== undefined && o.years >= q[0] && (!nx || o.years < nx[0])) hit = i; });
+      var useBand = hit >= 0 && o.capLaw !== '개정안';
+      BI.forEach(function (q, i) {
+        var nx = BI[i + 1]; box(s3, 'A' + r, 'B' + r, q[0] + '년 이상' + (nx ? ' ' + nx[0] + '년 미만' : ''), { al: 'center' });
+        box(s3, 'C' + r, 'D' + r, useBand && i === hit ? { f: '{D:tg}' } : '', { b: true }); box(s3, 'E' + r, null, { f: '{$LIM' + i + '}' }); box(s3, 'F' + r, null, useBand && i === hit ? { f: '{D:ded}' } : '', { b: true }); r++;
+      });
+      if (!useBand) {
+        box(s3, 'A' + r, 'B' + r, o.years === null || o.years === undefined ? '영위기간 모름' : '영위 ' + o.years + '년' + (o.capLaw === '개정안' ? '(개편안)' : ''), { al: 'center' });
+        box(s3, 'C' + r, 'D' + r, { f: '{D:tg}' }, { b: true }); box(s3, 'E' + r, null, o.cap === null ? '한도 미적용' : { f: '{D:cap}' }, { al: o.cap === null ? 'center' : undefined }); box(s3, 'F' + r, null, { f: '{D:ded}' }, { b: true }); r++;
+        s3.mergeCells('A' + r + ':F' + r); cell(s3, 'A' + r, o.cap === null ? '[확인 필요] 가업 영위기간 모름 → 한도 미적용, ⑪ = ⑨' : (o.capLaw === '개정안' ? '⑩ = 2026 세제개편안 정부안 한도(국회 미통과) — 「계산」 6 구역, 현행 한도 표는 위 세 줄' : '영위기간이 최소 기간 미만 → 공제 대상 아님, 「계산」 6 구역')); rowH(s3, r, 2); r++;
+      }
+      band(s3, r, 6, '라. 중견기업 적용 요건'); r++;
+      box(s3, 'A' + r, 'D' + r, '구분', { al: 'center' }); box(s3, 'E' + r, 'F' + r, '금액', { al: 'center' }); r++;
+      ['㉮ 가업상속인의 가업상속재산 외의 상속재산의 가액(사전증여재산 포함)', '㉯ 가업상속인이 상속세로 납부할 금액(가업상속공제를 받지 않았을 경우를 가정하여 산정한 산출세액 중 가업상속인의 부담분) × 200%', '㉮ − ㉯ (해당 가액이 양수인 경우 가업상속공제 적용 배제)'].forEach(function (t) {
+        box(s3, 'A' + r, 'D' + r, t); box(s3, 'E' + r, 'F' + r, '', { inp: true }); hgt(s3, r, [[t, 84]]); r++; });
+      box(s3, 'A' + r, null, '신고인\n제출서류', { al: 'center' }); box(s3, 'B' + r, 'E' + r, '1. 「소득세법」을 적용받는 가업의 경우 : 가업에 직접 사용되는 사업용 자산 입증서류\n2. 「법인세법」을 적용받는 가업의 경우 : 주식평가내역 및 사업무관자산 가액을 확인할 수 있는 입증서류(재무상태표 등)'); box(s3, 'F' + r, null, '수수료\n없음', { al: 'center' }); s3.getRow(r).height = 70; r++;
       
       var s4 = sh('4부 장부vs적용', [30, 18, 18, 18, 46], '재무상태표 항목별 장부가액 vs 적용가액', '적용가액 = 상증법 제4장 평가액(엔진) 또는 입력 · 조정 = 적용가액 − 장부가액 · 원');
       r = 4; ['계정과목', '장부가액', '조정', '적용가액', '근거'].forEach(function (h, i) { cell(s4, H.colL(i + 1) + r, h, { b: true, bg: C.band }); }); r++;
