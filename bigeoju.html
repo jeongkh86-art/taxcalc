@@ -374,6 +374,7 @@ html.fwait body{visibility:hidden}
 #pkRoot .pk-wo.ic button{flex-direction:column;justify-content:center;text-align:center;padding:12px 6px;gap:4px}
 #pkRoot .pk-wo button svg{width:54px;height:54px;flex:0 0 auto}
 #pkRoot .pk-wo button.on{border-color:var(--ver);background:var(--verbg)}
+.pk-wo button small.pk-wos{display:block;font-size:12pt;font-weight:400;color:#6B7684;line-height:1.45;margin-top:4px;text-align:left;white-space:normal}.pk-wo button:has(small.pk-wos){flex-direction:column;align-items:flex-start;gap:0}
 #pkRoot .pk-wo button:active{transform:scale(.98)}
 #pkRoot .pk-wi input{width:100%;font:inherit;font-size:22px;padding:13px 12px;border:2px solid var(--rule);border-radius:12px;background:#fff;min-width:0}
 #pkRoot .pk-wi input[type=number]{text-align:right}
@@ -456,6 +457,11 @@ html.fwait body{visibility:hidden}
 #pkRoot .pk-wr .pk-wr1{font-size:28px}
 #pkRoot #wzGoBox{margin-top:10px}
 #pkRoot .wlive{margin:10px 0 0}
+.mode{display:none}
+.mode.nrtXpl{display:block;text-align:center;margin:18px 0 4px}
+.mode.nrtXpl button{font-size:16px;color:var(--pd-acc,var(--ink3));text-decoration:underline;background:none!important;border:0!important;padding:6px 10px;width:auto}
+.mode.nrtXpl button.on{display:none!important}
+#wzGoBox{display:none!important}
 </style>
 <style id="pubDesign">@media screen{
 :root{--pd-bg:#FFFFFF;--pd-surface:#FFFFFF;--pd-surface2:#F5F7FA;--pd-ink:#111827;--pd-ink2:#374151;--pd-ink3:#6B7280;--pd-line:#E5E7EB;--pd-line2:#D1D5DB;
@@ -3978,7 +3984,8 @@ var HTX = (function () {
     if (mk === 'unlisted' && row === YS.MAJ[0]) { if (q.venture) t[1] = 40e8; if (q.unlistedRule === 'book50') { t[1] = 50e8; } }   
     var maj = pct >= t[0] || v >= t[1];
     if (alt && pct < t[0] && v >= t[1] && v < alt && DU) DU.push('⚠ 비상장 대주주 시가총액 기준 : 현행 시행령 §167의8①2호나 10억원 → 대주주 / 책 142 표 50억원 → 대주주 아님 — 기본 = 현행 문언(sec.unlistedRule)');
-    return { major: maj, why: mk + ' 기준 지분 ' + t[0] + '% 또는 시가총액 ' + (t[1] / 1e8) + '억원 · ' + row[2] + ' — 지분 ' + pct + '%, 시가총액 ' + won0(v) + '(직전 사업연도 말 · 특수관계 합산 = 입력값)' };
+    var MKN = { kospi: '코스피', kosdaq: '코스닥', konex: '코넥스', unlisted: '비상장' };   
+    return { major: maj, why: (MKN[mk] || mk) + ' 기준 지분 ' + t[0] + '% 또는 시가총액 ' + (t[1] / 1e8) + '억원, ' + row[2] + ' — 지분 ' + pct + '%, 시가총액 ' + won0(v) + '(직전 사업연도 말 · 특수관계 합산 = 입력값)' };
   };
   
   YS.secPre = function (I, F, CK, DU, D) {
@@ -6510,7 +6517,7 @@ var TREATY = [{"n": "가봉", "d": 15.0, "i": 10.0, "dt": "25% 이상 직접 소
   function wzUnit(q) { return q[3] === '$' ? '달러($)' : q[3] === '억' ? '억원' : q[3]; }
   function wzDraw() {
     var box = $('wzQs'), w = wzW();
-    $('wzGoBox').classList.toggle('pk-hide', !(w && wzDone));
+    $('wzGoBox').classList.add('pk-hide');   
     if (!w) {   
       if ($('txMap')) $('txMap').style.display = 'none';   
       $('wzLive').classList.add('hide');
@@ -6638,6 +6645,12 @@ var TREATY = [{"n": "가봉", "d": 15.0, "i": 10.0, "dt": "25% 이상 직접 소
   });
   window.NRTWZ = { pick: function (k) { wzCur = k; wzAns = {}; wzStep = 0; wzDone = false; wzDraw(); }, ans: function () { return wzAns; }, step: function () { return wzCur + ':' + wzStep + (wzDone ? ':done' : ''); } };   
   wzDraw();
+  
+  (function xplBar(k) {   
+    var bar = document.querySelector('.mode'), wz = $('wiz'); if (!bar || !wz) { if (k < 200) setTimeout(function () { xplBar(k + 1); }, 50); return; }
+    bar.className = 'mode pk-xpl nrtXpl';    var e = bar.querySelector('[data-m="easy"]'); if (e) e.textContent = '간단히 보기';
+    wz.parentNode.insertBefore(bar, wz.nextSibling);
+  })(0);
   
 
   var RUN = { res: runRes, crit: runCrit, treaty: runTreaty, inh: runInh, gift: runGift, g8: runG8, house: runHouse, stock: runStock, exit: runExit, mv: runMv, div: runDiv, fa: runFa, us: runUs, ustax: runUstax, cfc: runCfc };
@@ -8321,7 +8334,9 @@ https://github.com/nodeca/pako/blob/main/LICENSE
   }
 
   
-  function fmtV(v, f) { if (f) return f(v); return typeof v === 'number' ? won(v) : (v == null ? '' : String(v)); }
+  
+  function wonShort(s) { return String(s).replace(/(^|[^\d,.])(\d{1,3}(?:,\d{3})+|\d+)원/g, function (m, pre, num) { var v = +num.replace(/,/g, ''); if (!(v >= 1e4)) return m; if (v >= 99995000) return pre + (Math.round(v / 1e6) / 100).toLocaleString('ko-KR', { maximumFractionDigits: 2 }) + '억'; return pre + (Math.round(v / 1e3) / 10).toLocaleString('ko-KR', { maximumFractionDigits: 1 }) + '만'; }); }
+  function fmtV(v, f) { return wonShort(f ? f(v) : typeof v === 'number' ? won(v) : (v == null ? '' : String(v))); }
   function draw(o) {
     var map = $('txMap'), L = $('txList'); if (!map || !L) return;
     var S = o.S || [], ids = S.map(function (x) { return x.id; }), cur = o.cur, h = '', barNow = '', barNext = '';

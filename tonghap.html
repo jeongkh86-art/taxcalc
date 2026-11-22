@@ -257,6 +257,7 @@ html.fwait body{visibility:hidden}
   #pkRoot .ig-ck { background:#FFF7D6; border:1px solid #F1D36B; border-radius:12px; padding:8px 12px; margin-top:10px; font-size:16px; line-height:1.5; color:#5b4a00 }
 </style>
 <style id="landqCss">.pk-cmp{border:1px solid var(--rule);border-radius:14px;padding:12px;background:var(--card);margin-top:10px;min-width:0;overflow-wrap:anywhere;word-break:keep-all}.pk-cmp h4{margin:0 0 8px;font-size:17px}.pk-cmr{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;padding:7px 8px;border-radius:10px;font-size:16px;line-height:1.4}.pk-cmr+.pk-cmr{border-top:1px dashed var(--rule)}.pk-cmr.on{background:var(--verbg)}.pk-cmr span{min-width:0}.pk-cmr i{font-style:normal;font-size:15px;color:#fff;background:var(--ver);border-radius:4px;padding:0 5px;margin-left:4px;white-space:nowrap}.pk-cmr small{display:block;color:var(--ink3);font-size:15px}.pk-cmr b{text-align:right;white-space:nowrap;font-feature-settings:"tnum"}.pk-cmr b small{font-weight:400;white-space:normal}.pk-cml{margin-top:8px;font-size:16px;line-height:1.5;color:var(--ink2)}.pk-wtx{width:100%;font:inherit;font-size:17px;padding:10px 12px;border:1px solid var(--rule);border-radius:10px;background:var(--card);color:var(--ink)}</style>
+<style id="pubNoLeak">#pkRoot [data-pkmore]{display:none!important}#pkRoot .pk-wbt:has(>[data-pkmore]){grid-template-columns:1fr!important}</style>
 <style id="pubDesign">@media screen{
 :root{--pd-bg:#FFFFFF;--pd-surface:#FFFFFF;--pd-surface2:#F5F7FA;--pd-ink:#111827;--pd-ink2:#374151;--pd-ink3:#6B7280;--pd-line:#E5E7EB;--pd-line2:#D1D5DB;
   --pd-acc:#1E3A8A;--pd-acc-soft:#EEF2FB;--pd-acc-hover:#172E6E;--pd-th-bg:#F5F7FA;--pd-th-fg:#374151;--pd-minus:#1E3A8A;
@@ -4131,7 +4132,8 @@ var HTX = (function () {
     if (mk === 'unlisted' && row === YS.MAJ[0]) { if (q.venture) t[1] = 40e8; if (q.unlistedRule === 'book50') { t[1] = 50e8; } }   
     var maj = pct >= t[0] || v >= t[1];
     if (alt && pct < t[0] && v >= t[1] && v < alt && DU) DU.push('⚠ 비상장 대주주 시가총액 기준 : 현행 시행령 §167의8①2호나 10억원 → 대주주 / 책 142 표 50억원 → 대주주 아님 — 기본 = 현행 문언(sec.unlistedRule)');
-    return { major: maj, why: mk + ' 기준 지분 ' + t[0] + '% 또는 시가총액 ' + (t[1] / 1e8) + '억원 · ' + row[2] + ' — 지분 ' + pct + '%, 시가총액 ' + won0(v) + '(직전 사업연도 말 · 특수관계 합산 = 입력값)' };
+    var MKN = { kospi: '코스피', kosdaq: '코스닥', konex: '코넥스', unlisted: '비상장' };   
+    return { major: maj, why: (MKN[mk] || mk) + ' 기준 지분 ' + t[0] + '% 또는 시가총액 ' + (t[1] / 1e8) + '억원, ' + row[2] + ' — 지분 ' + pct + '%, 시가총액 ' + won0(v) + '(직전 사업연도 말 · 특수관계 합산 = 입력값)' };
   };
   
   YS.secPre = function (I, F, CK, DU, D) {
@@ -5888,7 +5890,9 @@ if (typeof module !== 'undefined' && module.exports) module.exports.IGBD = IGBD;
   }
 
   
-  function fmtV(v, f) { if (f) return f(v); return typeof v === 'number' ? won(v) : (v == null ? '' : String(v)); }
+  
+  function wonShort(s) { return String(s).replace(/(^|[^\d,.])(\d{1,3}(?:,\d{3})+|\d+)원/g, function (m, pre, num) { var v = +num.replace(/,/g, ''); if (!(v >= 1e4)) return m; if (v >= 99995000) return pre + (Math.round(v / 1e6) / 100).toLocaleString('ko-KR', { maximumFractionDigits: 2 }) + '억'; return pre + (Math.round(v / 1e3) / 10).toLocaleString('ko-KR', { maximumFractionDigits: 1 }) + '만'; }); }
+  function fmtV(v, f) { return wonShort(f ? f(v) : typeof v === 'number' ? won(v) : (v == null ? '' : String(v))); }
   function draw(o) {
     var map = $('txMap'), L = $('txList'); if (!map || !L) return;
     var S = o.S || [], ids = S.map(function (x) { return x.id; }), cur = o.cur, h = '', barNow = '', barNext = '';
@@ -6095,7 +6099,7 @@ window.LANDQ = (function () {
   function LPER(a,k){ var v=a[k]; if(v==='all') return [[a.acqD,a.saleD]]; if(v==='part'&&a[k+'a']&&a[k+'b']) return [[a[k+'a'],a[k+'b']]]; return []; }
   var LAP=[['all','보유 기간 내내'],['part','일부 기간만'],['none','아니요']];
   function lPart(k,on,q1,q2){   
-    return [{id:k+'a', on:function(a){ return on(a)&&a[k]==='part'; }, q:q1+' — 시작한 날은요?', h:'보유 기간(산 날 ~ 판 날) 안 날짜 · 기간이 여럿이면 가장 긴 기간(나머지 = 상세 탭 ⑩)', t:'d', rng:LDR, pre:function(a){ return a.acqD||''; }},
+    return [{id:k+'a', on:function(a){ return on(a)&&a[k]==='part'; }, q:q1+' — 시작한 날은요?', h:'보유 기간(산 날 ~ 판 날) 안 날짜 · 기간이 여럿이면 가장 긴 기간(나머지 = 「특수 사례 더 보기」 → 비사업용 토지 기간 판정)', t:'d', rng:LDR, pre:function(a){ return a.acqD||''; }},
             {id:k+'b', on:function(a){ return on(a)&&a[k]==='part'; }, q:q1+' — 끝난 날은요?', h:'지금도 그렇다면 판 날 · '+q2, t:'d', rng:function(a){ return [a[k+'a']||a.acqD||'',a.saleD||'']; }, pre:function(a){ return a.saleD||''; }}]; }
   function LQS(){
     var U_O=function(a){ var o=[['none','해당 없어요'],['3나','공익사업으로 협의매수·수용 — 사업인정고시일부터 5년 전에 취득']];
@@ -6107,6 +6111,17 @@ window.LANDQ = (function () {
     var RK=function(a){ return (a.kind==='land'||a.kind==='nonbiz')&&!!a.lrK&&a.lrK!=='none'; }, R69=function(a){ return RK(a)&&(a.lrK==='s69'||a.lrK==='s6977'); }, R77=function(a){ return RK(a)&&(a.lrK==='s77'||a.lrK==='s6977'); }, R70=function(a){ return RK(a)&&a.lrK==='s70'; };
     var FARM=function(a){ return LJ(a,'farm'); }, FR=function(a){ return FARM(a)&&a.lnFR!=='none'&&!!a.lnFR; }, FS=function(a){ return FR(a)&&a.lnFS!=='none'&&!!a.lnFS; };
     var ZON=function(a){ return LNJ(a)&&(a.lnJ==='farm'||a.lnJ==='ranch'); };
+    
+    var REVK=function(a){ return LJ(a,'bare')&&['park','spa','fish','ind'].indexOf(a.lnBE)>=0; };
+    var REVN=function(a){ return {park:'주차장',spa:'광천지',fish:'양어장',ind:'사업'}[a.lnBE]||''; };
+    var REVS=function(a){ return a.lnBE==='park'?3:a.lnBE==='ind'?({block:20,garden:7,acad:10,acadF:7,retail:10}[a.lnBI||'block']||20):4; };
+    var REVL1=function(a){ return {park:'2호다',spa:'10호',fish:'11호다',ind:'12호'}[a.lnBE]||''; };
+    var REVL=function(a){ var y=String(new Date().getFullYear()); return a.cvS!=null&&a.cvS!==''&&a.saleD&&a.saleD.slice(0,4)===y?a.cvS:''; };   
+    var REVC=function(a){ var H=(typeof HTX!=='undefined'?HTX:window.HTX); if(!REVK(a)||!H||!H.bk||!H.bk.revenueRatio) return null; var r=+a.lnBR, l=+a.lnBL; if(a.lnBR===''||a.lnBR==null||!(l>0)) return null;
+      var pk=a.lnBR0!==''&&a.lnBR0!=null&&+a.lnBL0>0, q={rev:r, land:l, std:REVS(a)}; if(pk){ q.prevRev=+a.lnBR0; q.prevLand=+a.lnBL0; }
+      var R=H.bk.revenueRatio(q), f=function(x){ return (Math.round(x*100)/100).toLocaleString('ko-KR')+'%'; }, m=function(x){ return x>=1e4?manToEok(x)+'억':(+x).toLocaleString('ko-KR')+'만'; };
+      var txt='계산 : 올해 수입 '+m(r)+'원 ÷ 땅값 '+m(l)+'원 = '+f(R.cur)+(R.two!=null?', (올해 + 작년 수입 '+m(r+q.prevRev)+'원) ÷ (올해 + 작년 땅값 '+m(l+q.prevLand)+'원) = '+f(R.two):'')+' → '+(R.two!=null?'큰 쪽 '+f(R.ratio)+', ':'')+(R.biz?REVS(a)+'% 이상이라 사업용':REVS(a)+'% 미만이라 사업용 아님');
+      return {biz:!!R.biz, ratio:R.ratio, txt:txt}; };
     var RES=function(a){ return a.lnZ==='res'&&ZON(a); };
     var L=[
       {id:'lnJ', on:LN, q:'어떤 땅이에요?', h:'토지대장 지목이 아니라 실제로 쓴 모습 기준(사실상 현황 · 소득세법 시행령 §168의7) · 다음 질문으로 사업용, 비사업용을 판정 → 비사업용이면 세율 + 10%p(소득세법 §104①8호) · 판정을 이미 알면 맨 끝 「판정 이미 알아요」, 건물만이면 「건물이 있는 땅」', t:'b',
@@ -6131,20 +6146,27 @@ window.LANDQ = (function () {
       
       {id:'lnOR', on:function(a){ return LJ(a,'forest'); }, q:'보유하는 동안 임야 가까이 살았어요(재촌)?', h:'재촌 = 임야가 있는 시·군·구, 연접 시·군·구, 또는 임야에서 직선거리 30km 안에 주민등록 + 실제 거주(소득세법 시행령 §168의9②)', t:'b', o:LAP}
     ],lPart('lnOR',function(a){ return LJ(a,'forest'); },'가까이 산(재촌) 기간','이사 나간 날'),[
-      {id:'lnOP', on:function(a){ return LJ(a,'forest'); }, q:'공익, 보호 목적으로 지정된 임야예요?', h:'지정 기간 = 사업용(소득세법 §104의3①2호가, 시행령 §168의9①) · 그 밖 지정(공원, 문화유산 보호구역 등) = 상세 탭 ⑩', t:'b',
+      {id:'lnOP', on:function(a){ return LJ(a,'forest'); }, q:'공익, 보호 목적으로 지정된 임야예요?', h:'지정 기간 = 사업용(소득세법 §104의3①2호가, 시행령 §168의9①) · 그 밖 지정(공원, 문화유산 보호구역 등) = 「특수 사례 더 보기」 → 비사업용 토지 기간 판정', t:'b',
        o:[['none','아니요'],['1','산림보호구역, 채종림, 시험림'],['8','개발제한구역 안 임야'],['13','상수원보호구역 안 임야'],['2','산림경영계획 인가 시업 중, 특수산림사업지구']]},
       {id:'lnOB', on:function(a){ return LJ(a,'forest'); }, q:'임업, 휴양 등에 쓰거나 상속받은 임야예요?', h:'거주, 사업과 관련된 임야(소득세법 시행령 §168의9③)', t:'b',
        o:[['none','아니요'],['1','임업후계자가 임산물 생산에 씀'],['3','자연휴양림'],['7','상속받은 임야 — 상속개시일부터 3년'],['8','종중 임야(2005.12.31. 이전 취득)']]},
       
-      {id:'lnRD', on:function(a){ return LJ(a,'ranch'); }, q:'그 땅에서 직접 축산업을 했어요?', h:'목장용지 = 축산업 하는 사람이 가축별 기준면적 안에서 쓰는 땅(소득세법 §104의3①3호, 시행령 §168의10 · 별표 1의3) · 기준면적 넘는 부분 = 상세 탭 ⑩', t:'b', o:LAP}
+      {id:'lnRD', on:function(a){ return LJ(a,'ranch'); }, q:'그 땅에서 직접 축산업을 했어요?', h:'목장용지 = 축산업 하는 사람이 가축별 기준면적 안에서 쓰는 땅(소득세법 §104의3①3호, 시행령 §168의10 · 별표 1의3) · 기준면적 넘는 부분 = 「특수 사례 더 보기」 → 비사업용 토지 기간 판정', t:'b', o:LAP}
     ],lPart('lnRD',function(a){ return LJ(a,'ranch'); },'축산업 한 기간','축산업을 그만둔 날'),[
       
       {id:'lnBT', on:function(a){ return LJ(a,'bare'); }, q:'재산세가 「별도합산」 또는 「분리과세」였던 기간이 있어요?', h:'재산세 고지서, 과세대장의 토지 구분 · 빈 땅 = 보통 「종합합산」 = 비사업용 기간 · 별도합산, 분리과세, 비과세, 면제 기간 = 사업용 기간(소득세법 §104의3①4호가, 나)', t:'b', o:[['none','없어요(종합합산)'],['all','보유 기간 내내'],['part','일부 기간만']]}
     ],lPart('lnBT',function(a){ return LJ(a,'bare'); },'별도합산, 분리과세 기간','종합합산으로 바뀐 날'),[
-      {id:'lnBE', on:function(a){ return LJ(a,'bare'); }, q:'그 땅을 사업에 쓴 적이 있어요?', h:'거주, 사업과 관련된 토지 = 사업용(소득세법 시행령 §168의11①) · 그 밖(체육시설, 하치장 등) = 상세 탭 ⑩', t:'b', o:[['none','없어요'],['park','주차장 운영업(노외주차장)'],['home','집 없는 세대의 집 지을 땅(1필지 660㎡ 안)']]},
-      {id:'lnBP', on:function(a){ return LJ(a,'bare')&&a.lnBE==='park'; }, q:'1년 주차장 수입금액이 땅값의 3% 이상이었어요?', h:'수입금액 비율 = 1년 수입금액 ÷ 토지가액, 그 해 또는 직전 해와 합친 비율 중 큰 쪽이 3% 이상(소득세법 시행령 §168의11①2호다, ② · 시행규칙 §83의4⑥) · 주차장운영업을 하는 소유자가 노외주차장으로 쓴 땅', t:'b', o:[['y','예(3% 이상)'],['n','아니요(3% 미만)']]},
-      {id:'lnBEp', on:function(a){ return LJ(a,'bare')&&(a.lnBE==='home'||(a.lnBE==='park'&&a.lnBP==='y')); }, q:function(a){ return a.lnBE==='home'?'집이 없던 기간은요?':'주차장을 운영한 기간은요?'; }, h:'그 기간 = 사업용 기간', t:'b', o:[['all','보유 기간 내내'],['part','일부 기간만']]}
-    ],lPart('lnBEp',function(a){ return LJ(a,'bare')&&(a.lnBE==='home'||(a.lnBE==='park'&&a.lnBP==='y')); },'그 기간','그만둔 날'),[
+      {id:'lnBE', on:function(a){ return LJ(a,'bare'); }, q:'그 땅을 사업에 쓴 적이 있어요?', h:'거주, 사업과 관련된 토지 = 사업용(소득세법 시행령 §168의11①) · 그 밖(체육시설, 하치장 등) = 아래 「특수 사례 더 보기」 → 비사업용 토지 기간 판정', t:'b',
+       o:[['none','없어요'],['park','주차장 운영업(노외주차장)'],['spa','광천지(온천, 약수 용출구)'],['fish','양어장, 지소(허가, 신고 없이 운영)'],['ind','블록·석물 제조, 조경작물, 화훼 판매, 정비·운전 학원 등'],['home','집 없는 세대의 집 지을 땅(1필지 660㎡ 안)']]},   
+      {id:'lnBI', on:function(a){ return LJ(a,'bare')&&a.lnBE==='ind'; }, q:'어떤 사업이에요?', h:'업종마다 수입금액 비율 기준이 달라요(소득세법 시행규칙 §83의4⑮)', t:'b', o:[['block','블록, 석물, 토관 제조(20%)'],['garden','조경작물 식재, 화훼 판매시설(7%)'],['acad','자동차·중장비 정비, 중장비 운전 학원(10%)'],['acadF','농업 학원(7%)'],['retail','블록, 조경작물, 농수축산물 등 도매·소매(10%)']]},
+      {id:'lnBR', on:REVK, q:function(a){ return '올해 '+REVN(a)+' 수입금액은 얼마예요?'; }, h:function(a){ return '1년 수입금액(1년을 못 채웠으면 1년으로 환산 · 전세금, 보증금은 부가가치세법 시행령 §65 간주임대료로 더함 · 소득세법 시행령 §168의11③) · 땅값 대비 '+REVS(a)+'% 이상이면 사업용 · 모르면 [몰라요] → 예, 아니요로 고름'; }, t:'m', unk:'몰라요(예, 아니요로 고를게요)'},
+      {id:'lnBR0', on:function(a){ return REVK(a)&&a.lnBR!==''&&a.lnBR!=null; }, q:function(a){ return '작년 '+REVN(a)+' 수입금액은요?'; }, h:'올해 비율과 (올해 + 작년) 합친 비율 중 큰 쪽으로 판정(소득세법 시행령 §168의11②) · 작년에 안 했으면 [없어요]', t:'m', unk:'없어요(작년엔 안 했어요)'},
+      {id:'lnBL', on:function(a){ return REVK(a)&&a.lnBR!==''&&a.lnBR!=null; }, q:'올해 땅값(기준시가)은 얼마예요?', h:'토지가액 = 그 해 마지막 날(판 해는 판 날) 기준시가 = 개별공시지가 × 면적(소득세법 시행령 §168의11④) · 「주소로 찾기」 = 올해 공시지가 × 면적', t:'m', wmin:1, pre:function(a){ return REVL(a); }},
+      {id:'lnBL0', on:function(a){ return REVK(a)&&a.lnBR0!==''&&a.lnBR0!=null&&a.lnBR!==''&&a.lnBR!=null; }, q:'작년 땅값(기준시가)은 얼마예요?', h:'작년 마지막 날 기준시가 = 작년 개별공시지가 × 면적(소득세법 시행령 §168의11④) · 「주소로 찾기」 = 작년 공시지가', t:'m', wmin:1},
+      {id:'lnBP', on:REVK, q:function(a){ return '1년 '+REVN(a)+' 수입금액이 땅값의 '+REVS(a)+'% 이상이었어요?'; }, h:function(a){ return '수입금액 비율 = 1년 수입금액 ÷ 토지가액, 그 해 비율과 직전 해와 합친 비율 중 큰 쪽(소득세법 시행령 §168의11①'+REVL1(a)+', ②) · 기준 '+REVS(a)+'%(시행규칙 §83의4'+({park:'⑥',spa:'⑬',fish:'⑬',ind:'⑮'}[a.lnBE]||'')+')'; }, t:'b',
+       o:function(a){ return [['y','예('+REVS(a)+'% 이상)'],['n','아니요('+REVS(a)+'% 미만)']]; }, pre:function(a){ var R=REVC(a); return R?(R.biz?'y':'n'):''; }, preTxt:function(a){ var R=REVC(a); return R?R.txt+' — 계산대로 골라 뒀어요(다르면 다른 단추를 눌러 바꿔요)':''; }},
+      {id:'lnBEp', on:function(a){ return LJ(a,'bare')&&(a.lnBE==='home'||(REVK(a)&&a.lnBP==='y')); }, q:function(a){ return a.lnBE==='home'?'집이 없던 기간은요?':a.lnBE==='park'?'주차장을 운영한 기간은요?':'그 사업에 쓴 기간은요?'; }, h:'그 기간 = 사업용 기간', t:'b', o:[['all','보유 기간 내내'],['part','일부 기간만']]}
+    ],lPart('lnBEp',function(a){ return LJ(a,'bare')&&(a.lnBE==='home'||(REVK(a)&&a.lnBP==='y')); },'그 기간','그만둔 날'),[
       {id:'lnBA', on:function(a){ return LJ(a,'bare')&&a.lnBE==='home'; }, q:'땅 면적은요?', h:'토지대장 면적 · 660㎡ 넘는 부분 = 비사업용(소득세법 시행령 §168의11①13호)', t:'w', u:'㎡', werr:'땅 면적(㎡)을 넣어 주세요'},
       
       {id:'lnGA', on:function(a){ return LJ(a,'bld'); }, q:'땅 면적은요?', h:'토지대장 면적(㎡) · 지분이면 지분 면적', t:'w', u:'㎡', werr:'땅 면적(㎡)을 넣어 주세요'},
@@ -6159,7 +6181,7 @@ window.LANDQ = (function () {
       {id:'lnHF', on:function(a){ return LJ(a,'houseLand'); }, q:'주택 정착면적(바닥면적)은요?', h:'기준면적 = 정착면적 × 배율 · 넘는 부분 = 비사업용(소득세법 §104의3①5호, 시행령 §168의12)', t:'w', u:'㎡', werr:'주택 정착면적(㎡)을 넣어 주세요'},
       {id:'lnHZ', on:function(a){ return LJ(a,'houseLand'); }, q:'어느 지역이에요?', h:'괄호 = 정착면적에 곱하는 배율(시행령 §168의12 · 2021.12.31. 이전 양도 수도권 주거·상업·공업 5배)', t:'b', o:[['capRes','수도권 도시지역 주거, 상업, 공업(3배)'],['capGreen','수도권 도시지역 녹지(5배)'],['outCap','수도권 밖 도시지역(5배)'],['nonUrban','도시지역 밖(10배)']]},
       
-      {id:'lnHd', on:LNX, q:'땅을 쓰지 못한 부득이한 사유가 있었어요?', h:'부득이한 사유 기간 = 사업용으로 봄(소득세법 시행령 §168의14①, 시행규칙 §83의5①) · 그 밖 사유 = 상세 탭 ⑩', t:'b',
+      {id:'lnHd', on:LNX, q:'땅을 쓰지 못한 부득이한 사유가 있었어요?', h:'부득이한 사유 기간 = 사업용으로 봄(소득세법 시행령 §168의14①, 시행규칙 §83의5①) · 그 밖 사유 = 「특수 사례 더 보기」 → 비사업용 토지 기간 판정', t:'b',
        o:[['none','없어요'],['r1','법령으로 사용이 금지, 제한된 기간'],['k7','소유권 소송 중인 기간'],['k9','건물이 멸실, 철거된 뒤(그날부터 5년)'],['k5','빈 땅을 사서 건물을 짓는 중(산 날부터 2년 + 공사 기간)']]},
       {id:'lnHda', on:function(a){ return LNX(a)&&!!a.lnHd&&a.lnHd!=='none'; }, q:function(a){ return a.lnHd==='k9'?'건물이 멸실, 철거된 날은요?':a.lnHd==='k5'?'공사를 시작한(착공) 날은요?':'그 사유가 시작된 날은요?'; }, h:'보유 기간 안 날짜', t:'d', rng:LDR},
       {id:'lnHdb', on:function(a){ return LNX(a)&&(a.lnHd==='r1'||a.lnHd==='k7'||a.lnHd==='k5'); }, q:function(a){ return a.lnHd==='k5'?'공사가 끝난(준공) 날은요?':'그 사유가 끝난 날은요?'; }, h:'지금도 계속이면 판 날', t:'d', rng:function(a){ return [a.lnHda||a.acqD||'',a.saleD||'']; }, pre:function(a){ return a.saleD||''; }},
@@ -6225,11 +6247,13 @@ window.LANDQ = (function () {
     if(j==='forest'){ lnPP(set,lnF('forest.res'),P('lnOR')); var pb=a.lnOP&&a.lnOP!=='none'?a.lnOP:'', bz=a.lnOB&&a.lnOB!=='none'?a.lnOB:''; set(lnF('forest.pub'),pb); set(lnF('forest.biz'),bz);
       set(lnF('forest.pubP')+'_a',''); set(lnF('forest.pubP')+'_b',''); set(lnF('forest.bizP')+'_a',bz==='7'?(a.acqD||''):''); set(lnF('forest.bizP')+'_b','');
       if(pb) D.push('공익, 보호 임야 지정 기간 = 보유 기간 전체'); if(bz&&bz!=='7'&&bz!=='8') D.push('임업, 휴양 등에 쓴 기간 = 보유 기간 전체'); if(bz==='7') D.push('상속개시일 = 「언제 샀어요?」 답(상속받은 날)'); }
-    if(j==='ranch'){ lnPP(set,lnF('ranch.direct'),P('lnRD')); set(lnF('ranch.deem'),''); set(lnF('ranch.heads'),''); K.push('목장 가축별 기준면적(별표 1의3) 넘는 부분 = 판정 안 함 → 상세 탭 ⑩ 「가축 종류, 두수, 면적」 [확인 필요]'); }
+    if(j==='ranch'){ lnPP(set,lnF('ranch.direct'),P('lnRD')); set(lnF('ranch.deem'),''); set(lnF('ranch.heads'),''); K.push('목장 가축별 기준면적(별표 1의3) 넘는 부분 = 판정 안 함 → 「특수 사례 더 보기」 → 비사업용 토지 기간 판정 「가축 종류, 두수, 면적」 [확인 필요]'); }
     if(j==='bare'||j==='bld'){
       var tx=j==='bld'?P('lnGW'):(a.lnBT==='none'?[]:P('lnBT')); lnPP(set,lnF('bare.tax'),tx);
-      var etc='', ep=[]; if(j==='bare'&&a.lnBE==='park'&&a.lnBP==='y'){ etc='2다'; ep=P('lnBEp'); K.push('주차장 수입금액 비율 3% = 답(예) 그대로 · 해마다 「수입금액 ÷ 토지가액」 = 상세 탭 ⑩ 「연도별 수입금액」 칸에 넣으면 엔진이 해마다 판정 [확인 필요]'); }
-      if(j==='bare'&&a.lnBE==='park'&&a.lnBP==='n') D.push('주차장 수입금액 3% 미만 → 주차장 기간도 사업용 아님(소득세법 시행령 §168의11①2호다)');
+      var etc='', ep=[], RC={park:'2다',spa:'10',fish:'11다',ind:'12'}[a.lnBE], RN={park:'주차장',spa:'광천지',fish:'양어장',ind:'그 사업'}[a.lnBE], RS=a.lnBE==='park'?3:a.lnBE==='ind'?({block:20,garden:7,acad:10,acadF:7,retail:10}[a.lnBI||'block']||20):4;   
+      set(lnF('bare.ind'),a.lnBE==='ind'?(a.lnBI||'block'):'block');
+      if(j==='bare'&&RC&&a.lnBP==='y'){ etc=RC; ep=P('lnBEp'); K.push(RN+' 수입금액 비율 '+RS+'% = '+(a.lnBR!==''&&a.lnBR!=null?'올해, 작년 답으로 계산한 판정':'답(예)')+' 그대로 · 다른 해도 같았다고 봄 — 해마다 다르면 「특수 사례 더 보기」 → 비사업용 토지 기간 판정 「연도별 수입금액」 칸에 넣으면 엔진이 해마다 판정 [확인 필요]'); }
+      if(j==='bare'&&RC&&a.lnBP==='n') D.push(RN+' 수입금액 '+RS+'% 미만 → 그 기간도 사업용 아님(소득세법 시행령 §168의11①'+{park:'2호다',spa:'10호',fish:'11호다',ind:'12호'}[a.lnBE]+')');
       if(j==='bare'&&a.lnBE==='home'){ etc='13'; ep=P('lnBEp'); }
       set(lnF('bare.etc'),etc); set(lnF('bare.etcP')+'_a',ep[0]?ep[0][0]:''); set(lnF('bare.etcP')+'_b',ep[0]?ep[0][1]:'');
       set(lnF('bare.area'),j==='bld'?(a.lnGA||''):(a.lnBE==='home'?(a.lnBA||''):'')); set(lnF('bare.bldFloor'),j==='bld'?(a.lnGF||''):''); set(lnF('bare.zone'),j==='bld'?(a.lnGZ||''):''); set(lnF('bare.low2'),j==='bld'&&a.lnG2!=='y');
@@ -8817,6 +8841,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
   if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',go); else go();
 })();
 </script>
+
 <div id="pubFoot" style="margin:28px auto 0;padding:14px 16px 22px;max-width:1100px;font:14px/1.6 Freesentation,-apple-system,BlinkMacSystemFont,'Apple SD Gothic Neo','Malgun Gothic','Noto Sans KR',sans-serif;color:#6B7684;text-align:center;border-top:1px solid #E5E8EB">본 자료 = 일반적 정보 제공 목적, 실제 적용 시 개별 사안별 법률적 검토 및 전문가 자문 필수<br>계산은 이 기기 안에서만 하며 입력값은 보내지 않습니다(「주소로 찾기」에 넣은 주소만 공시가격, 조정대상지역 확인을 위해 브이월드로 보냄). · 판 2026-11-22</div><script>try{if(window.self!==window.top)document.getElementById("pubFoot").style.display="none";}catch(e){}</script>
 <script id="gsgJs">(function () {
   'use strict';
@@ -8882,7 +8907,9 @@ https://github.com/nodeca/pako/blob/main/LICENSE
         if (/^[ab]Lb$/.test(id)) return { want: 'land', year: NOW, add: 1, why: '토지 = 개별공시지가 × 면적 · 상가 등 건물 시가표준액은 홈택스, 위택스에서 따로 더해요' }; return null; } },
     cgt: { h: function () { return window.YSWZ; },
       more: function (id, a) { if (id === 'cvA' && a.saleD) return [{ id: 'cvS', year: pubYear(a.saleD), lab: '파는 해' }];
-        if (id === 'cvS' && a.acqD && a.acqD >= '1985-01-01') return [{ id: 'cvA', year: pubYear(a.acqD), lab: '산 해' }]; return []; },
+        if (id === 'cvS' && a.acqD && a.acqD >= '1985-01-01') return [{ id: 'cvA', year: pubYear(a.acqD), lab: '산 해' }];
+        if (id === 'lnBL' && a.lnBR0 !== '' && a.lnBR0 != null) return [{ id: 'lnBL0', year: NOW - 1, lab: '작년' }];   /* 2026-11-22 주차장 등 수입금액 비율 — 작년 땅값도 같이 */
+        return []; },
       adj: function (id, a) { return id === 'adjAcq' ? { date: a.acqD || '', lab: '산 날', yes: 'y', no: 'n' } : id === 'adjSale' ? { date: a.saleD || '', lab: '파는 날', yes: 'y', no: 'n' } : null; },
       l90: function (id) { return id === 'l90Pub'; },
       pick: function (id, a) { if (id === 'cvA') { var dm = a.acqD && a.acqD < '1985-01-01'; return { want: 'any', year: dm ? 1985 : pubYear(a.acqD), acq: dm ? '1985-01-01' : (a.acqD || ''), at: dm ? '1985-01-01' : (a.acqD || ''), why: dm ? '의제취득일 1985.1.1. 현재 기준시가' : '산 날 현재 고시된 기준시가(소득세법 §99①)' }; }
@@ -8891,6 +8918,9 @@ https://github.com/nodeca/pako/blob/main/LICENSE
         if (id === 'lr9A') return { want: 'land', year: pubYear(a.acqD), why: '산 날 현재 개별공시지가 × 면적(조특령 §66⑦)' };
         if (id === 'lr9B') return { want: 'land', year: pubYear(a.lnZd), why: '주거·상업·공업지역 편입일 현재 개별공시지가 × 면적(조특령 §66⑦)' };
         if (id === 'lr9C') return { want: 'land', year: pubYear(a.saleD), why: '판 날 현재 개별공시지가 × 면적(조특령 §66⑦)' };
+        /* 2026-11-22 주차장 3% 질문 개선 — 수입금액 비율의 토지가액 = 과세기간 종료일(판 해는 판 날) 기준시가 = 개별공시지가 × 면적(소득세법 시행령 §168의11④) */
+        if (id === 'lnBL') return { want: 'land', year: NOW, why: '올해 개별공시지가 × 면적(소득세법 시행령 §168의11④)' };
+        if (id === 'lnBL0') return { want: 'land', year: NOW - 1, why: '작년 개별공시지가 × 면적(소득세법 시행령 §168의11④)' };
         return null; } }
   }[TAB];
   if (!CFG) return;
