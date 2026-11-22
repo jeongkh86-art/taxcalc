@@ -11594,6 +11594,10 @@ window.__FSPDF={M:"AAEAAAAMAIAAAwBARFNJRwAAAAEACfTYAAAACEdQT1MBV/JlAAnmoAAADjZPU
     var start = U.startDate || (inp.corp && (inp.corp.startDate || inp.corp.founded)) || '';
     var yrs = ok(U.years) ? +U.years : (start && evalDate ? yearsBetween(start, evalDate) : null);
     
+    var fdY = null, fdT = ''; (inp.income || []).forEach(function (y) { if (y && +y.founded > 1900 && (!fdY || +y.founded < fdY)) { fdY = +y.founded; fdT = '제' + y.term + '기 ' + String(y.yearEnd || '').slice(0, 4) + '년'; } });
+    var yrsMax = (yrs === null && fdY && evalDate) ? yearsBetween(fdY + '-01-01', evalDate) : null, byFd = false;
+    if (yrsMax !== null && IGT.bizInhRule && yrsMax < IGT.bizInhRule(yrsMax, evalDate).min) { yrs = yrsMax; start = fdY + '-01-01(기수 역산 설립연도)'; byFd = true; }
+    
     var reformOn = !!(IGT.bizInhReformOn && IGT.bizInhReformOn(evalDate));
     var cap = yrs === null ? null : (IGT.bizInhCapAt ? IGT.bizInhCapAt(yrs, evalDate) : IGT.bizInhCap(yrs));
     var ded = cap === null ? target : Math.min(target, cap);
@@ -11602,7 +11606,7 @@ window.__FSPDF={M:"AAEAAAAMAIAAAwBARFNJRwAAAAEACfTYAAAACEdQT1MBV/JlAAnmoAAADjZPU
     
     if (!U.evalDate) dflt.push('상속개시일(평가기준일) = ' + evalDate + (inp.corp && inp.corp.evalDate ? '(자료 값)' : '(결산일 다음 날)'));
     if (!ok(U.shares)) dflt.push('피상속인 보유 주식수 = ' + (B.sharesWho ? '최대주주 「' + B.sharesWho + '」 ' : '') + sh.toLocaleString('ko-KR') + '주(자료 주주 명부)');
-    if (!ok(U.years)) dflt.push('피상속인 가업 영위기간 = ' + (yrs === null ? '모름 → 한도 미적용' : start + ' ~ ' + evalDate + ', ' + yrs + '년(사업개시일 또는 설립일 기준)'));
+    if (!ok(U.years)) dflt.push('피상속인 가업 영위기간 = ' + (yrs === null ? '모름 → 한도 미적용' + (yrsMax !== null ? ' · 세무조정계산서 기수 「' + fdT + '」 → 설립 ' + fdY + '년 → 최대 ' + yrsMax + '년 [확인 필요 — 사업개시일]' : '') : byFd ? '세무조정계산서 기수 「' + fdT + '」 → 설립 ' + fdY + '년 → 상속개시일까지 최대 ' + yrsMax + '년(설립 해 1월 1일부터 셈 · 실제 경영기간은 더 짧거나 같음)' : start + ' ~ ' + evalDate + ', ' + yrs + '년(사업개시일 또는 설립일 기준)'));
     var known = 1 + (CB.prev || []).filter(ok).length, filled = 5 - known - cf.filter(ok).length;
     var cashAssume = filled > 0;
     if (cashAssume) flags.push('가정 : 자료 없는 연도 = 아는 연도 평균 — 라목 직전 5개 사업연도 말 현금 중 ' + filled + '개 해 [확인 필요]');
@@ -12424,7 +12428,7 @@ window.__FSPDF={M:"AAEAAAAMAIAAAwBARFNJRwAAAAEACfTYAAAACEdQT1MBV/JlAAnmoAAADjZPU
         ws.headerFooter.oddFooter = '&L&12' + H.FOOT + '&R&12&P / &N';
         ws.columns = cols.map(function (w) { return { width: w }; });
         var last = H.colL(cols.length);
-        ws.mergeCells('A1:' + last + '1'); var t = ws.getCell('A1'); t.value = title; t.font = font({ size: 16, bold: true, color: { argb: C.white } }); t.fill = fill(C.ink); t.alignment = { vertical: 'middle', indent: 1 }; ws.getRow(1).height = 32;
+        ws.mergeCells('A1:' + last + '1'); var t = ws.getCell('A1'); var cn0 = (o.corp && o.corp.name) || ''; t.value = cn0 && title.indexOf(cn0) < 0 ? title + ' — ' + cn0 : title; t.font = font({ size: 16, bold: true, color: { argb: C.white } }); t.fill = fill(C.ink); t.alignment = { vertical: 'middle', indent: 1 }; ws.getRow(1).height = 32;
         ws.mergeCells('A2:' + last + '2'); var s = ws.getCell('A2'); s.value = sub; s.font = font({ color: { argb: C.ink2 } }); s.fill = fill(C.band); s.alignment = { vertical: 'middle', indent: 1, wrapText: true }; ws.getRow(2).height = 34;
         EXP[nm] = EXP[nm] || {}; ws.__nm = nm; return ws;
       }
