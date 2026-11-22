@@ -249,7 +249,12 @@ html.fwait body{visibility:hidden}
   #pkRoot .pk-wo button>span,#pkRoot .pk-wo button small.pk-wos{display:block;width:100%;text-align:center}
   
   #pkRoot .cv-ex{margin:8px 0 12px}
-  #pkRoot .cv-ex summary{cursor:pointer;font-size:16px;font-weight:700;color:var(--ink2)}
+  #pkRoot .cv-ex summary{cursor:pointer;font-size:16px;font-weight:700;color:#1d4ed8;list-style:none;display:inline-flex;align-items:center;gap:6px;padding:8px 12px;border:1px solid #bfd0f5;border-radius:10px;background:#f3f7ff}
+  #pkRoot .cv-ex summary::-webkit-details-marker{display:none}
+  #pkRoot .cv-ex summary::before{content:'▸';font-size:14px;transition:transform .15s}
+  #pkRoot .cv-ex[open] summary::before{transform:rotate(90deg)}
+  #pkRoot .cv-ex summary::after{content:'눌러서 보기';font-size:13px;font-weight:500;color:#5b6b8c}
+  #pkRoot .cv-ex[open] summary::after{content:'접기'}   
   #pkRoot .cv-ex ul{margin:6px 0 0;padding-left:18px;font-size:16px;line-height:1.55;color:var(--ink2)}
   #pkRoot .cv-ex li{margin:4px 0}
   #pkRoot .cv-sh{display:grid;gap:8px}
