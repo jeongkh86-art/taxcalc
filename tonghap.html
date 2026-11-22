@@ -371,7 +371,7 @@ body .y4box .y4e{color:var(--pd-acc)!important}
 }</style>
 </head>
 <body>
-<div class="wrap">
+<div class="wrap pk-simple">
   <div class="eyebrow">세금 계산기 · <span class="ex">통합 세금</span> · 2026년 기준</div>
   <h1>통합 세금 시뮬레이터</h1>
   <details class="why"><summary>근거, 2026년 세율</summary><ul class="lead lead-in"><li>거래 6가지 : 일반 증여, 저가양수도, 부담부증여, 교환, 이혼(재산분할, 위자료), 증여받고 10년 안 양도</li><li>거래마다 따라오는 증여세, 양도세, 취득세를 한 번에 + 합계</li><li>비교 : 시가 거래, 일반 증여, 재산분할 ↔ 위자료, 이월과세 안 할 때</li></ul><p class="law" id="lawBox"></p></details>
@@ -5399,17 +5399,22 @@ var IGLP = (function () {
     if (ac.err) return { err: '취득세 엔진 : ' + [].concat(ac.err).join(', ') };
     if (ac0.err) return { err: '취득세 엔진 : ' + [].concat(ac0.err).join(', ') };
     var acqT = t10(ac), acq0 = t10(ac0), gap = V - Pp, J = [], CK = [], DF = [], NT = [];
-    J.push('시가 ' + won(V) + ' − 거래가 ' + won(Pp) + ' = 싸게 산 금액 ' + won(gap) + ' (시가의 ' + (Math.round(gap * 1000 / V) / 10) + '%)');
-    var RL = ROLE[a.role] || ROLE.share;   
+    var RL = ROLE[a.role] || ROLE.share;
+    if (gap === 0) {   
+      J.push('법인에게서 시가 ' + won(V) + ' 그대로 삼 → 법인 부당행위계산 부인 없음(법인세법 §52 · 시행령 §89①), 상여·배당 처분 없음');
+      J.push('사는 사람 증여세 없음 — 시가 거래라 증여 이익 없음');
+    } else {
+    J.push('시가 ' + won(V) + ' − 거래가 ' + won(Pp) + ' = 싸게 산 금액 ' + won(gap) + ' (시가의 ' + (Math.round(gap * 1000 / V) / 10) + '%)');   
     J.push((hit ? '✓ ' : '✗ ') + '법인 부당행위계산(법인세법 §52 · 시행령 §88①3호, ③) : 차액 ' + won(gap) + (hit ? ' ≥ MIN(시가 5%, 3억원) → 법인 익금산입 ' + won(bonus) + ', 사는 사람(' + RL[0] + ') ' + RL[1] + ' 처분 ' + won(bonus) + '(§67 · 시행령 §106①1호)' : ' < MIN(시가 5%, 3억원) → 부당행위 아님'));
     J.push('사는 사람 증여세 없음 — 처분액에 소득세가 붙으면 증여세 부과 안 함(상증법 §4의2③)');
+    }
     J.push('파는 법인 = 양도세 없음(법인세 · 양도가액 시가 ' + won(hit ? cu.corpSale : Pp) + ')');
     J.push('사는 사람 나중에 팔 때 취득가액 = 대가 ' + won(Pp) + (hit ? ' + 처분액 ' + won(bonus) + ' = ' + won(cu.buyerAcq) : '') + '(소득세법 시행령 §163⑩2호)');
     if (ac.undue) J.push('✓ 취득세 부당행위(지방세법 §10의3② · 시행령 §18의2) : 특수관계인(법인 ↔ 주주, 임원)에게서 싸게 산 차액 ≥ MIN(시가인정액 5%, 3억원) → 취득세 = 시가인정액 기준(본값 · 실제 낸 값 기준은 ⚠ 두 값)');
     (ac.dual || []).forEach(function (s) { CK.push('[⚠ 두 값 · 취득세] ' + s); });
     if (hit) CK.push(RL[1] + ' 처분액 ' + won(bonus) + ' = 사는 사람 종합소득세 — 다른 소득과 합산이라 이 계산 밖(' + (a.role === 'exec' ? '상여 = 근로소득 소득세법 §20①3호' : a.role === 'fam' ? '기타소득 = §21①20호' : '배당 = §17①') + ')');
     if (hit) CK.push('파는 법인 법인세 = 익금산입 ' + won(bonus) + ' 늘어남(법인 다른 소득, 장부가액 필요 — 이 계산 밖)');
-    CK.push('법인과 사는 사람이 특수관계(지배주주, 임원 등 · 법인세법 시행령 §2⑧)라고 봄');
+    if (gap > 0) CK.push('법인과 사는 사람이 특수관계(지배주주, 임원 등 · 법인세법 시행령 §2⑧)라고 봄');
     (ac.flags || []).forEach(function (f) { if (!/^끝수/.test(f)) NT.push('[취득세] ' + f); });
     if (!a.date) DF.push('거래일 = 오늘(「오늘로 할게요」)');
     if (house && !(+a.std > 0)) DF.push('공시가격 모름 → 시가와 같다고 봄(취득세 3억원, 1억원 판정 · 세금이 많은 쪽)');
@@ -5444,9 +5449,9 @@ var IGLP = (function () {
     var cg = E.IGTC.corpGift({ lowBuy: { fmv: V, price: Pp }, date: date, holders: holdersOf(a) });
     var xr = xo.res || {}, giftT = fl(cg.totalBurden), xferT = xT10(xo), acqT = t10(ac), xfer0 = xT10(x0), acq0 = t10(ac0), gap = V - Pp, uf = xr.sale === V && Pp < V;
     var J = [], CK = [], DF = [], NT = [];
-    J.push('시가 ' + won(V) + ' − 거래가 ' + won(Pp) + ' = 싸게 판 금액 ' + won(gap) + (V > 0 ? ' (시가의 ' + (Math.round(gap * 1000 / V) / 10) + '%)' : ''));
+    if (gap > 0) J.push('시가 ' + won(V) + ' − 거래가 ' + won(Pp) + ' = 싸게 판 금액 ' + won(gap) + (V > 0 ? ' (시가의 ' + (Math.round(gap * 1000 / V) / 10) + '%)' : ''));
     if (gap > 0) J.push((uf ? '✓ ' : '✗ ') + '파는 사람 양도세 부당행위(소득세법 §101① · 시행령 §167③) : 차액 ' + won(gap) + (uf ? ' ≥ MIN(시가 5%, 3억원) → 양도가액 = 시가 ' + won(V) : ' < MIN(시가 5%, 3억원) → 거래가 그대로'));
-    else J.push('시가로 팜 → 양도세 = 시가 기준, 법인 주주 증여세 없음');
+    else J.push('법인에 시가 ' + won(V) + ' 그대로 팜 → 부당행위 아님(소득세법 §101①, 법인세법 §52 · 시행령 §89①), 양도세 = 시가 기준');   
     if (gap > 0) J.push((cg.lowBuy && cg.lowBuy.hit ? '✓ ' : '✗ ') + '법인 주주 증여의제(상증법 §45의5①2호 · 영 §34의5⑦) : 차액 ' + won(gap) + (cg.lowBuy && cg.lowBuy.hit ? ' ≥ 시가 30% ' + won(cg.lowBuy.th) + ' 또는 3억원 → 특정법인의 이익 ' + won(cg.net) + '(법인세 상당액 0)' : ' < 시가 30% ' + won(cg.lowBuy ? cg.lowBuy.th : 0) + ', 3억원 → 주주 증여세 없음'));
     if (gap > 0 && cg.lowBuy && cg.lowBuy.hit) {
       J.push(cg.famRatio >= 0.3 - 1e-12 ? '특정법인(가족 지분 ' + Math.round(cg.famRatio * 1000) / 10 + '% ≥ 30%)' + (cg.oldNoTax ? ' — 단 ' + date + ' = 2025.12.31. 이전 + 파는 사람 본인이 지배주주 → 거래상대방 아님(구 §45의5①) → 주주 증여세 없음' : ' → 주주별 증여의제') : '가족 지분 ' + Math.round(cg.famRatio * 1000) / 10 + '% < 30% → 특정법인 아님, 주주 증여세 없음');
@@ -5456,10 +5461,12 @@ var IGLP = (function () {
     if (ac.undue) J.push('✓ 법인 취득세 부당행위(지방세법 §10의3② · 시행령 §18의2) : 특수관계인에게서 싸게 산 차액 ≥ MIN(시가인정액 5%, 3억원) → 취득세 = 시가인정액 기준');
     (ac.why || []).forEach(function (w) { J.push('[취득세] ' + w); });
     (ac.dual || []).forEach(function (s) { CK.push('[⚠ 두 값 · 취득세] ' + s); });
+    if (gap > 0) {   
     CK.push('파는 사람과 법인 = 특수관계(파는 사람 또는 그 가족이 30% 이상 출자 · 국세기본법 시행령 §1의2③)라고 봄 — 아니면 §101① 부당행위 없음');
-    CK.push('지배주주 = 넣은 주주 중 지분이 가장 큰 사람(같으면 파는 사람 본인 · 상증령 §34의5① → §34의3①) · 친족 아닌 주주, 간접 보유는 넣지 않음 [확인 필요]');
+    CK.push('지배주주 = 넣은 주주 중 지분이 가장 큰 사람(같으면 파는 사람 본인 · 상증령 §34의5① → §34의3①) · 친족 아닌 주주, 간접 보유는 넣지 않음 [확인 필요]'); }
     if (cg.selfCtrl && !cg.oldNoTax && cg.lowBuy && cg.lowBuy.hit) NT.push('파는 사람 본인이 지배주주여도 2026.1.1. 이후 거래 = 다른 가족 주주 증여의제(상증법 §45의5① 「지배주주 및 그 특수관계인」 · 법률 제21219호)');
-    NT.push('법인이 싸게 산 땅·건물 = 산 때 법인세 없음(유가증권만 익금 · 법인세법 §15②1호), 나중에 팔 때 차익 과세 · 1년 안 같은 거래 이익 합산(영 §34의5 · 1억원 판정) [확인 필요]');
+        if (gap > 0) NT.push('법인이 싸게 산 땅·건물 = 산 때 법인세 없음(유가증권만 익금 · 법인세법 §15②1호), 나중에 팔 때 차익 과세 · 1년 안 같은 거래 이익 합산(영 §34의5 · 1억원 판정) [확인 필요]');
+    else NT.push('법인이 시가로 산 땅·건물 = 산 때 법인세 없음, 나중에 팔 때 차익 과세(법인세)');
     (xo.flags || []).forEach(function (f) { if (!/^끝수|분할납부|기본공제 250만원/.test(f)) NT.push('[양도세] ' + f); });
     (ac.flags || []).forEach(function (f) { if (!/^끝수/.test(f)) NT.push('[취득세] ' + f); });
     if (!a.date) DF.push('거래일 = 오늘(「오늘로 할게요」)');
@@ -5468,7 +5475,7 @@ var IGLP = (function () {
     return { ok: true, toCorp: true, P: { V: V, P: Pp, house: house, toCorp: true, A: A, A0: A0, X: X, X0: X0, G: { amount: 0 }, holders: holdersOf(a) }, V: V, price: Pp, gap: gap, house: house, deemGift: false,
       gift: null, corpGift: cg, xfer: xo, xfer0: x0, acq: ac, acq0: ac0, ufHit: uf,
       giftTax: giftT, xferTax: xferT, acqTax: acqT, total: giftT + xferT + acqT, fairXfer: xfer0, fairAcq: acq0, fair: xfer0 + acq0,
-      parts: [{ k: '파는 사람 양도세(지방소득세 포함)', v: xferT, law: '양도가액 ' + won(xr.sale || 0) + (uf ? '(시가로 다시 계산 · 소득세법 §101①)' : '') }, { k: '법인 주주 증여세(상증법 §45의5)', v: giftT, law: cg.lowBuy && cg.lowBuy.hit ? '특정법인의 이익 ' + won(cg.net) + (cg.oldNoTax ? ' · 2025년 이전 + 파는 사람이 지배주주 → 없음(⚠ 아래)' : '') : '현저히 낮은 대가 아님 → 없음' }, { k: '법인 취득세(지방교육세, 농어촌특별세 포함)', v: acqT, law: '과세표준 ' + won(ac.base) }],
+      parts: [{ k: '파는 사람 양도세(지방소득세 포함)', v: xferT, law: '양도가액 ' + won(xr.sale || 0) + (uf ? '(시가로 다시 계산 · 소득세법 §101①)' : '') }].concat(gap > 0 ? [{ k: '법인 주주 증여세(상증법 §45의5)', v: giftT, law: cg.lowBuy && cg.lowBuy.hit ? '특정법인의 이익 ' + won(cg.net) + (cg.oldNoTax ? ' · 2025년 이전 + 파는 사람이 지배주주 → 없음(⚠ 아래)' : '') : '현저히 낮은 대가 아님 → 없음' }] : [], [{ k: '법인 취득세(지방교육세, 농어촌특별세 포함)', v: acqT, law: '과세표준 ' + won(ac.base) }]),   
       judge: J, checks: CK, defaults: DF, notes: NT, won: won };
   }
   
@@ -6659,11 +6666,11 @@ window.LANDQ = (function () {
   var NG = function (a) { return a.mode === 'ngift'; }, NP = function (a) { return NG(a) && a.nTo !== 'corp'; }, NC = function (a) { return NG(a) && a.nTo === 'corp'; }, NH = function (a) { return NG(a) && a.nKind === 'house'; };
   var CQ = function (a) { return C(a) || BC(a) || NC(a); };
   
-  var LBC = function (a) { return a.mode === 'low' && !LC(a) && a.lBuyer === 'corp'; };   
+  var LBC = function (a) { return a.mode === 'low' && a.lDir === 'fair' && !LC(a) && a.lBuyer === 'corp'; };      
   var LBCL = function (a) { return LBC(a) && a.lDir !== 'high'; }, LHB = function (a) { return LBC(a) && a.lDir === 'high'; };
   var LHC = function (a) { return false && a.mode === 'low' && a.lDir === 'high' && a.lSeller === 'corp'; };      
   var GSC = function (a) { return a.mode === 'gsell' && a.sTo === 'corp' && !(a.sRel === 'spouse' && +a.sDebt > 0); };
-  var CQH = function (a) { return CQ(a) || LBCL(a) || GSC(a) || LHC(a); };
+  var CQH = function (a) { return CQ(a) || GSC(a) || LHC(a); };   
   
   var L = function (a) { return a.mode === 'low'; }, LH = function (a) { return L(a) && a.lKind === 'house'; };
   
@@ -6780,7 +6787,7 @@ window.LANDQ = (function () {
   }
   var QS = [
     { id: 'mode', t: 'b', q: '어떤 거래예요?', h: '거래마다 따라오는 세금(증여세, 양도세, 취득세)을 한 번 넣은 값으로 모두, 합계까지',
-      o: [['ngift', '부동산을 그냥 증여해요(일반 증여)'], ['low', '가족, 아는 사람, 가족 법인과 시가보다 싸게, 비싸게, 시가로 사고팔아요(저가, 고가 양수도, 가족 법인과 사고팔기)'], ['burden', '빚도 같이 넘기며 증여해요(부담부증여)'], ['swap', '부동산을 서로 바꿔요(교환)'], ['divorce', '이혼하며 부동산을 넘겨요(재산분할, 위자료)'], ['gsell', '증여받은 부동산을 10년 안에 팔아요'], ['inh', '돌아가신 분 재산을 상속받아요(미리 받은 증여 합산)']] },
+      o: [['ngift', '부동산을 그냥 증여해요(일반 증여)'], ['low', '가족, 아는 사람과 시가보다 싸게, 비싸게, 시가로 사고팔아요 · 법인과는 시가로만(저가, 고가 양수도, 법인과 시가 거래)'], ['burden', '빚도 같이 넘기며 증여해요(부담부증여)'], ['swap', '부동산을 서로 바꿔요(교환)'], ['divorce', '이혼하며 부동산을 넘겨요(재산분할, 위자료)'], ['gsell', '증여받은 부동산을 10년 안에 팔아요'], ['inh', '돌아가신 분 재산을 상속받아요(미리 받은 증여 합산)']] },
     
     { id: 'nTo', t: 'b', on: NG, q: '누가 받아요?', h: '개인 = 증여세 · 법인 = 법인세(자산수증이익) + 가족 지분 30% 이상이면 주주 증여세(§45의5) · 취득세는 둘 다', o: [['person', '개인(자녀, 배우자 등)'], ['corp', '법인(자녀가 주주인 법인 등)']] },
     { id: 'nKind', t: 'b', on: NG, q: '무엇을 증여해요?', h: '주택 = 조정대상지역 공시가격 3억원 이상이면 취득세 중과(지방세법 §13의2②) · 토지, 상가 = 무상취득 세율', o: [['house', '주택(아파트, 단독주택 등)'], ['land', '토지, 상가 등 건물']] },
@@ -6911,12 +6918,12 @@ window.LANDQ = (function () {
     
     { id: 'lKind', t: 'b', on: L, q: '무엇을 사고팔아요?', h: '주택 = 1세대1주택 비과세, 다주택 중과, 취득세 주택 세율 · 토지, 상가 = 기본세율 · 땅은 다음 질문(「어떤 땅이에요?」)으로 사업용, 비사업용을 판정(비사업용 = 기본세율 + 10%p · 소득세법 §104①8호)',
       o: [['house', '주택(아파트, 단독주택 등)'], ['land', '토지, 상가 등 건물(사업용인지 비사업용인지 다음 질문으로 판정)']] },
-    { id: 'lDir', t: 'b', stg: 'basic', pdef: 'low', on: L, q: '시가보다 싸게, 비싸게, 시가 그대로 사고팔아요?', h: '싸게 = 사는 사람이 이익(증여세), 파는 사람 양도세는 시가로 · 비싸게 = 파는 사람이 이익(증여세), 그만큼 양도가액에서 빠짐 · 시가 그대로 = 증여세 없음, 양도세, 취득세만(배우자, 직계존비속끼리는 대가를 낸 증거가 없으면 증여로 추정) · 파는 쪽이 법인이면 시가 그대로만(법인세법 §52)',
+    { id: 'lDir', t: 'b', stg: 'basic', pdef: 'low', on: L, q: '시가보다 싸게, 비싸게, 시가 그대로 사고팔아요?', h: '싸게 = 사는 사람이 이익(증여세), 파는 사람 양도세는 시가로 · 비싸게 = 파는 사람이 이익(증여세), 그만큼 양도가액에서 빠짐 · 시가 그대로 = 증여세 없음, 양도세, 취득세만(배우자, 직계존비속끼리는 대가를 낸 증거가 없으면 증여로 추정) · 법인과 사고팔면(법인이 파는 쪽, 사는 쪽 모두) 시가 그대로만(법인세법 §52) — 싸게, 비싸게는 개인끼리',
       o: [['low', '시가보다 싸게(저가)'], ['high', '시가보다 비싸게(고가)'], ['fair', '시가 그대로(정상 거래)']] },
     { id: 'lSeller', t: 'b', stg: 'basic', pdef: 'person', on: function (a) { return L(a) && a.lDir === 'fair'; }, q: '파는 쪽은 개인이에요, 법인이에요?', h: '법인이 파는 거래 = 시가로(시가와 다르면 법인세법 §52 부당행위계산 부인 → 법인 익금산입, 사는 사람 배당·상여 처분) · 그래서 법인이 파는 경우는 「시가 그대로」에서만 고를 수 있어요 · 법인 = 양도세 없음(법인세), 사는 사람 = 취득세',
       o: [['person', '개인'], ['corp', '법인 — 시가로 팔아요']] },
-    { id: 'lBuyer', t: 'b', stg: 'basic', pdef: 'person', on: function (a) { return L(a) && !LC(a); }, q: '사는 쪽은 개인이에요, 법인이에요?', h: function (a) { return a.lDir === 'high' ? '가족 법인에 비싸게 팔면 = 시가 넘는 금액은 파는 사람 배당, 상여(소득세 · 법인세법 §52), 양도세는 시가로(소득세법 §96③1호) + 법인 취득세' : '가족이 주주인 법인(자녀, 손자녀 법인 등)에 팔면 = 파는 사람 양도세 + 법인 취득세 + 시가보다 많이 싸면 법인 주주 증여세(상증법 §45의5)'; },
-      o: [['person', '개인(자녀, 배우자 등)'], ['corp', '가족이 주주인 법인(자녀, 손자녀 법인 등)']] },
+    { id: 'lBuyer', t: 'b', stg: 'basic', pdef: 'person', on: function (a) { return L(a) && a.lDir === 'fair' && !LC(a); }, q: '사는 쪽은 개인이에요, 법인이에요?', h: '법인이 사는 거래 = 시가로(시가와 다르면 법인세법 §52 부당행위계산 부인 · 그래서 법인이 사는 경우는 「시가 그대로」에서만 고를 수 있어요) · 파는 사람 양도세 + 법인 취득세',   
+      o: [['person', '개인(자녀, 배우자 등)'], ['corp', '법인(가족이 주주인 법인 등) — 시가로 사요']] },
     { id: 'lCorpNew', t: 'b', pdef: 'n', on: LBC, q: '사는 법인이 수도권 과밀억제권역(서울 등) 안에서 설립되거나 옮겨 온 지 5년이 안 됐어요?', h: '대도시 안 법인의 부동산 취득 = 취득세 중과(지방세법 §13②)', o: [['n', '아니요'], ['y', '예']] },
     
     { id: 'lHiRole', t: 'b', pdef: 'share', on: function (a) { return LHB(a); }, q: function (a) { return (LHB(a) ? '파는' : '사는') + ' 사람은 그 법인에 어떤 사람이에요?'; }, h: function (a) { return '시가와의 차액(' + (LHB(a) ? '비싸게 받은' : '싸게 산') + ' 금액) = 주주면 배당, 임원·직원이면 상여, 그 밖이면 기타소득(법인세법 시행령 §106①1호) → 종합소득세 · 증여세 없음(상증법 §4의2③)'; },
@@ -7256,7 +7263,7 @@ window.LANDQ = (function () {
       dir: a.lDir === 'high' ? 'high' : 'low', seller: LC(a) ? 'corp' : 'person', yr: LYR(a) && a.lYr === 'y', yrV: M(a.lYrV), yrP: M(a.lYrP),   
       prior: a.lPrior === 'y' ? M(a.lPriorAmt) : 0, priorTax: a.lPrior === 'y' && a.lPriorTax !== '' && a.lPriorTax != null ? M(a.lPriorTax) : '', usedDed: M(a.lUsed) };
     if (LPB(a)) Object.assign(o, PXA('l', a, M));
-    if (LBC(a)) Object.assign(o, { buyer: 'corp', corpNew: a.lCorpNew === 'y', holders: LHB(a) ? [] : HLD(a, M), prior: 0, priorTax: '', usedDed: 0 });   
+    if (LBC(a)) Object.assign(o, { buyer: 'corp', corpNew: a.lCorpNew === 'y', holders: [], prior: 0, priorTax: '', usedDed: 0 });   
     if (LHB(a) || LC(a)) o.role = a.lHiRole || 'share';      
     if (LHC(a)) Object.assign(o, { holders: HLD(a, M), corpOther: a.lCOth === '' || a.lCOth == null ? '' : M(a.lCOth), prior: 0, priorTax: '', usedDed: 0 });   
     if (LPB(a) && a.lCo === 'y' && a.lKind !== 'house' && a.lDir !== 'high' && (a.lRel === 'parent' || a.lRel === 'grand')) o.co = { pct: a.lCoPct === '' || a.lCoPct == null ? 50 : +a.lCoPct };   
@@ -7449,6 +7456,7 @@ window.LANDQ = (function () {
         { k: '사는 사람 취득세(지방교육세, 농어촌특별세 포함)', v: X.acqTax, law: '과세표준 ' + won(ac.base) + ' · ' + RT(ac) + ((ac.dual || []).length ? ' · ⚠ 두 값 아래' : '') },
         { k: '세금 합계(취득세)', v: X.total, big: true }];
       L2 = [{ k: '사는 사람 취득세(시가로 살 때)', v: X.fairAcq, law: RT(X.acq0) }, { k: '시가 거래 합계', v: X.fair, big: true }];
+      if (X.gap === 0) L1 = [{ k: '사는 사람 증여세', v: 0, law: '시가로 삼 → 증여 이익 없음' }, L1[2], L1[3]];   
       if (X.gap === 0) sub3 = '법인이 시가로 팜 — 부당행위계산 부인, 상여·배당 처분 없음(법인세법 §52)';   
       else lines.push('취득세 ' + (d <= 0 ? '△' + won(-d) + ' 적음' : won(d) + ' 많음') + ' — 시가 ' + won(X.V) + '에 살 때와 비교 · 대금 ' + won(X.gap) + ' 덜 내는 대신 상여, 배당 ' + won(X.bonus) + '에 소득세');
     } else {
@@ -7469,23 +7477,25 @@ window.LANDQ = (function () {
     var box = function (t, Lx) { return Lx.length ? '<div class="pk-wdf"><b>' + t + '</b><br>' + Lx.map(escN).join('<br>') + '</div>' : ''; };
     h += (X.corp ? '' : landCmpHtml()) + box('[확인 필요]', X.checks) + box('[기본값으로 둔 것]', W.D) + box('[참고]', X.notes);
     h += answers();
-    var parts = X.corp ? [L1[0], L1[2]] : L1.slice(0, 3);
+    var parts = X.corp ? [L1[0], L1[L1.length - 2]] : L1.slice(0, 3);   
     h += detailAll(parts, X.total, [g ? { t: '증여세', v: X.giftTax, body: stepTable(g.lines) } : null, X.xfer ? { t: '양도세', v: X.xferTax, body: xStepTbl(X.xfer) } : null, { t: '취득세', v: X.acqTax, body: aStepTbl(ac) }]);
+    if (X.corp) h += '<button type="button" class="pk-go pk-xl" data-igxx="low">엑셀 받기 (수식)</button><div class="pk-xlm igxx-m"></div>';   
     h += btns();
     return h;
   }
   
   function lpResult3(h, X) {
     var ac = X.acq, d = X.total - X.fair, lines = X.judge.slice(), L1 = X.parts.map(function (p) { return { k: p.k, v: p.v, law: p.law }; });
-    L1.push({ k: X.hiCorp ? '세금 합계' + (X.hiCorp === 'toCorp' ? '(처분액 소득세 빼고)' : '') : X.toCorp ? '세 세금 합계' : '세 세금 합계(두 양도자)', v: X.total, big: true });
+    var F0 = X.toCorp && !X.hiCorp && X.gap === 0;   
+    L1.push({ k: F0 ? '세금 합계(양도세, 법인 취득세)' : X.hiCorp ? '세금 합계' + (X.hiCorp === 'toCorp' ? '(처분액 소득세 빼고)' : '') : X.toCorp ? '세 세금 합계' : '세 세금 합계(두 양도자)', v: X.total, big: true });
     var L2 = X.fairParts ? X.fairParts.map(function (p) { return { k: p.k, v: p.v, law: /취득세/.test(p.k) ? RT(X.acq0) : p.law }; }).concat([{ k: '시가 거래 합계', v: X.fair, big: true }])   
       : [{ k: X.toCorp ? '파는 사람 양도세(시가로 팔 때)' : '파는 사람 양도세(시가로 팔 때, 두 사람)', v: X.fairXfer }, { k: (X.toCorp ? '법인' : '사는 사람') + ' 취득세(시가로 살 때)', v: X.fairAcq, law: RT(X.acq0) }, { k: '시가 거래 합계', v: X.fair, big: true }];
-    lines.push('세금 합계 ' + (d <= 0 ? '△' + won(-d) + ' 적음' : won(d) + ' 많음') + ' — 시가 ' + won(X.V) + '에 사고팔 때와 비교' + (X.gap > 0 ? ' · 사는 쪽은 대금 ' + won(X.gap) + (X.hiCorp ? ' 더 냄' : ' 덜 냄') : ''));
-    var title = X.title ? X.title : X.toCorp ? '가족 법인에 팔 때 세금 합계(양도세, 법인 주주 증여세, 법인 취득세)' : '부부 공동명의 저가양수도 세금 합계(증여세, 양도세, 취득세)';
+    if (!F0) lines.push('세금 합계 ' + (d <= 0 ? '△' + won(-d) + ' 적음' : won(d) + ' 많음') + ' — 시가 ' + won(X.V) + '에 사고팔 때와 비교' + (X.gap > 0 ? ' · 사는 쪽은 대금 ' + won(X.gap) + (X.hiCorp ? ' 더 냄' : ' 덜 냄') : ''));
+    var title = X.title ? X.title : F0 ? '법인에 시가로 팔 때 세금 합계(양도세, 법인 취득세)' : X.toCorp ? '가족 법인에 팔 때 세금 합계(양도세, 법인 주주 증여세, 법인 취득세)' : '부부 공동명의 저가양수도 세금 합계(증여세, 양도세, 취득세)';
     h += '<div class="pk-wr ok"><div class="pk-wr0">' + esc(title) + '</div><div class="pk-wr1">' + esc(won(X.total)) + '</div>' + wonFull(X.total) +
-      '<div class="pk-wr3">시가대로 사고팔 때 ' + esc(won(X.fair)) + '</div>' +
+      '<div class="pk-wr3">' + (F0 ? '법인에 시가로 팜 — 부당행위계산 부인 없음(소득세법 §101①, 법인세법 §52)' : '시가대로 사고팔 때 ' + esc(won(X.fair))) + '</div>' +
       '<ul class="pk-wl">' + lines.map(function (x) { return '<li>' + esc(x) + '</li>'; }).join('') + '</ul>' + stepTable(L1) +
-      '<div class="pk-wr0" style="margin-top:12px">비교 — 시가대로 사고팔 때</div>' + stepTable(L2) +
+      (F0 ? '' : '<div class="pk-wr0" style="margin-top:12px">비교 — 시가대로 사고팔 때</div>' + stepTable(L2)) +
       (X.co && X.whole ? '<div class="pk-wr0" style="margin-top:12px">증여 판정 두 가지 — 각자 몫일 때, 합쳐서일 때(⚠ 예규 없음)</div>' + stepTable([   
         { k: '각자 몫으로 판정 — 증여세', v: X.each.giftTax, law: '두 양도자 몫마다 시가 30%, 3억원 기준(본값)' }, { k: '각자 몫으로 판정 — 세 세금 합계', v: X.each.total, big: true },
         { k: '합쳐서 판정 — 증여세', v: X.whole.giftTax, law: X.whole.bf && X.whole.bf.hit ? '땅 전체 증여재산가액 ' + won(X.whole.amount) : '땅 전체로도 기준 미만 → 없음' }, { k: '합쳐서 판정 — 세 세금 합계', v: X.whole.total, big: true }]) +
@@ -7495,6 +7505,7 @@ window.LANDQ = (function () {
     h += answers();
     var secs = X.hiCorp === 'toCorp' ? [{ t: '양도세', v: X.xferTax, body: xStepTbl(X.xfer) }, { t: '법인 취득세', v: X.acqTax, body: aStepTbl(ac) }]
       : X.hiCorp === 'fromCorp' ? [{ t: '법인 주주 증여세', v: X.giftTax, body: stepTable(X.corpGift.lines) }, { t: '사는 사람 취득세', v: X.acqTax, body: aStepTbl(ac) }]
+      : F0 ? [{ t: '양도세', v: X.xferTax, body: xStepTbl(X.xfer) }, { t: '법인 취득세', v: X.acqTax, body: aStepTbl(ac) }]
       : X.toCorp ? [{ t: '법인 주주 증여세', v: X.giftTax, body: stepTable(X.corpGift.lines) }, { t: '양도세', v: X.xferTax, body: xStepTbl(X.xfer) }, { t: '법인 취득세', v: X.acqTax, body: aStepTbl(ac) }]
       : [X.R1.gift ? { t: '증여세(첫 번째 양도자 몫)', v: X.R1.giftTax, body: stepTable(X.R1.gift.lines) } : null, X.R2.gift ? { t: '증여세(두 번째 양도자 몫 · 첫 몫 합산)', v: X.R2.giftTax, body: stepTable(X.R2.gift.lines) } : null,
         X.R1.xfer ? { t: '양도세(첫 번째 양도자)', v: X.R1.xferTax, body: xStepTbl(X.R1.xfer) } : null, X.R2.xfer ? { t: '양도세(두 번째 양도자)', v: X.R2.xferTax, body: xStepTbl(X.R2.xfer) } : null, { t: '취득세(땅 전체)', v: X.acqTax, body: aStepTbl(ac) }];
@@ -8930,13 +8941,15 @@ window.LANDQ = (function () {
   
   function lowModel(ctx) {
     var E = eng(ctx), X = ctx.LP; if (!X || !X.ok) throw new Error('저가양수도 결과 없음(먼저 계산해 주세요)');
-    var tb = tables(E, X.toCorp || X.hiCorp === 'fromCorp' ? 'corp' : 'gift', X.xfer ? (X.P.X || X.R1.P.X).saleDate : null), M = E.X.model(tb.TB), S = [], HI = !!(X.high || X.hiCorp);
-    M.block('N', '저가양수도 — 거래', function (b) {
+    var F0 = (X.toCorp || X.corp) && !X.hiCorp && X.gap === 0;   
+    var tb = tables(E, (X.toCorp && !F0) || X.hiCorp === 'fromCorp' ? 'corp' : 'gift', X.xfer ? (X.P.X || X.R1.P.X).saleDate : null), M = E.X.model(tb.TB), S = [], HI = !!(X.high || X.hiCorp);
+    M.block('N', F0 ? '법인과 시가 거래 — 거래' : '저가양수도 — 거래', function (b) {
       b.IN('V', '시가', X.V, { law: '상증법 §60, 소득세법 시행령 §167⑤' });
       b.IN('P', '거래가(대가)', X.price, { law: '상증법 §35' });
       if (HI) b.F('GAP', '비싸게 산 금액(거래가 − 시가)', '{P}-{V}', X.gap, {});   
+      else if (F0) b.F('GAP', '시가와 거래가 차이(시가 그대로 = 0)', '{V}-{P}', X.gap, { law: '법인세법 §52, 시행령 §89①' });
       else b.F('GAP', '싸게 산 금액(시가 − 거래가)', '{V}-{P}', X.gap, {});
-      b.JD('REL', '관계', X.hiCorp === 'toCorp' ? '가족 법인에 비싸게 팖(특수관계법인 · 파는 사람 = ' + (IGLP.ROLE[X.P.role] || [''])[0] + ')' : X.hiCorp === 'fromCorp' ? '가족 법인에게서 비싸게 삼(특수관계법인)' : X.toCorp ? '가족이 주주인 법인(특수관계법인)' : X.co ? '부부 공동명의 → 사는 사람(' + ((typeof IGLP !== 'undefined' && IGLP.REL_LAB && IGLP.REL_LAB[X.R1.P.rel]) || X.R1.P.rel) + ')' : (typeof IGLP !== 'undefined' && IGLP.REL_LAB && IGLP.REL_LAB[X.P.rel]) || X.P.rel, { fmt: 't', law: '국세기본법 시행령 §1의2' });
+      b.JD('REL', '관계', X.hiCorp === 'toCorp' ? '가족 법인에 비싸게 팖(특수관계법인 · 파는 사람 = ' + (IGLP.ROLE[X.P.role] || [''])[0] + ')' : X.hiCorp === 'fromCorp' ? '가족 법인에게서 비싸게 삼(특수관계법인)' : X.toCorp ? (F0 ? '법인에 시가로 팖' : '가족이 주주인 법인(특수관계법인)') : X.corp && F0 ? '법인에게서 시가로 삼' : X.co ? '부부 공동명의 → 사는 사람(' + ((typeof IGLP !== 'undefined' && IGLP.REL_LAB && IGLP.REL_LAB[X.R1.P.rel]) || X.R1.P.rel) + ')' : (typeof IGLP !== 'undefined' && IGLP.REL_LAB && IGLP.REL_LAB[X.P.rel]) || X.P.rel, { fmt: 't', law: '국세기본법 시행령 §1의2' });
     });
     var parts = [];
     if (X.hiCorp === 'toCorp') {   
@@ -8956,9 +8969,9 @@ window.LANDQ = (function () {
       parts.push(['  사는 사람 취득세(지방교육세, 농특세 포함)', ab(E, M, 'A', '취득세(사는 사람 · 실제 낸 값)', X.acq), X.acqTax]);
     } else if (X.toCorp) {   
       var cg = X.corpGift; E.noSum = true;
-      corpRows(E, M, { amount: cg.gross, other: 0, loss: 0, national: 0, lowBuy: true, holders: X.P.holders }, cg, false);
+      if (!F0) corpRows(E, M, { amount: cg.gross, other: 0, loss: 0, national: 0, lowBuy: true, holders: X.P.holders }, cg, false);
       parts.push(['  파는 사람 양도세(지방소득세 포함)', yb(E, M, 'Y', '양도소득세(파는 사람)', X.xfer, X.P.X, tb.T, { sLab: X.ufHit ? '시가 · 소득세법 §101' : '거래가', sLaw: X.ufHit ? '소득세법 §101①, 시행령 §167④' : '소득세법 §96' }), X.xferTax]);
-      parts.push(['  법인 주주 증여세(§45의5)', 'INT(' + M.corpTot + '+0.000001)', X.giftTax]);
+      if (!F0) parts.push(['  법인 주주 증여세(§45의5)', 'INT(' + M.corpTot + '+0.000001)', X.giftTax]);
       parts.push(['  법인 취득세(지방교육세, 농특세 포함)', ab(E, M, 'A', '취득세(사는 법인)', X.acq), X.acqTax]);
     } else if (X.co) {   
       var R1 = X.R1, R2 = X.R2;
@@ -8973,10 +8986,10 @@ window.LANDQ = (function () {
     if (X.xfer) parts.push(['  파는 사람 양도세(지방소득세 포함)', yb(E, M, 'Y', '양도소득세(파는 사람)', X.xfer, X.P.X, tb.T, { sLab: X.ufHit ? '시가 · 소득세법 §101' : '거래가', sLaw: X.ufHit ? '소득세법 §101①, 시행령 §167④' : '소득세법 §96' }), X.xferTax]);
     parts.push(['  사는 사람 취득세(지방교육세, 농특세 포함)', ab(E, M, 'A', '취득세(사는 사람)', X.acq), X.acqTax]);
     }
-    M.sum('TOTX', '저가양수도 세금 합계(증여세, 양도세, 취득세)', parts.map(function (p) { return p[1]; }).join('+'), X.total, { big: 1 });
+    M.sum('TOTX', F0 ? '법인과 시가 거래 세금 합계(' + (X.toCorp ? '양도세, 법인 취득세' : '취득세') + ')' : '저가양수도 세금 합계(증여세, 양도세, 취득세)', parts.map(function (p) { return p[1]; }).join('+'), X.total, { big: 1 });
     parts.forEach(function (p, i) { M.sum('P' + i, p[0], p[1], p[2]); });
-    M.sum('FAIR', '시가대로 사고팔 때(엔진 값)', String(X.fair), X.fair);
-    info(M, X, ctx, '질문형(바로 계산) — 저가양수도');
+    if (!F0) M.sum('FAIR', '시가대로 사고팔 때(엔진 값)', String(X.fair), X.fair);
+    info(M, X, ctx, '질문형(바로 계산) — ' + (F0 ? '법인과 시가 거래' : '저가양수도'));
     M.info.noF = '관계, 증여 추정(§44), 부당행위 판정(§101), 비과세, 장특공 율, 세율 후보, 취득세 세율(중과, §10의3②, §7⑪) = 엔진 판정 · 바꾸면 시뮬레이터에서 새로 받기 · 세액 단계, 합계 = 수식';
     return M;
   }
@@ -9296,7 +9309,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
 })();
 </script>
 
-<div id="pubFoot" style="margin:28px auto 0;padding:14px 16px 22px;max-width:1100px;font:14px/1.6 Freesentation,-apple-system,BlinkMacSystemFont,'Apple SD Gothic Neo','Malgun Gothic','Noto Sans KR',sans-serif;color:#6B7684;text-align:center;border-top:1px solid #E5E8EB">본 자료 = 일반적 정보 제공 목적, 실제 적용 시 개별 사안별 법률적 검토 및 전문가 자문 필수<br>계산은 이 기기 안에서만 하며 입력값은 보내지 않습니다(「주소로 찾기」에 넣은 주소만 공시가격, 조정대상지역 확인을 위해 브이월드로 보냄). · 판 2026-11-22</div><script>try{if(window.self!==window.top)document.getElementById("pubFoot").style.display="none";}catch(e){}</script>
+<div id="pubFoot" style="margin:28px auto 0;padding:14px 16px 22px;max-width:1100px;font:14px/1.6 Freesentation,-apple-system,BlinkMacSystemFont,'Apple SD Gothic Neo','Malgun Gothic','Noto Sans KR',sans-serif;color:#6B7684;text-align:center;border-top:1px solid #E5E8EB">본 자료 = 일반적 정보 제공 목적, 실제 적용 시 개별 사안별 법률적 검토 및 전문가 자문 필수<br>계산은 이 기기 안에서만 하며 입력값은 보내지 않습니다(「주소로 찾기」에 넣은 주소만 공시가격, 조정대상지역 확인을 위해 브이월드로 보냄). · 판 2026-11-23</div><script>try{if(window.self!==window.top)document.getElementById("pubFoot").style.display="none";}catch(e){}</script>
 <script id="gsgJs">(function () {
   'use strict';
   var TAB = "igx", KEY = "66360EF1-780E-4AB9-A5AA-A119D3364B46";

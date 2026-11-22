@@ -1128,16 +1128,29 @@ if (typeof module !== 'undefined') module.exports = ACQ;
     var adv = o.advisorFee == null || o.advisorFee === '' ? R.advisorFee : +o.advisorFee;
     var disc = o.bondDisc == null || o.bondDisc === '' ? R.bondDisc : +o.bondDisc;
     var checks = [], notes = [];
+    
+    var merge = o.way === 'merge', oldCorp = merge && o.recv === 'old', age = oldCorp ? (o.corpAge || 'lt5') : '';
+    var notMerge = oldCorp && age === 'lt1' && !!o.major;
+    var heavy = metro && !(oldCorp && age === 'ge5');
+    var other = merge ? Math.max(0, +o.other || 0) : 0;
 
     
-    var netAsset = Math.max(0, price - debt), capital = netAsset;   
-    var reqs = [
+    var netAsset = Math.max(0, price + other - debt), capital = netAsset;   
+    if (oldCorp && o.incAmt != null && o.incAmt !== '') capital = Math.max(0, +o.incAmt || 0);   
+    var stockVal = oldCorp ? (o.stockVal == null || o.stockVal === '' ? null : +o.stockVal) : netAsset;
+    var reqs = merge ? [
+      { k: 'consum', ok: !o.consum, t: '소비성 서비스업(호텔, 여관, 유흥주점 등)이 아님', law: '조특법 §31① · 조특령 §28①, §29③' },
+      { k: 'whole', ok: o.allIn !== false, t: '사업장별로 그 사업의 주된 자산을 모두 법인에 넘김', law: '조특령 §28①' },
+      { k: 'same', ok: o.same !== false, t: '넘긴 뒤에도 법인이 같은 사업을 이어감(사업의 동일성)', law: '조특령 §28① · 부동산거래관리과-562(2012.10.18.)' },
+      { k: 'stock', ok: stockVal == null || stockVal >= netAsset, unk: stockVal == null, t: oldCorp ? '받는 주식의 시가가 순자산가액(시가) 이상' : '받는 주식 가액이 순자산가액 이상(새 법인 = 같게 발행 가정)', law: '조특령 §28①2호 · 대법원 2025.07.18. 2022두53204' }
+    ].concat(oldCorp ? [{ k: 'age', ok: !notMerge, t: '세운 지 1년 안 된 법인이 과점주주 개인의 사업을 넘겨받는 것이 아님', law: '조특령 §28① 후단' }] : []) : [
       { k: 'consum', ok: !o.consum, t: '소비성 서비스업(호텔, 여관, 유흥주점 등)이 아님', law: '조특법 §32① · 조특령 §29③' },
       { k: 'way', ok: o.way !== 'transfer' || o.allIn !== false, t: o.way === 'transfer' ? '사업양수도 = 법인 세운 날부터 3개월 안에 사업의 모든 권리와 의무를 넘김' : '사업용 고정자산을 현물출자', law: '조특법 §32① · 조특령 §29②' },
       { k: 'cap', ok: capital >= netAsset, t: '새 법인 자본금이 순자산가액(부동산 − 부채) 이상', law: '조특법 §32② · 조특령 §29⑤' }
     ];
     var deferOk = reqs.every(function (r) { return r.ok; });
-    if (compat) deferOk = true;   
+    if (compat) deferOk = merge ? reqs.every(function (r) { return r.k !== 'stock' && r.k !== 'age' || r.ok; }) : true;   
+    if (merge && stockVal == null) checks.push('받는 주식의 시가가 순자산가액(' + Math.round(netAsset).toLocaleString('ko-KR') + '원) 이상인지 — 발행가액이 아닌 시가로 봄(조특령 §28①2호 · 대법원 2025.07.18. 2022두53204), 이미 있는 법인 주식은 따로 평가');
 
     
     var T = CGT.R.basic.map(function (r) { return r.slice(); }), bd = CGT.R.basicDed;
@@ -1156,8 +1169,8 @@ if (typeof module !== 'undefined') module.exports = ACQ;
     var deferred = deferOk ? cg.total : 0, immediateCG = deferOk ? 0 : cg.total;
 
     
-    var rH = ACQ.sumRate({ owner: 'corp', metro: 'est' }), rS = ACQ.sumRate({ owner: 'corp' }), r = metro ? rH : rS;
-    var relief = o.obj === 'biz' && (compat || deferOk);   
+    var rH = ACQ.sumRate({ owner: 'corp', metro: 'est' }), rS = ACQ.sumRate({ owner: 'corp' }), r = heavy ? rH : rS;
+    var relief = o.obj === 'biz' && ((compat && !merge) || deferOk);   
     var acqMain = price * r.main, acqEdu = price * r.edu, acqNong = price * r.nong;
     var cutMain = relief ? price * r.main * R.reliefPct : 0;
     var cutEdu = relief ? acqEdu * R.reliefPct : 0;                     
@@ -1167,7 +1180,7 @@ if (typeof module !== 'undefined') module.exports = ACQ;
     
     var regMain = capital * R.regRate;
     regMain = Math.max(regMain, R.regMin);                               
-    if (metro) regMain *= R.regHeavy;
+    if (heavy) regMain *= R.regHeavy;   
     var regEdu = regMain * R.regEdu;
     var regTax = compat ? regMain * (1 + R.regEdu) : regMain + regEdu;   
 
@@ -1194,10 +1207,18 @@ if (typeof module !== 'undefined') module.exports = ACQ;
     var vat = 0, bldgPrice = 0;
     if (!compat && o.allIn === false) { bldgPrice = stdSum > 0 ? price * stdBldg / stdSum : 0; vat = bldgPrice * R.vat; if (!(stdSum > 0)) checks.push('부가가치세 — 건물 시가표준액을 몰라 건물분을 나누지 못함(0원으로 둠)'); }
 
+    
+    var inv = null;
+    if (merge) {
+      var ig = Math.max(0, +o.invGain || 0), ob = Math.max(0, +o.otherInc || 0), t1 = CGT.tax(ob + ig), t0 = CGT.tax(ob), it = ig > 0 ? t1.tax - t0.tax : 0;
+      inv = { gain: ig, base0: ob, base1: ob + ig, tax1: t1.tax, tax0: t0.tax, tax: it, local: it * R.localCg, total: it * (1 + R.localCg), rate: ig > 0 ? t1.rate : 0 };
+    }
+    var invTot = inv ? inv.total : 0;
     var fees = adv + appr;
-    var nowTotal = compat ? acqTax + regTax + fees + immediateCG : acqTax + regTax + bondCost + stamp + fees + immediateCG;
+    var nowTotal = compat ? acqTax + regTax + fees + immediateCG + invTot : acqTax + regTax + bondCost + stamp + fees + immediateCG + invTot;
     return {
       compat: compat, price: price, debt: debt, netAsset: netAsset, capital: capital, metro: metro, big: big,
+      merge: merge, oldCorp: oldCorp, corpAge: age, notMerge: notMerge, heavy: heavy, other: other, stockVal: stockVal, inv: inv,
       reqs: reqs, deferOk: deferOk, cg: cg, deferred: deferred, immediateCG: immediateCG,
       acq: { rate: r, relief: relief, main: acqMain, edu: acqEdu, nong: acqNong, cutMain: cutMain, cutEdu: cutEdu, nongRelief: nongRelief, tax: acqTax },
       reg: { main: regMain, edu: regEdu, tax: regTax },
@@ -1902,7 +1923,7 @@ if (typeof module !== 'undefined') module.exports = ACQ;
     var K = C.R, T = CGT.R.basic, YN = X.YN;
     var TB = [{ sec: '양도소득세 기본세율 (소득세법 §104①1호 · §55①)' }].concat(X.rateRows('CG', '양도세 기본세율', T, '소득세법 §55①'))
       .concat([{ sec: '취득세, 등록면허세, 감면' },
-        { k: 'RELIEF', n: '취득세 감면율', v: K.reliefPct, fmt: 'r', law: '지방세특례제한법 §57의2④' },
+        { k: 'RELIEF', n: '취득세 감면율', v: K.reliefPct, fmt: 'r', law: R.merge ? '지방세특례제한법 §57의2③5호' : '지방세특례제한법 §57의2④' },
         { k: 'RNONG', n: '감면분 농어촌특별세율', v: K.reliefNong, fmt: 'r', law: '농어촌특별세법 §5①1호' },
         { k: 'REGR', n: '등록면허세율(법인 설립 출자액)', v: K.regRate, fmt: 'r', law: '지방세법 §28①6호가목1)' },
         { k: 'REGMIN', n: '등록면허세 최저세액', v: K.regMin, fmt: 'w', law: '지방세법 §28①6호가목1)' },
@@ -1917,7 +1938,7 @@ if (typeof module !== 'undefined') module.exports = ACQ;
       R.cg.rows.forEach(function (x, i) {
         var p = 'P' + i + '_';
         if (multi) b.sec('공동 사업자 ' + (i + 1) + ' (지분 ' + Math.round(x.ratio * 10000) / 100 + '%)');
-        b.IN(p + 'TR', '양도가액(시가' + (multi ? ' × 지분' : '') + ')', x.transfer, { law: '소득세법 §96①', d: '현물출자·사업양수도 = 법인에 시가로 넘긴 것으로 봄' });
+        b.IN(p + 'TR', '양도가액(시가' + (multi ? ' × 지분' : '') + ')', x.transfer, { law: '소득세법 §96①', d: R.merge ? '중소기업 통합 = 법인에 시가로 넘긴 것으로 봄' : '현물출자·사업양수도 = 법인에 시가로 넘긴 것으로 봄' });
         b.IN(p + 'AC', '취득가액' + (multi ? '(지분만큼)' : ''), x.acq, { law: '소득세법 §97①1호' });
         b.F(p + 'GA', '양도차익', 'MAX(0,{' + p + 'TR}-{' + p + 'AC})', x.gain, { law: '소득세법 §95①' });
         b.JD(p + 'LR', '장기보유특별공제율(%)', x.ltdRate, { fmt: 'n', law: '소득세법 §95② 표1', d: '보유 ' + I.hold + '년 → ' + x.ltdRate + '%' });
@@ -1930,8 +1951,8 @@ if (typeof module !== 'undefined') module.exports = ACQ;
         b.F(p + 'TT', '양도소득세 + 지방소득세', '{' + p + 'TX}+{' + p + 'LO}', x.total, {});
       });
       var sumT = R.cg.rows.map(function (x, i) { return '{P' + i + '_TT}'; }).join('+');
-      b.JD('DEF', '이월과세 요건 충족', YN(R.deferOk), { fmt: 't', law: '조세특례제한법 §32, 시행령 §29', d: R.reqs.map(function (q) { return (q.ok ? '✓ ' : '✗ ') + q.t; }).join(' / ') });
-      b.F('DEFAMT', '이월과세액(지금 안 냄)', 'IF({DEF}="예",' + sumT + ',0)', R.deferred, { law: '조세특례제한법 §32①', d: '지금 내지 않고, 법인이 나중에 이 자산을 팔 때 법인세로 냄' });
+      b.JD('DEF', '이월과세 요건 충족', YN(R.deferOk), { fmt: 't', law: R.merge ? '조세특례제한법 §31, 시행령 §28' : '조세특례제한법 §32, 시행령 §29', d: R.reqs.map(function (q) { return (q.unk ? '? ' : q.ok ? '✓ ' : '✗ ') + q.t; }).join(' / ') });
+      b.F('DEFAMT', '이월과세액(지금 안 냄)', 'IF({DEF}="예",' + sumT + ',0)', R.deferred, { law: R.merge ? '조세특례제한법 §31①' : '조세특례제한법 §32①', d: '지금 내지 않고, 법인이 나중에 이 자산을 팔 때 법인세로 냄' });
       b.F('NOWCG', '지금 내는 양도소득세', 'IF({DEF}="예",0,' + sumT + ')', R.immediateCG, { law: '소득세법 §105', d: '요건이 안 되면 양도일이 속한 달 말일부터 2개월 안 예정신고' });
     });
 
@@ -1939,25 +1960,32 @@ if (typeof module !== 'undefined') module.exports = ACQ;
     var a = R.acq;
     M.block('AQ', '② 취득세 (법인이 부동산 취득)', function (b) {
       b.IN('P', '과세표준(취득가액)', R.price, { law: '지방세법 §10의3', d: '현물출자 = 유상취득, 시가 기준' });
-      b.JD('RM', '취득세율(본세)', a.rate.main, { fmt: 'r', law: R.metro ? '지방세법 §13②' : '지방세법 §11①7호나목', d: R.metro ? '과밀억제권역 안 설립 5년 안 법인 → 중과' : '법인 일반 유상취득' });
+      b.JD('RM', '취득세율(본세)', a.rate.main, { fmt: 'r', law: R.heavy ? '지방세법 §13②' : '지방세법 §11①7호나목', d: R.heavy ? '과밀억제권역 안 설립 5년 안 법인 → 중과' : R.metro ? '설립 5년 넘은 법인 → 중과 아님(지방세법 시행령 §27③)' : '법인 일반 유상취득' });
       b.JD('RE', '지방교육세율', a.rate.edu, { fmt: 'r', law: '지방세법 §151①1호' });
       b.JD('RN', '농어촌특별세율', a.rate.nong, { fmt: 'r', law: '농어촌특별세법 §5①6호' });
-      b.JD('RF', '감면 대상(개인사업 법인전환)', YN(a.relief), { fmt: 't', law: '지방세특례제한법 §57의2④', d: a.relief ? '조특법 §32 현물출자·사업양수도' : '부동산 임대·공급업은 감면 제외' });
+      b.JD('RF', R.merge ? '감면 대상(중소기업 통합)' : '감면 대상(개인사업 법인전환)', YN(a.relief), { fmt: 't', law: R.merge ? '지방세특례제한법 §57의2③5호' : '지방세특례제한법 §57의2④', d: a.relief ? (R.merge ? '조특법 §31 중소기업 통합' : '조특법 §32 현물출자·사업양수도') : (I.obj === 'rent' ? '부동산 임대·공급업은 감면 제외' : '요건이 안 맞아 감면 없음') });
       b.F('MAIN', '취득세 본세', '{P}*{RM}', a.main, { law: '지방세법 §11, §13' });
       b.F('EDU', '지방교육세', '{P}*{RE}', a.edu, { law: '지방세법 §151①1호' });
       b.F('NONG', '농어촌특별세', '{P}*{RN}', a.nong, { law: '농어촌특별세법 §5①6호' });
-      b.F('CUT', '취득세 감면', 'IF({RF}="예",{MAIN}*{$RELIEF},0)', a.cutMain, { law: '지방세특례제한법 §57의2④', d: '본세 × 감면율(일몰 확인 대상)' });
+      b.F('CUT', '취득세 감면', 'IF({RF}="예",{MAIN}*{$RELIEF},0)', a.cutMain, { law: R.merge ? '지방세특례제한법 §57의2③5호' : '지방세특례제한법 §57의2④', d: '본세 × 감면율(일몰 확인 대상)' });
       b.F('CUTE', '지방교육세 감면', 'IF({RF}="예",{EDU}*{$RELIEF},0)', a.cutEdu, { law: '지방세법 §151①1호 다목, 라목', d: '본세 감면율만큼 함께 줄어듦' });
       b.F('NR', '감면분 농어촌특별세', '{CUT}*{$RNONG}', a.nongRelief, { law: '농어촌특별세법 §5①1호', d: '감면받은 만큼 20%를 다시 냄' });
       b.F('ACQT', '취득세 합계', '{MAIN}+{EDU}+{NONG}-{CUT}-{CUTE}+{NR}', a.tax, { d: '지금 내는 돈' });
     });
 
     
-    M.block('RG', '③ 등록면허세 (법인 설립등기)', function (b) {
+    M.block('RG', R.oldCorp ? '③ 등록면허세 (자본 증가 등기)' : '③ 등록면허세 (법인 설립등기)', function (b) {
       b.IN('PR', '부동산 시가', R.price, {});
+      if (R.merge) b.IN('OT', '그 밖에 넘기는 자산 시가', R.other, { d: '재고, 매출채권, 현금, 기계 등' });
       b.IN('DB', '함께 넘기는 부채', R.debt, {});
-      b.F('CAP', '자본금(= 순자산가액)', 'MAX(0,{PR}-{DB})', R.capital, { law: '조세특례제한법 시행령 §29⑤', d: '이월과세 요건 = 자본금이 순자산가액 이상(가정 : 같게 설립)' });
-      b.JD('MET', '과밀억제권역(대도시) 중과', YN(R.metro), { fmt: 't', law: '지방세법 §28②' });
+      if (!R.merge) b.F('CAP', '자본금(= 순자산가액)', 'MAX(0,{PR}-{DB})', R.capital, { law: '조세특례제한법 시행령 §29⑤', d: '이월과세 요건 = 자본금이 순자산가액 이상(가정 : 같게 설립)' });
+      else {
+        b.F('NET', '순자산가액(시가)', 'MAX(0,{PR}+{OT}-{DB})', R.netAsset, { law: '조세특례제한법 시행령 §28①2호', d: '통합일 현재 시가 자산 − 부채' });
+        if (R.oldCorp && Math.round(R.capital) !== Math.round(R.netAsset)) b.IN('CAP', '늘어나는 자본금(증자 금액)', R.capital, { law: '지방세법 §28①6호가목2)', d: '자본 증가 등기 과세표준' });
+        else b.F('CAP', R.oldCorp ? '늘어나는 자본금(= 순자산가액 가정)' : '자본금(= 순자산가액 가정)', '{NET}', R.capital, { law: R.oldCorp ? '지방세법 §28①6호가목2)' : '지방세법 §28①6호가목1)', d: R.oldCorp ? '증자 금액 모름 → 순자산가액' : '새 법인 = 순자산가액만큼 주식 발행 가정' });
+        if (R.oldCorp) b.IN('SV', '받는 주식의 시가', R.stockVal == null ? '' : R.stockVal, { d: R.stockVal == null ? '모름 → 확인 필요' : '', law: '조세특례제한법 시행령 §28①2호' });
+      }
+      b.JD('MET', '과밀억제권역(대도시) 중과', YN(R.heavy), { fmt: 't', law: '지방세법 §28②', d: R.metro && !R.heavy ? '설립 5년 넘은 법인의 자본 증가 → 중과 아님' : '' });
       b.F('RMAIN', '등록면허세 본세', 'MAX({CAP}*{$REGR},{$REGMIN})*IF({MET}="예",{$REGH},1)', R.reg.main, { law: '지방세법 §28①6호가목1), ②', d: '자본금 × 0.4%, 최저 112,500원 · 대도시 3배' });
       b.F('REDU', '지방교육세(등록분)', '{RMAIN}*{$REGE}', R.reg.edu, { law: '지방세법 §151①2호' });
       b.F('REGT', '등록면허세 합계', '{RMAIN}+{REDU}', R.reg.tax, {});
@@ -1998,17 +2026,30 @@ if (typeof module !== 'undefined') module.exports = ACQ;
       b.F('VATT', '부가가치세', 'IF({ALL}="예",0,{VP}*{$VAT})', R.vat.tax, { d: '법인이 매입세액공제로 돌려받음' });
     });
 
-    M.sum('NOW', '지금 낼 비용 합계', '{CG:NOWCG}+{AQ:ACQT}+{RG:REGT}+{BN:BCOST}+{FE:ST}+{FE:FEES}', R.nowTotal, { big: 1 });
+    
+    var iv = R.inv;
+    if (iv) M.block('IV', '⑦ 재고 차익 종합소득세 (이월과세 대상 아님)', function (b) {
+      b.IN('IG', '재고 차익(시가 − 장부가)', iv.gain, { law: '소득세법 §24②', d: '사업소득 총수입금액에 시가, 장부가는 필요경비(소득46011-2126 준용)' });
+      b.IN('OB', '다른 종합소득 과세표준', iv.base0, { d: '재고 차익 빼고' });
+      b.F('B1', '더한 과세표준', '{OB}+{IG}', iv.base1, {});
+      b.F('T1', '더한 과세표준의 세액', X.progF('{B1}', 'CG', T.length), iv.tax1, { law: '소득세법 §55①', d: '과세표준 구간 세율 − 누진공제' });
+      b.F('T0', '더하기 전 세액', X.progF('{OB}', 'CG', T.length), iv.tax0, { law: '소득세법 §55①' });
+      b.F('IT', '늘어난 종합소득세', 'IF({IG}>0,{T1}-{T0},0)', iv.tax, {});
+      b.F('IL', '지방소득세', '{IT}*{$LOCAL}', iv.local, { law: '지방세법 §92' });
+      b.F('ITT', '재고 차익 세금 합계', '{IT}+{IL}', iv.total, { d: '지금 낼 비용 합계에 넣음' });
+    });
+    M.sum('NOW', '지금 낼 비용 합계', '{CG:NOWCG}+{AQ:ACQT}+{RG:REGT}+{BN:BCOST}+{FE:ST}+{FE:FEES}' + (iv ? '+{IV:ITT}' : ''), R.nowTotal, { big: 1 });
     M.sum('S1', '  취득세 합계', '{AQ:ACQT}', a.tax);
     M.sum('S2', '  등록면허세 합계', '{RG:REGT}', R.reg.tax);
     M.sum('S3', '  국민주택채권 비용', '{BN:BCOST}', bd.cost);
     M.sum('S4', '  인지세 + 수수료', '{FE:ST}+{FE:FEES}', R.stamp + R.fees);
     if (R.immediateCG) M.sum('S5', '  지금 내는 양도소득세', '{CG:NOWCG}', R.immediateCG);
+    if (iv && iv.total) M.sum('S8', '  재고 차익 종합소득세', '{IV:ITT}', iv.total);
     M.sum('S6', '이월과세액(지금 안 냄)', '{CG:DEFAMT}', R.deferred);
     if (R.vat.tax) M.sum('S7', '부가가치세(돌려받음)', '{VT:VATT}', R.vat.tax);
-    M.info.why = [(I.way === 'transfer' ? '사업양수도' : '현물출자') + ' 법인전환', R.deferOk ? '이월과세 요건 충족' : '이월과세 요건 안 됨', R.metro ? '과밀억제권역 안' : '과밀억제권역 밖'];
+    M.info.why = [(I.way === 'transfer' ? '사업양수도 법인전환' : I.way === 'merge' ? '중소기업 통합(' + (R.oldCorp ? '이미 있는 법인' : '새 법인') + ')' : '현물출자 법인전환'), R.deferOk ? '이월과세 요건 충족' : '이월과세 요건 안 됨', R.metro ? '과밀억제권역 안' + (R.heavy ? '' : '(중과 아님)') : '과밀억제권역 밖'];
     M.info.flags = (R.checks || []).slice(); M.info.notes = (R.notes || []).slice();
-    M.info.dflt = ['법무사, 세무사 수수료 ' + won(R.advisorFee) + '(가정)', '채권 할인율 ' + Math.round(bd.disc * 10000) / 100 + '%(가정)', '자본금 = 순자산가액(가정)', '인지세 계약서 1통(가정)'];
+    M.info.dflt = ['법무사, 세무사 수수료 ' + won(R.advisorFee) + '(가정)', '채권 할인율 ' + Math.round(bd.disc * 10000) / 100 + '%(가정)', R.merge ? (R.oldCorp ? '증자 금액 = 입력 또는 순자산가액(가정)' : '받는 주식 가액, 자본금 = 순자산가액(가정)') : '자본금 = 순자산가액(가정)', '인지세 계약서 1통(가정)'];
     if (via) M.info.via = via;
     return M;
   }
@@ -2036,16 +2077,21 @@ if (typeof module !== 'undefined') module.exports = ACQ;
   var QS = [
     { id: 'obj', st: 'basic', t: 'b', q: '무엇을 법인으로 바꾸나요?', o: [['rent', '임대 부동산', '상가, 사무실, 공장, 토지를 빌려주는 사업'], ['biz', '개인사업 전체', '제조, 도소매 등 사업과 그 사업에 쓰는 부동산'], ['house', '주택', '주택 임대, 주택을 살 권리 포함']] },
     { id: 'consum', st: 'basic', t: 'b', on: function (a) { return a.obj === 'biz'; }, q: '호텔, 여관, 유흥주점처럼 소비성 서비스업이에요?', h: '관광숙박업은 여기에 들지 않아요', o: [['n', '아니요'], ['y', '예']] },
-    { id: 'way', st: 'basic', t: 'b', q: '어떤 방법으로 바꾸나요?', o: [['inkind', '현물출자', '부동산(사업)을 새 법인에 출자하고 주식을 받음'], ['transfer', '사업양수도', '먼저 법인을 세우고, 세운 날부터 3개월 안에 사업을 넘김'], ['u', '아직 몰라요', '현물출자로 계산']], ex: function () { return ['현물출자와 사업양수도, 무엇이 달라요?', [
-      ['같은 것', '요건을 맞추면 양도소득세 이월과세, 취득세 50% 감면(부동산 임대업 제외)이 둘 다 같음'],
+    { id: 'way', st: 'basic', t: 'b', q: '어떤 방법으로 바꾸나요?', o: [['inkind', '현물출자', '부동산(사업)을 새 법인에 출자하고 주식을 받음'], ['transfer', '사업양수도', '먼저 법인을 세우고, 세운 날부터 3개월 안에 사업을 넘김'], ['merge', '중소기업 통합', '개인사업 전체를 새 법인이나 이미 있는 법인에 넘기고 주식을 받음'], ['u', '아직 몰라요', '현물출자로 계산']], ex: function () { return ['현물출자, 사업양수도, 중소기업 통합, 무엇이 달라요?', [
+      ['같은 것', '요건을 맞추면 양도소득세 이월과세, 취득세 50% 감면(부동산 임대업 제외)이 셋 다 같음'],
       ['현물출자', '부동산(사업)을 그대로 내고 주식을 받음, 현금이 거의 필요 없음, 법원 검사인 조사 또는 감정인 감정 절차 필요'],
       ['사업양수도', '먼저 현금으로 법인을 세움(자본금 = 순자산가액 이상), 3개월 안에 사업 전체를 법인에 넘기고 대금을 받음, 법원 절차 없음'],
-      ['이런 분께', '현금이 부족하면 현물출자, 순자산가액만큼 현금이 있고 법원 절차 없이 하려면 사업양수도']]]; } },
-    { id: 'allIn', st: 'basic', t: 'b', q: '사업의 모든 권리와 의무를 그대로 넘겨요?', h: '임대보증금, 대출, 임대차 계약까지 통째로 넘기면 「예」', o: [['y', '예, 통째로(포괄 승계)'], ['n', '아니요, 부동산만 골라서']], ex: function (a) { return ['통째로와 부동산만, 무엇이 달라요?', [
+      ['중소기업 통합', '사업장의 자산과 부채를 통째로 법인에 넘기고 순자산가액 이상의 주식을 받음, 이미 있는 법인에도 넘길 수 있음, 재고 차익은 사업소득으로 과세'],
+      ['이런 분께', '현금이 부족하면 현물출자, 순자산가액만큼 현금이 있고 법원 절차 없이 하려면 사업양수도, 이미 운영하는 법인에 개인사업을 합치려면 중소기업 통합']]]; } },
+    { id: 'recv', st: 'basic', t: 'b', on: function (a) { return a.way === 'merge'; }, q: '주식을 받을 법인은요?', o: [['new', '새로 세우는 법인'], ['old', '이미 있는 법인', '본인이 주주인 법인 등']] },
+    { id: 'corpAge', st: 'basic', t: 'b', on: function (a) { return a.way === 'merge' && a.recv === 'old'; }, q: '그 법인은 세운 지 얼마나 됐어요?', h: '법인 등기부의 회사 성립 날짜부터', o: [['lt1', '1년 안 됨'], ['lt5', '1년 넘고 5년 안 됨'], ['ge5', '5년 넘음']] },
+    { id: 'major', st: 'basic', t: 'b', on: function (a) { return a.way === 'merge' && a.recv === 'old' && a.corpAge === 'lt1'; }, q: '본인과 가족이 그 법인 주식을 50% 넘게 가졌어요?', h: '배우자, 자녀 등 친족 지분을 합쳐서', o: [['n', '아니요'], ['y', '예, 50% 넘음']] },
+    { id: 'allIn', st: 'basic', t: 'b', q: function (a) { return a.way === 'merge' ? '사업장의 주된 자산과 부채를 모두 법인에 넘겨요?' : '사업의 모든 권리와 의무를 그대로 넘겨요?'; }, h: '임대보증금, 대출, 임대차 계약까지 통째로 넘기면 「예」', o: [['y', '예, 통째로(포괄 승계)'], ['n', '아니요, 부동산만 골라서']], ex: function (a) { return ['통째로와 부동산만, 무엇이 달라요?', [
       ['통째로(포괄 승계)', '사업에 딸린 부동산, 보증금, 대출, 임대차 계약을 모두 넘김 → 부가가치세 없음(사업 양도 = 재화 공급 아님)'],
       ['부동산만 골라서', '건물분 부가가치세 10%를 법인이 먼저 냄(나중에 돌려받음)' + (a.way === 'transfer' ? ', 사업양수도는 이월과세가 안 돼 양도소득세를 바로 냄' : '')],
-      ['이런 분께', '보통은 통째로, 남겨 둘 자산이나 넘기지 않을 대출이 있을 때만 부동산만']]]; } },
-    { id: 'loc', st: 'basic', t: 'b', q: '부동산과 새 법인 본점은 어디에 있어요?', h: '과밀억제권역이라도 산업단지 안이면 「그 밖 지역」', ex: function () { return ['지역마다 다른 것', [
+      ['이런 분께', '보통은 통째로, 남겨 둘 자산이나 넘기지 않을 대출이 있을 때만 부동산만']].concat(a.way === 'merge' ? [['중소기업 통합', '부동산만 골라 넘기면 통합 요건이 안 돼 이월과세, 취득세 감면이 없음']] : [])]; } },
+    { id: 'same', st: 'basic', t: 'b', on: function (a) { return a.way === 'merge'; }, q: '넘긴 뒤에도 법인이 같은 사업을 이어가요?', h: '임대 부동산이면 법인도 계속 임대, 법인이 직접 쓰면 「아니요」', o: [['y', '예, 같은 사업'], ['n', '아니요, 직접 쓰거나 다른 사업']] },
+    { id: 'loc', st: 'basic', t: 'b', q: function (a) { return a.way === 'merge' && a.recv === 'old' ? '부동산과 법인 본점은 어디에 있어요?' : '부동산과 새 법인 본점은 어디에 있어요?'; }, h: '과밀억제권역이라도 산업단지 안이면 「그 밖 지역」', ex: function () { return ['지역마다 다른 것', [
       ['서울, 인천, 경기 과밀억제권역', '취득세, 등록면허세 중과는 셋이 같음(대도시 = 과밀억제권역)'],
       ['다른 것은 국민주택채권 하나', '특별시, 광역시(서울, 인천, 부산 등)는 사는 비율이 조금 높고, 경기는 「그 밖 지역」 비율'],
       ['부산, 대구, 광주, 대전, 울산', '과밀억제권역이 아니라 중과 없음, 채권만 광역시 비율']]]; },
@@ -2056,11 +2102,19 @@ if (typeof module !== 'undefined') module.exports = ACQ;
     { id: 'price', st: 'cg', t: 'e', q: '부동산 시가(감정가액)는 얼마예요?', h: '토지와 건물을 합친 값, 공동이면 전체' },
     { id: 'acq', st: 'cg', t: 'e', q: '그 부동산을 처음 산 값(취득가액)은요?', h: '산 값 + 취득세, 중개수수료 등 필요경비, 공동이면 전체', unk: '0원으로' },
     { id: 'hold', st: 'cg', t: 'y', q: '산 지 몇 년 됐어요?', h: '장기보유특별공제(3년부터)에 써요' },
-    { id: 'debt', st: 'reg', t: 'e', q: '법인에 같이 넘기는 부채는 얼마예요?', h: '사업 대출, 임대보증금 합계, 부동산 − 부채 = 새 법인 자본금', unk: '없어요' },
+    { id: 'other', st: 'reg', t: 'e', on: function (a) { return a.way === 'merge'; }, q: '부동산 말고 같이 넘기는 자산의 시가 합계는요?', h: '재고, 매출채권, 현금, 기계, 차량 등, 순자산가액에 들어가요', unk: '없어요' },
+    { id: 'debt', st: 'reg', t: 'e', q: '법인에 같이 넘기는 부채는 얼마예요?', h: function (a) { return a.way === 'merge' ? '사업 대출, 임대보증금, 매입채무 등 합계, 자산 − 부채 = 순자산가액' : '사업 대출, 임대보증금 합계, 부동산 − 부채 = 새 법인 자본금'; }, unk: '없어요' },
+    { id: 'incAmt', st: 'reg', t: 'e', on: function (a) { return a.way === 'merge' && a.recv === 'old'; }, q: '그 법인 자본금은 얼마 늘어나요(증자 금액)?', h: '등록면허세를 이 금액으로 셈', unk: '순자산가액으로' },
+    { id: 'stockVal', st: 'cg', t: 'e', on: function (a) { return a.way === 'merge' && a.recv === 'old'; }, q: '받는 주식의 시가는 얼마예요?', h: '발행가액이 아니라 시가(비상장주식 평가액), 순자산가액 이상이어야 이월과세', unk: '모르겠어요' },
     { id: 'stdLand', st: 'bond', t: 'e', q: '토지 시가표준액(개별공시지가 × 면적)은요?', h: '국민주택채권, 감정평가 기관 수(10억 넘으면 2곳)에 써요', unk: '모르겠어요' },
-    { id: 'stdBldg', st: 'bond', t: 'e', q: '건물 시가표준액은요?', h: '건물 과세표준(재산세 고지서)', unk: '모르겠어요' }
+    { id: 'stdBldg', st: 'bond', t: 'e', q: '건물 시가표준액은요?', h: '건물 과세표준(재산세 고지서)', unk: '모르겠어요' },
+    { id: 'invGain', st: 'inv', t: 'e', on: function (a) { return a.way === 'merge'; }, q: '넘기는 재고의 시가 − 장부가(차익)는요?', h: '재고 차익은 이월과세가 안 되고 올해 사업소득에 더해져요', unk: '재고 없음, 차익 없음' },
+    { id: 'otherInc', st: 'inv', t: 'e', on: function (a) { return a.way === 'merge' && +a.invGain > 0; }, q: '올해 다른 종합소득 과세표준은요(재고 차익 빼고)?', h: '늘어나는 종합소득세를 셈', unk: '0원으로' }
   ];
-  var STAGES = [['cg', '양도소득세 이월과세'], ['acq', '취득세'], ['reg', '등록면허세'], ['bond', '국민주택채권'], ['stamp', '인지세'], ['vat', '부가가치세'], ['fee', '감정평가, 법무사, 세무사'], ['tot', '지금 낼 비용 합계']];
+  var STAGES0 = [['cg', '양도소득세 이월과세'], ['acq', '취득세'], ['reg', '등록면허세'], ['bond', '국민주택채권'], ['stamp', '인지세'], ['vat', '부가가치세'], ['fee', '감정평가, 법무사, 세무사'], ['tot', '지금 낼 비용 합계']];
+  function stages() { return W.a.way === 'merge' ? STAGES0.slice(0, 6).concat([['inv', '재고 차익 소득세']], STAGES0.slice(6)) : STAGES0; }   
+  function Q(s) { return typeof s.q === 'function' ? s.q(W.a) : s.q; }
+  function Hh(s) { return typeof s.h === 'function' ? s.h(W.a) : s.h; }
   var W = { a: {}, cur: 'obj', path: [], done: false, adv: '', disc: '' };
   function step(id) { for (var i = 0; i < QS.length; i++) if (QS[i].id === id) return QS[i]; }
   function vis() { return QS.filter(function (s) { return !s.on || s.on(W.a); }); }
@@ -2087,7 +2141,14 @@ if (typeof module !== 'undefined') module.exports = ACQ;
     var std = landK && bldK;
     if (!std && (a.stdLand !== undefined || a.stdBldg !== undefined)) D.push('시가표준액 모름 → 시가 전부를 토지로 보고 채권 계산(높은 쪽), 감정평가 기관 수는 시가로 판정, 부가가치세 건물분은 나누지 못함');
     if (a.acq === '') D.push('취득가액 모름 → 0원(양도차익이 가장 큰 쪽)');
-    return { obj: a.obj === 'biz' ? 'biz' : 'rent', consum: a.consum === 'y', way: a.way === 'transfer' ? 'transfer' : 'inkind', allIn: a.allIn !== 'n',
+    var mg = a.way === 'merge', old = mg && a.recv === 'old';
+    if (mg && !old) D.push('새 법인 = 순자산가액만큼 주식을 발행(받는 주식 가액 = 순자산가액), 자본금도 같게');
+    if (old && (a.incAmt === '' || a.incAmt === undefined)) D.push('증자 금액 모름 → 순자산가액으로 등록면허세 계산');
+    if (mg && +a.invGain > 0 && a.otherInc === '') D.push('다른 종합소득 과세표준 모름 → 0원(재고 차익만 있을 때 세액, 다른 소득이 있으면 더 늘어남)');
+    return { obj: a.obj === 'biz' ? 'biz' : 'rent', consum: a.consum === 'y', way: a.way === 'transfer' ? 'transfer' : mg ? 'merge' : 'inkind', allIn: a.allIn !== 'n',
+      recv: old ? 'old' : 'new', corpAge: a.corpAge, major: a.major === 'y', same: a.same !== 'n',
+      other: mg ? +a.other || 0 : 0, incAmt: old && a.incAmt !== '' && a.incAmt !== undefined ? +a.incAmt : null, stockVal: old && a.stockVal !== '' && a.stockVal !== undefined ? +a.stockVal : null,
+      invGain: mg ? +a.invGain || 0 : 0, otherInc: mg ? +a.otherInc || 0 : 0,
       metro: !!loc[0], big: !!loc[1], owners: a.own === 'co' ? (parseShares(a.shares) || []) : [],
       price: +a.price || 0, acq: +a.acq || 0, hold: +a.hold || 0, debt: +a.debt || 0,
       stdLand: std ? +a.stdLand : null, stdBldg: std ? +a.stdBldg : null,
@@ -2096,15 +2157,15 @@ if (typeof module !== 'undefined') module.exports = ACQ;
   function flowS(R) {
     var v = R ? {
       cg: R.deferOk ? '미룸 ' + won(R.deferred) : '지금 냄 ' + won(R.immediateCG), acq: R.acq.tax, reg: R.reg.tax, bond: R.bond.cost, stamp: R.stamp,
-      vat: R.vat.tax ? won(R.vat.tax) + '(돌려받음)' : 0, fee: R.fees, tot: R.nowTotal } : {};
-    return STAGES.map(function (x) { return { id: x[0], n: x[1], v: v[x[0]] }; });
+      vat: R.vat.tax ? won(R.vat.tax) + '(돌려받음)' : 0, inv: R.inv ? R.inv.total : 0, fee: R.fees, tot: R.nowTotal } : {};
+    return stages().map(function (x) { return { id: x[0], n: x[1], v: v[x[0]] }; });
   }
   function drawFlow() {
     if (!window.FLOWKIT) return;
     FLOWKIT.mount();
     var a = W.a, R = null;
     try { if (+a.price > 0) R = CONVC.calc(inp(a)); } catch (e) {}
-    var st = W.done ? null : (step(W.cur) || {}).st, ids = STAGES.map(function (x) { return x[0]; });
+    var st = W.done ? null : (step(W.cur) || {}).st, ids = stages().map(function (x) { return x[0]; });
     var fill = W.done ? ids.length : st === 'basic' ? 0 : Math.max(0, ids.indexOf(st));
     var basic = ['obj', 'way', 'loc', 'own'].map(function (k) { return a[k] !== undefined ? ansTxt(step(k), a[k]) : ''; });
     FLOWKIT.draw({ S: flowS(R), basic: { items: basic, on: st === 'basic' }, cur: W.done ? 'tot' : st, done: W.done, fill: R ? fill : 0, head: '계산 흐름', tot: 'tot' });
@@ -2117,7 +2178,7 @@ if (typeof module !== 'undefined') module.exports = ACQ;
     drawFlow();
     if (W.done) { result(); return; }
     var s = step(W.cur), v = W.a[s.id], h = top();
-    h += '<div class="pk-wq">' + esc(s.q) + '</div>' + (s.h ? '<div class="pk-wh">' + esc(s.h) + '</div>' : '');
+    h += '<div class="pk-wq">' + esc(Q(s)) + '</div>' + (s.h ? '<div class="pk-wh">' + esc(Hh(s)) + '</div>' : '');
     if (s.ex) { var X = s.ex(W.a); h += '<details class="pk-easy cv-ex"><summary>' + esc(X[0]) + '</summary><ul>' + X[1].map(function (r) { return '<li><b>' + esc(r[0]) + '</b> : ' + esc(r[1]) + '</li>'; }).join('') + '</ul></details>'; }
     if (s.t === 'b') h += '<div class="pk-wo">' + s.o.map(function (o) { return '<button type="button" class="' + (v === o[0] ? 'on' : '') + '" data-pkwv="' + o[0] + '"><span>' + esc(o[1]) + '</span>' + (o[2] ? '<small class="pk-wos">' + esc(o[2]) + '</small>' : '') + '</button>'; }).join('') + '</div>';
     else {
@@ -2147,6 +2208,7 @@ if (typeof module !== 'undefined') module.exports = ACQ;
     W.a[s.id] = v;
     W.path = W.path.filter(function (x) { return x !== s.id; }); W.path.push(s.id);
     if (s.id === 'obj' && v === 'house') { W.done = true; draw(); return; }
+    if (s.id === 'major' && v === 'y') { W.done = true; draw(); return; }   
     var n = next(s.id);
     if (n) W.cur = n; else W.done = true;
     draw(); var r = $('pkRoot'); if (r && r.getBoundingClientRect().top < 0) r.scrollIntoView({ block: 'start' });
@@ -2175,7 +2237,7 @@ if (typeof module !== 'undefined') module.exports = ACQ;
 
   function answers() {
     var V = vis().filter(function (s) { return W.a[s.id] !== undefined; });
-    return '<div class="pk-wa"><h4>내 답</h4><ul>' + V.map(function (s) { return '<li><span>' + esc(s.q) + ' <b>' + esc(ansTxt(s, W.a[s.id])) + '</b></span><button type="button" data-pkwed="' + s.id + '">고치기</button></li>'; }).join('') + '</ul></div>';
+    return '<div class="pk-wa"><h4>내 답</h4><ul>' + V.map(function (s) { return '<li><span>' + esc(Q(s)) + ' <b>' + esc(ansTxt(s, W.a[s.id])) + '</b></span><button type="button" data-pkwed="' + s.id + '">고치기</button></li>'; }).join('') + '</ul></div>';
   }
   function row(k, sm, v, cls) { return '<tr' + (cls ? ' class="' + cls + '"' : '') + '><td>' + esc(k) + (sm ? '<small>' + esc(sm) + '</small>' : '') + '</td><td>' + (typeof v === 'number' ? won(v) : esc(v)) + '</td></tr>'; }
   function pct(r) { return (Math.round(r * 1e6) / 1e4) + '%'; }
@@ -2186,33 +2248,49 @@ if (typeof module !== 'undefined') module.exports = ACQ;
       box.innerHTML = h + '<div class="pk-wr ng cv-stop"><div class="pk-wr0">주택은 이 계산 대상이 아니에요</div><ul class="pk-wl"><li>주택, 주택을 살 권리 = 법인전환 양도세 이월과세가 안 됨(바로 양도소득세)</li><li>법인이 주택을 사면 취득세 12%에 지방교육세, 농어촌특별세가 붙음</li><li>주택 양도세는 「양도세」 탭, 법인 취득세는 「취득세」 탭에서 계산</li></ul></div>' + answers() + '<div class="pk-wbt"><button type="button" class="pk-go2" data-pkwre="1">처음부터</button></div>';
       window.CVWZ.last = null; return;
     }
+    if (a.way === 'merge' && a.recv === 'old' && a.corpAge === 'lt1' && a.major === 'y') {
+      box.innerHTML = h + '<div class="pk-wr ng cv-stop"><div class="pk-wr0">중소기업 통합으로 보지 않아요</div><ul class="pk-wl"><li>세운 지 1년이 안 된 법인이 과점주주(본인과 가족 50% 넘게) 개인의 사업을 넘겨받으면 통합이 아님</li><li>양도소득세 이월과세, 취득세 50% 감면이 모두 안 됨</li><li>법인 설립 1년이 지난 뒤 통합하거나, 「현물출자」, 「사업양수도」로 다시 계산해 보세요</li></ul></div>' + answers() + '<div class="pk-wbt"><button type="button" class="pk-go2" data-pkwre="1">처음부터</button></div>';
+      window.CVWZ.last = null; return;
+    }
     var D = [], I = inp(a, D), R = CONVC.calc(I); window.CVWZ.last = R; window.CVWZ.lastIn = I;
     var rr = R.acq.rate;
-    D.unshift('법무사, 세무사 수수료 ' + won(R.advisorFee) + '(법인 설립등기, 이전등기, 이월과세 신청 등 통합, 실제는 견적으로)', '국민주택채권 즉시 팔 때 깎이는 비율 ' + pct(R.bond.disc) + '(날마다 바뀜, 은행 창구에서 그날 비율 확인)', '새 법인 자본금 = 순자산가액(부동산 − 부채), 이월과세 자본금 요건을 딱 맞춤', '감정평가 수수료 = 협회 보수기준 요율(부가세 별도, 견적에 따라 다름)', '현물출자 계약서나 사업양수도 계약서 1통에 인지세');
+    D.unshift('법무사, 세무사 수수료 ' + won(R.advisorFee) + '(법인 설립등기, 이전등기, 이월과세 신청 등 통합, 실제는 견적으로)', '국민주택채권 즉시 팔 때 깎이는 비율 ' + pct(R.bond.disc) + '(날마다 바뀜, 은행 창구에서 그날 비율 확인)', R.merge ? '순자산가액 = 부동산 + 그 밖 자산 − 부채(모두 시가)' : '새 법인 자본금 = 순자산가액(부동산 − 부채), 이월과세 자본금 요건을 딱 맞춤', '감정평가 수수료 = 협회 보수기준 요율(부가세 별도, 견적에 따라 다름)', R.merge ? '통합 계약서 1통에 인지세(부동산 시가 기준)' : '현물출자 계약서나 사업양수도 계약서 1통에 인지세');
     var C = [];
+    if (R.merge) {
+      if (R.acq.relief) C.push('취득세 50% 감면은 취득일부터 5년 안에 법인이 넘겨받은 사업을 그만두거나 받은 주식의 50% 이상을 넘기면 다시 걷음');
+      if (R.deferOk) C.push('이월과세는 넘긴 날부터 5년 안에 법인이 넘겨받은 사업을 그만두거나(넘겨받은 사업용 고정자산 절반 이상 처분, 사업에 안 씀) 받은 주식의 50% 이상을 넘기면 개인이 양도세를 냄');
+      C.push('개인사업과 받는 법인이 모두 중소기업(중소기업기본법)이어야 함');
+      C.push('기계, 차량 등 부동산 밖 고정자산을 넘겨 생긴 차익은 양도소득이 아니라 사업소득일 수 있음(이월과세 밖) — 세무사 확인');
+      C.push('차량, 건설기계 등을 넘기면 그 취득세는 따로');
+      if (R.oldCorp) C.push('이미 있는 법인에 넘길 때 주식을 시가와 다르게 발행하면 다른 주주에게 증여세(현물출자 이익)가 생길 수 있음');
+      if (R.oldCorp && R.metro && !R.heavy) C.push('세운 지 5년 넘은 법인이라 대도시 중과 없음으로 계산 — 5년 안에 대도시 밖에서 본점을 옮겨 왔으면 중과');
+      if (R.inv && R.inv.gain > 0) C.push('재고 차익 과세는 사업양수도 법인전환 예규(시가 = 특수관계 없는 사람과 거래하는 값)를 준용, 통합만 다룬 예규는 못 찾음');
+    } else {
     if (R.acq.relief) C.push('취득세 50% 감면은 취득일부터 5년 안에 사업을 그만두거나 부동산이나 주식을 팔면(임대 포함) 다시 걷음');
     if (R.deferOk) C.push('이월과세는 법인 설립등기일부터 5년 안에 사업을 그만두거나 받은 주식의 50% 이상을 넘기면 개인이 양도세를 냄');
-    if (R.acq.relief && R.metro) C.push('대도시 중과 세율에 감면 50%를 그대로 곱함 — 중과분 감면 범위는 관할 지자체 확인');
+    }
+    if (R.acq.relief && R.heavy) C.push('대도시 중과 세율에 감면 50%를 그대로 곱함 — 중과분 감면 범위는 관할 지자체 확인');
     C.push('비사업용 토지면 양도세가 더 무거울 수 있음 → 「양도세」 탭에서 확인');
     (R.checks || []).forEach(function (x) { C.push(x); });
 
     var lab = '지금 낼 비용 합계', sub = R.deferOk ? '이월과세로 미룬 양도소득세(' + eokS(R.deferred) + ')는 합계에 넣지 않음' : '이월과세 요건이 안 맞아 양도소득세를 지금 냄(합계에 넣음)';
     h += '<div class="pk-wr ok"><div class="pk-wr0">' + lab + '</div><div class="pk-wr1">' + esc(eokS(R.nowTotal)) + '</div><div class="pk-wr3">' + esc(sub) + '</div>';
     h += '<table class="cv-st"><tbody>' +
-      row('취득세(지방교육세, 농어촌특별세 포함)', (R.metro ? '중과 ' + pct(rr.sum) : '표준 ' + pct(rr.sum)) + (R.acq.relief ? ', 50% 감면' : (I.obj === 'rent' ? ', 임대업은 감면 없음' : '')), R.acq.tax) +
-      row('등록면허세(법인 설립, 지방교육세 포함)', '자본금 ' + eokS(R.capital) + (R.metro ? ', 대도시 3배' : ''), R.reg.tax) +
+      row('취득세(지방교육세, 농어촌특별세 포함)', (R.heavy ? '중과 ' + pct(rr.sum) : '표준 ' + pct(rr.sum)) + (R.acq.relief ? ', 50% 감면' : (I.obj === 'rent' ? ', 임대업은 감면 없음' : '')), R.acq.tax) +
+      row(R.oldCorp ? '등록면허세(자본 증가, 지방교육세 포함)' : '등록면허세(법인 설립, 지방교육세 포함)', (R.oldCorp ? '증자 ' : '자본금 ') + eokS(R.capital) + (R.heavy ? ', 대도시 3배' : ''), R.reg.tax) +
       row('국민주택채권 할인 비용', '사야 할 채권 ' + eokS(R.bond.buy) + ' × ' + pct(R.bond.disc), R.bond.cost) +
       row('인지세', '계약서 1통', R.stamp) +
       row('감정평가 수수료', R.appr.two ? '감정기관 2곳' : '감정기관 1곳', R.appr.fee) +
       row('법무사, 세무사 수수료', '가정, 아래에서 바꿀 수 있음', R.advisorFee) +
       (R.immediateCG ? row('양도소득세(지방소득세 포함, 지금 냄)', '이월과세 요건이 안 맞음', R.immediateCG) : '') +
+      (R.inv && R.inv.gain > 0 ? row('재고 차익 종합소득세(지방소득세 포함)', '차익 ' + eokS(R.inv.gain) + '이 올해 사업소득에 더해짐', R.inv.total) : '') +
       row('합계', '', R.nowTotal, 'tot') + '</tbody></table></div>';
 
     if (R.deferOk) h += '<div class="cv-box"><h4>나중에 낼 세금(이월과세)</h4><div class="big2">' + esc(eokS(R.deferred)) + '</div><p>지금 내지 않고, 나중에 법인이 그 부동산을 팔 때 법인세로 냄(양도소득세 ' + won(R.cg.tax) + ' + 지방소득세 ' + won(R.cg.local) + ')</p></div>';
     if (R.vat.tax > 0) h += '<div class="cv-box"><h4>잠시 냈다 돌려받는 돈(부가가치세)</h4><div class="big2">' + esc(eokS(R.vat.tax)) + '</div><p>포괄 승계가 아니면 건물분(' + won(R.vat.bldgPrice) + ')에 10%, 법인이 매입세액으로 공제받아 돌려받음, 합계에 넣지 않음</p></div>';
     else if (!R.vat.allIn) h += '<div class="cv-box"><h4>부가가치세</h4><p>포괄 승계가 아니면 건물분에 10%가 붙음 — 건물 시가표준액을 몰라 금액을 나누지 못함</p></div>';
 
-    h += '<div class="cv-box"><h4>이월과세 요건</h4><ul class="cv-req">' + R.reqs.map(function (q) { return '<li class="' + (q.ok ? '' : 'ng') + '"><b>' + (q.ok ? '✓' : '✕') + '</b><span>' + esc(q.t) + '</span></li>'; }).join('') + '<li><b>✓</b><span>주택이 아닌 사업용 고정자산</span></li></ul></div>';
+    h += '<div class="cv-box"><h4>' + (R.merge ? '이월과세 요건(중소기업 통합)' : '이월과세 요건') + '</h4><ul class="cv-req">' + R.reqs.map(function (q) { return '<li class="' + (q.ok ? '' : 'ng') + '"><b>' + (q.unk ? '?' : q.ok ? '✓' : '✕') + '</b><span>' + esc(q.t) + (q.unk ? '(확인 필요)' : '') + '</span></li>'; }).join('') + '<li><b>✓</b><span>' + (R.merge ? '이월과세 대상 = 사업용 고정자산(부동산 등), 재고, 매출채권, 현금은 대상 아님' : '주택이 아닌 사업용 고정자산') + '</span></li></ul></div>';
 
     h += '<div class="cv-box"><h4>가정 바꾸기</h4><div class="cv-as"><label>법무사, 세무사 수수료<div class="pk-wm"><input type="text" inputmode="decimal" data-cvas="adv" value="' + esc(W.adv === '' ? R.advisorFee / 1e4 : W.adv) + '"><span>만원</span></div></label>' +
       '<label>채권 즉시 팔 때 깎이는 비율<div class="pk-wm"><input type="text" inputmode="decimal" data-cvas="disc" value="' + esc(W.disc === '' ? Math.round(R.bond.disc * 1e4) / 100 : W.disc) + '"><span>%</span></div></label></div>' +
@@ -2229,16 +2307,17 @@ if (typeof module !== 'undefined') module.exports = ACQ;
     var r = R.acq.rate, h = '';
     h += '<div class="card"><h3>양도소득세 이월과세</h3><table class="cv-st"><tbody>' +
       R.cg.rows.map(function (x) { var p = R.cg.rows.length > 1 ? x.i + '번(' + Math.round(x.ratio * 1000) / 10 + '%) ' : ''; return row(p + '양도차익', '시가 − 취득가액', x.gain) + row(p + '장기보유특별공제', x.ltdRate + '%(소득세법 제95조 제2항 표1)', x.ltdAmt) + row(p + '과세표준', '기본공제 250만원(제103조)', x.base) + row(p + '양도소득세', '세율 ' + x.rate + '%(제104조 제1항)', x.tax) + row(p + '지방소득세', '10%', x.local); }).join('') +
-      row(R.deferOk ? '이월과세로 미룸' : '지금 냄', '조세특례제한법 제32조, 시행령 제29조', R.cg.total, 'tot') + '</tbody></table></div>';
+      row(R.deferOk ? '이월과세로 미룸' : '지금 냄', R.merge ? '조세특례제한법 제31조, 시행령 제28조' : '조세특례제한법 제32조, 시행령 제29조', R.cg.total, 'tot') + '</tbody></table></div>';
     h += '<div class="card"><h3>취득세</h3><table class="cv-st"><tbody>' +
-      row('취득세 본세', pct(r.main) + (R.metro ? '(대도시 법인 설립 5년 안 취득, 지방세법 제13조 제2항)' : '(지방세법 제11조 제1항 제7호 나목)'), R.acq.main) +
+      row('취득세 본세', pct(r.main) + (R.heavy ? '(대도시 법인 설립 5년 안 취득, 지방세법 제13조 제2항)' : R.metro && R.oldCorp ? '(설립 5년 넘은 법인, 지방세법 제11조 제1항 제7호 나목, 시행령 제27조 제3항)' : '(지방세법 제11조 제1항 제7호 나목)'), R.acq.main) +
       row('지방교육세', pct(r.edu) + '(지방세법 제151조 제1항 제1호)', R.acq.edu) +
       row('농어촌특별세', pct(r.nong) + '(농어촌특별세법 제5조 제1항 제6호)', R.acq.nong) +
-      (R.acq.relief ? row('취득세 감면', '50%(지방세특례제한법 제57조의2 제4항)', -R.acq.cutMain) + row('지방교육세 감면', '취득세 감면율만큼(지방세법 제151조 제1항 제1호 다목, 라목)', -R.acq.cutEdu) + row('감면분 농어촌특별세', '감면세액 20%(농어촌특별세법 제5조 제1항 제1호)', R.acq.nongRelief) : row('감면', I.obj === 'rent' ? '부동산 임대업은 감면 제외(지방세특례제한법 제57조의2 제4항)' : '이월과세 요건이 안 맞아 감면 없음', 0)) +
+      (R.acq.relief ? row('취득세 감면', R.merge ? '50%(지방세특례제한법 제57조의2 제3항 제5호)' : '50%(지방세특례제한법 제57조의2 제4항)', -R.acq.cutMain) + row('지방교육세 감면', '취득세 감면율만큼(지방세법 제151조 제1항 제1호 다목, 라목)', -R.acq.cutEdu) + row('감면분 농어촌특별세', '감면세액 20%(농어촌특별세법 제5조 제1항 제1호)', R.acq.nongRelief) : row('감면', I.obj === 'rent' ? '부동산 임대업은 감면 제외(지방세특례제한법 제57조의2 ' + (R.merge ? '제3항 제5호' : '제4항') + ')' : (R.merge ? '통합' : '이월과세') + ' 요건이 안 맞아 감면 없음', 0)) +
       row('취득세 합계', '', R.acq.tax, 'tot') + '</tbody></table></div>';
     h += '<div class="card"><h3>등록면허세</h3><table class="cv-st"><tbody>' +
-      row('자본금', '순자산가액 = 시가 ' + eokS(R.price) + ' − 부채 ' + eokS(R.debt), R.capital) +
-      row('등록면허세', '0.4%, 최저 112,500원' + (R.metro ? ', 대도시 300%' : '') + '(지방세법 제28조 제1항 제6호, 제2항)', R.reg.main) +
+      (R.merge ? row('순자산가액', '부동산 ' + eokS(R.price) + ' + 그 밖 자산 ' + eokS(R.other) + ' − 부채 ' + eokS(R.debt) + '(시가, 조세특례제한법 시행령 제28조 제1항 제2호)', R.netAsset) : '') +
+      row(R.oldCorp ? '늘어나는 자본금' : '자본금', R.oldCorp ? '증자 등기(지방세법 제28조 제1항 제6호 가목 2))' : R.merge ? '새 법인 = 순자산가액(가정)' : '순자산가액 = 시가 ' + eokS(R.price) + ' − 부채 ' + eokS(R.debt), R.capital) +
+      row('등록면허세', '0.4%, 최저 112,500원' + (R.heavy ? ', 대도시 300%' : '') + '(지방세법 제28조 제1항 제6호, 제2항)', R.reg.main) +
       row('지방교육세', '20%(지방세법 제151조 제1항 제2호)', R.reg.edu) + row('등록면허세 합계', '', R.reg.tax, 'tot') + '</tbody></table></div>';
     h += '<div class="card"><h3>국민주택채권</h3><table class="cv-st"><tbody>' +
       R.bond.rows.map(function (x) { var p = R.bond.rows.length > 1 ? x.i + '번 지분 ' : ''; return row(p + '토지분 채권', '시가표준액 ' + eokS(x.land) + ' × ' + pct(x.landRate), x.land * x.landRate) + row(p + '건물분 채권', '시가표준액 ' + eokS(x.bldg) + ' × ' + pct(x.bldgRate), x.bldg * x.bldgRate); }).join('') +
@@ -2249,6 +2328,13 @@ if (typeof module !== 'undefined') module.exports = ACQ;
       row('부가가치세', R.vat.allIn ? '포괄 승계 = 재화 공급 아님(부가가치세법 제10조 제9항 제2호)' : '건물분 × 10%, 돌려받음', R.vat.tax, 'off') +
       row('감정평가 수수료', (R.appr.two ? '기준시가 10억 넘어 2곳 × ' + won(R.appr.single) : '1곳') + '(상증세법 시행령 제49조 제1항)', R.appr.fee) +
       row('법무사, 세무사 수수료', '가정', R.advisorFee) + '</tbody></table></div>';
+    if (R.inv) h += '<div class="card"><h3>재고 차익 종합소득세</h3><table class="cv-st"><tbody>' +
+      row('재고 차익', '시가 − 장부가, 사업소득 총수입금액(소득세법 제24조 제2항)', R.inv.gain) +
+      row('다른 종합소득 과세표준', '재고 차익 빼고', R.inv.base0) +
+      row('더한 과세표준의 세액', '세율 ' + R.inv.rate + '%(소득세법 제55조 제1항)', R.inv.tax1) +
+      row('더하기 전 세액', '', R.inv.tax0) +
+      row('늘어난 종합소득세', '', R.inv.tax) + row('지방소득세', '10%', R.inv.local) +
+      row('재고 차익 세금 합계', '', R.inv.total, 'tot') + '</tbody></table></div>';
     return h;
   }
 
@@ -2326,6 +2412,6 @@ https://github.com/nodeca/pako/blob/main/LICENSE
  */function n(e){return e>=65&&e<=90||95===e||e>=97&&e<=122||e>=192&&e<=214||e>=216&&e<=246||e>=248&&e<=767||e>=880&&e<=893||e>=895&&e<=8191||e>=8204&&e<=8205||e>=8304&&e<=8591||e>=11264&&e<=12271||e>=12289&&e<=55295||e>=63744&&e<=64975||e>=65008&&e<=65533||e>=65536&&e<=983039}Object.defineProperty(r,"__esModule",{value:!0}),r.NC_NAME_START_CHAR="A-Z_a-z\xc0-\xd6\xd8-\xf6\xf8-\u02ff\u0370-\u037d\u037f-\u1fff\u200c-\u200d\u2070-\u218f\u2c00-\u2fef\u3001-\ud7ff\uf900-\ufdcf\ufdf0-\ufffd\ud800\udc00-\udb7f\udfff",r.NC_NAME_CHAR="-"+r.NC_NAME_START_CHAR+".0-9\xb7\u0300-\u036f\u203f-\u2040",r.NC_NAME_START_CHAR_RE=new RegExp("^["+r.NC_NAME_START_CHAR+"]$","u"),r.NC_NAME_CHAR_RE=new RegExp("^["+r.NC_NAME_CHAR+"]$","u"),r.NC_NAME_RE=new RegExp("^["+r.NC_NAME_START_CHAR+"]["+r.NC_NAME_CHAR+"]*$","u"),r.isNCNameStartChar=n,r.isNCNameChar=function(e){return n(e)||45===e||46===e||e>=48&&e<=57||183===e||e>=768&&e<=879||e>=8255&&e<=8256}},{}]},{},[15])(15)}));
 //# sourceMappingURL=exceljs.min.js.map
 /* ==/CVXLLIB== */</script>
-<div id="pubFoot" style="margin:28px auto 0;padding:14px 16px 22px;max-width:1100px;font:14px/1.6 Freesentation,-apple-system,BlinkMacSystemFont,'Apple SD Gothic Neo','Malgun Gothic','Noto Sans KR',sans-serif;color:#6B7684;text-align:center;border-top:1px solid #E5E8EB">본 자료 = 일반적 정보 제공 목적, 실제 적용 시 개별 사안별 법률적 검토 및 전문가 자문 필수<br>계산은 이 기기 안에서만 하며 입력값은 보내지 않습니다(「주소로 찾기」에 넣은 주소만 공시가격, 조정대상지역 확인을 위해 브이월드로 보냄). · 판 2026-11-22</div><script>try{if(window.self!==window.top)document.getElementById("pubFoot").style.display="none";}catch(e){}</script>
+<div id="pubFoot" style="margin:28px auto 0;padding:14px 16px 22px;max-width:1100px;font:14px/1.6 Freesentation,-apple-system,BlinkMacSystemFont,'Apple SD Gothic Neo','Malgun Gothic','Noto Sans KR',sans-serif;color:#6B7684;text-align:center;border-top:1px solid #E5E8EB">본 자료 = 일반적 정보 제공 목적, 실제 적용 시 개별 사안별 법률적 검토 및 전문가 자문 필수<br>계산은 이 기기 안에서만 하며 입력값은 보내지 않습니다(「주소로 찾기」에 넣은 주소만 공시가격, 조정대상지역 확인을 위해 브이월드로 보냄). · 판 2026-11-23</div><script>try{if(window.self!==window.top)document.getElementById("pubFoot").style.display="none";}catch(e){}</script>
 </body>
 </html>
