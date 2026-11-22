@@ -19035,6 +19035,8 @@ function mgmtOkYear(m){
   return st?st+10:null;
 }
 
+function mgmtBaseYear(){ return (S.periods&&S.periods[S.baseCol])?+String(S.periods[S.baseCol]).slice(0,4):null; }
+
 function mgmtFromCeo(m){
   m=m||(S.meta||{});
   var f=(m&&m.foundedYear)?+m.foundedYear:null, st=mgmtStartYear(m);
@@ -20986,11 +20988,18 @@ function pvSuccLim(B){
   
   var limIfOk=(yrsOk===false)?FBDCAPW(10):lim;
   if(blocked) lim=0;
+  
+  var spOk=(function(){ var st=null; try{ st=mgmtStartYear(); }catch(e){ st=null; }
+    if(!st) return {year:mgmtOkYear(), cur:mgmtOkYear(), reform:null, reformApplies:false};
+    var RF=(typeof IGT==='object'&&IGT.R&&IGT.R.bizInhReform)?IGT.R.bizInhReform:{from:2027,fromDate:'2027-07-01',minYears:20};
+    var cur=st+10, ap=(String(cur)+'-12-31')>=String(RF.fromDate||'2027-07-01');
+    return {year:(yrsOk===false&&ap)?st+(+RF.minYears||20):cur, cur:cur, reform:st+(+RF.minYears||20), reformApplies:ap};
+  })();
   return {yrs:y, lim:lim, limIfOk:limIfOk, limAssumed:(limAssumed&&!blocked), age:age, ageOk:ageOk, yrsOk:yrsOk,
           ageWarn:(ageOk===null), yrsWarn:(yrsOk===null),
           blockedByAge:blockedByAge, blockedByYrs:blockedByYrs, blockedByDonee:blockedByDonee, blocked:blocked,
-          ageAuto:donorAgeAuto(), age60Year:donorAge60Year(), yrsOkYear:mgmtOkYear(),
-          basis:mgmtBasis(), basisLabel:mgmtBasisLabel()};
+          ageAuto:donorAgeAuto(), age60Year:donorAge60Year(), yrsOkYear:spOk.year, yrsOkYearCur:spOk.cur, yrsOkYearReform:spOk.reform, yrsOkReform:spOk.reformApplies,
+          yrsAt:mgmtBaseYear(), basis:mgmtBasis(), basisLabel:mgmtBasisLabel()};
 }
 
 function pvSpecGate(B){
@@ -21000,18 +21009,21 @@ function pvSpecGate(B){
   else if(L.ageWarn) pend.push('증여자 만 나이 미확인');
   else ready.push('증여자 '+L.age+'세 — 60세 요건 충족');
 
-  if(L.blockedByYrs) reasons.push('경영기간 '+L.yrs+'년 — 10년 미만 ('+L.basisLabel+' 기산 · '+
-    (L.yrsOkYear?L.yrsOkYear+'년 충족':'충족 시점 확인 요')+')');
+  if(L.blockedByYrs) reasons.push('경영기간 '+L.yrs+'년'+(L.yrsAt?' ('+L.yrsAt+'년 결산 기준)':'')+' — 10년 미만 ('+L.basisLabel+' 기산 · '+
+    (L.yrsOkYear?(L.yrsOkReform?('현행 10년이면 '+L.yrsOkYearCur+'년, 2027. 7. 1. 개정안 부모 요건 20년이면 '+L.yrsOkYear+'년 충족'):L.yrsOkYear+'년 충족'):'충족 시점 확인 요')+')');   
   else if(L.yrsWarn) pend.push('경영기간 확인 요');
   else ready.push('경영기간 '+L.yrs+'년 — 10년 요건 충족');
   
+  
+  var blockedByInd=false;
   try{ var K9=(typeof KSIC==='object')?KSIC.judge():null;
-    if(K9&&K9.lv==='out') pend.push('업종 — '+K9.n+' 별표 미열거 가능 · 주업종(매출 최대) 확인 요');
+    if(K9&&K9.lv==='out'){ reasons.push('업종 — '+K9.n+' 주된 사업 배제 (상증령 별표 · '+(K9.main||'업종 판독')+')'); blockedByInd=true; }
+    else if(K9&&K9.lv==='care'&&K9.multi) pend.push('업종 — '+K9.n+' 주된 사업(수입금액 큰 사업) 확인 요');
   }catch(e){}
 
   if(L.blockedByDonee) reasons.push('수증자(자녀) 비거주자 — 조특법 §30의6① 「18세 이상인 거주자」 요건 미달 (거주자가 된 뒤 증여해야 적용)');
   var okYear=null;
-  if(reasons.length&&!L.blockedByDonee){
+  if(reasons.length&&!L.blockedByDonee&&!blockedByInd){
     var ys=[]; if(L.blockedByAge&&L.age60Year) ys.push(L.age60Year);
     if(L.blockedByYrs&&L.yrsOkYear) ys.push(L.yrsOkYear);
     if(ys.length) okYear=Math.max.apply(null,ys);
@@ -21535,7 +21547,7 @@ function pvFbAggregateAfter(years){
     var P=Mx.people[Mx.root]; if(!P||!P.holds) return null;
     var G=pvGrowthRates(), g=Math.pow(1+G.a/100,years);
     var curNm=normCo(($('corpName')&&$('corpName').value)||'');
-    var tot=0, maxYrs=0, okList=[], noList=[];
+    var tot=0, maxYrs=0, okList=[], noList=[], yrsUnk=false;
     
     var inhYmd=(function(){ try{ var d=evalBaseDate(); d=new Date(d.getFullYear()+years,d.getMonth(),d.getDate()); return localYmd(d); }catch(e){ return ''; } })();
     var reformOn=(typeof IGT==='object'&&IGT.bizInhReformOn)?IGT.bizInhReformOn(inhYmd):true;
@@ -21546,8 +21558,10 @@ function pvFbAggregateAfter(years){
              :((Mx.real[h.id]&&Mx.real[h.id][Mx.root])?Mx.real[h.id][Mx.root].total:0);
       
       var yrs0=c.yrs;
-      if(normCo(c.name)===curNm){ var Bl=(S.brief&&S.brief.경영기간!=null)?S.brief.경영기간:null; if(Bl===null){ try{ Bl=mgmtYears(); }catch(e){} } if(Bl!==null&&Bl!==undefined) yrs0=Bl; }
-      var yrsAtY=(yrs0||0)+years;
+      if(normCo(c.name)===curNm){ var Bl=(S.brief&&S.brief.경영기간!=null)?S.brief.경영기간:null; if(Bl===null){ try{ Bl=mgmtYears(); }catch(e){} } yrs0=(Bl!==null&&Bl!==undefined)?Bl:null; }
+      
+      if(yrs0===null||yrs0===undefined||!isFinite(+yrs0)){ yrsUnk=true; noList.push(c.name); return; }
+      var yrsAtY=(+yrs0)+years;
       var okAll=(gR>=0.4)&&(yrsAtY>=minY)&&(c.ksic!=='out')&&!ckNonRes();    
       var baR=(c.ba===null||c.ba===undefined)?1:c.ba;
       maxYrs=Math.max(maxYrs,yrsAtY);                          
@@ -21566,7 +21580,7 @@ function pvFbAggregateAfter(years){
     var RU=IGT.bizInhRule(maxYrs,reformOn?IGT.R.bizInhReform.fromDate:'2000-01-01');   
     var lim=okList.length?RU.cap:0;
     var followUp=okList.length?RU.follow:null;
-    return {tot:tot, lim:lim, ded:Math.min(tot,lim), maxYrs:maxYrs, followUp:followUp,
+    return {tot:tot, lim:lim, ded:Math.min(tot,lim), maxYrs:(yrsUnk&&!okList.length&&!maxYrs)?null:maxYrs, yrsUnk:yrsUnk, followUp:followUp,
             ok:okList.length>0, okList:okList, noList:noList, reform:reformOn, inhYmd:inhYmd};
   }catch(e){ DIAG(e,'pvFbAggregateAfter'); return null; }
 }
@@ -21634,9 +21648,7 @@ function ckRetParts(){
   if(window.__retInEstate===false) return z;
   try{
     if(typeof CKS!=='object'||!CKS.retirePay) return z;
-    var m=/(\d{4})/.exec(String((typeof S==='object'&&S.periods&&S.periods[S.baseCol])||'')), RY=m?+m[1]:(new Date()).getFullYear();
-    var yrs=25, sy=CKS.n(CK.p.execStart);
-    if(sy>0){ var y=CKS.retireLimit({startYear:sy,retYear:RY,avgPay:CKS.curPay(),avgPay2019:CKS.curPay(),mult:2}).yrs; if(y>0) yrs=y; }
+    var RSd=CKS.retStd(), RY=RSd.retYear, yrs=RSd.yrs;   
     var base=CKS.retAvg(), q=CKS.retirePay(base,yrs,RY);
     if(!(q&&q.pay>0)) return z;
     var over=Math.max(0,q.over||0), ot=over>0?Math.max(0,CKS.payRow(base+over).tax-CKS.payRow(base).tax):0;
@@ -21721,11 +21733,12 @@ function pvGrowthInheritCalc(r,B){
             corpVals:pvCorpValsAt(PV_CORP_LIST,rv,g,ownPct),
             estate:estate, spouseDed:tx?tx.spouseDeduction:0,
             lumpDed:tx?(tx.personalDeduction||0):0, finDed:tx?(tx.financialDeduction||0):0,   
+            funDed:tx?(+tx.funeralDeduction||0):0,   
             base:tx?tx.taxBase:0, tax:tx?tx.payableTax:0,
             
             eff:((estate+priorY)>0&&tx)?tx.payableTax/(estate+priorY):0,
             priorAdd:priorY, priorHeir:priorHY,   
-            fbTot:fbY?fbY.tot:0, fbLim:fbY?fbY.lim:0, fbDed:fbY?fbY.ded:0, fbYrs:fbY?fbY.maxYrs:0,
+            fbTot:fbY?fbY.tot:0, fbLim:fbY?fbY.lim:0, fbDed:fbY?fbY.ded:0, fbYrs:fbY?fbY.maxYrs:0, fbYrsUnk:fbY?!!fbY.yrsUnk:false,
             fbFollowUp:fbY?fbY.followUp:null, fbReform:fbY?!!fbY.reform:true,   
             fbBase:txFB?txFB.taxBase:null, fbTax:txFB?txFB.payableTax:null,
             fbEff:(estate>0&&txFB)?txFB.payableTax/estate:null};
@@ -21762,6 +21775,8 @@ function pvThreeWayCalc(r,B){
       var fbOk=(x.fbDed>0&&x.fbTax!==null);
       rows.push({y:x.y, stockAt:tgt, taxA:x.tax, taxB:fbOk?x.fbTax:x.tax, fbOk:fbOk, fbYrs:x.fbYrs,
                  estC:est, addC:pri, credSp:pA.prepaidSpecialTax||0, credGen:pA.prepaidGiftTax||0,
+                 
+                 credAp:tx?(+tx.giftTaxCredit||0):0, rptC:tx?(+tx.reportCredit||0):0,
                  calcC:tx?(tx.calculatedTax||0):0, inhC:inhC, giftC:A.planTax, totC:A.planTax+inhC});
     });
   }finally{ window.__priorList=keep; }
@@ -21788,6 +21803,7 @@ function pvGrowthInheritHtml(r,B){
     line('개인재산 (기타·금융)','personal')+   
     line('상속재산가액','estate',null,true)+
     ((base.priorAdd>0)?line('(+) 사전증여 가산 — §13① 10년 이내','priorAdd'):'')+   
+    (R.some(function(x){ return x.funDed>0; })?line('(−) 장례비용','funDed'):'')+   
     line('(−) 일괄공제','lumpDed')+
     line('(−) 배우자 상속공제','spouseDed')+
     line('(−) 금융재산 상속공제','finDed')+
@@ -23908,15 +23924,56 @@ var KSIC={
     {re:/운송|택시|버스|화물/,    n:'운송업',    why:'개편안에서 버스·택시 배제 방향'},
     {re:/숙박|호텔|모텔|펜션/,    n:'숙박업',    why:'세세분류에 따라 갈림'}
   ],
+  
+  hit:function(t){
+    t=String(t||''); if(!t) return null;
+    for(var i=0;i<this.OUT.length;i++) if(this.OUT[i].re.test(t)) return {lv:'out', n:this.OUT[i].n, why:this.OUT[i].why};
+    for(var j=0;j<this.CARE.length;j++) if(this.CARE[j].re.test(t)) return {lv:'care', n:this.CARE[j].n, why:this.CARE[j].why};
+    return null;
+  },
+  
+  byCode:function(code){
+    code=String(code||''); if(!/^\d{6}$/.test(code)) return null;
+    var p2=+code.slice(0,2), p3=code.slice(0,3);
+    if(p2===70) return {lv:'out', n:'부동산업 (업종코드 '+code+')', why:'명문 배제 업종 (부동산 임대·공급업)'};
+    if(p2>=65&&p2<=67) return {lv:'out', n:'금융·보험업 (업종코드 '+code+')', why:'명문 배제 업종'};
+    if(p3==='851') return {lv:'out', n:'보건업 (업종코드 '+code+')', why:'별표 미열거'};
+    if(p2===71) return {lv:'out', n:'기계·장비 등 임대업 (업종코드 '+code+')', why:'상증령 별표 타목 임대업(76)은 무형재산권 임대업(764)만 열거'};
+    if(p2>=50&&p2<=52) return {lv:'care', n:'도소매업 (업종코드 '+code+')', why:'개편안에서 마트 배제 방향 · 세세분류 확인 필수'};
+    if(p2===55) return {lv:'care', n:'숙박·음식점업 (업종코드 '+code+')', why:'세세분류에 따라 갈림'};
+    if(p2>=60&&p2<=63) return {lv:'care', n:'운수업 (업종코드 '+code+')', why:'개편안에서 버스·택시 배제 방향'};
+    if(p2>=15&&p2<=37) return {lv:'ok', n:'', why:'제조업 (업종코드 '+code+') — 별표 제조업 (세세분류 대조 필요)'};
+    if(p2===45) return {lv:'ok', n:'', why:'건설업 (업종코드 '+code+') — 별표 건설업'};
+    return null;
+  },
   judge:function(){
-    var m=S.meta||{};
-    var txt=[m.industry,m.industry2,m.products].filter(Boolean).join(' ');
-    if(!txt) return {lv:'unknown', txt:'', n:'', why:'업종 정보 미판독'};
-    for(var i=0;i<this.OUT.length;i++)
-      if(this.OUT[i].re.test(txt)) return {lv:'out', txt:txt, n:this.OUT[i].n, why:this.OUT[i].why};
-    for(var j=0;j<this.CARE.length;j++)
-      if(this.CARE[j].re.test(txt)) return {lv:'care', txt:txt, n:this.CARE[j].n, why:this.CARE[j].why};
-    return {lv:'ok', txt:txt, n:'', why:'명시적 배제 업종에 해당하지 않음 (세세분류 대조 필요)'};
+    var m=S.meta||{}, self=this;
+    var sp=function(s){ return String(s||'').split(/[,，\/]/).map(function(x){ return x.trim(); }).filter(Boolean); };
+    var out=function(r,src,txt,main,sure){ r=r||{lv:'ok', n:'', why:'명시적 배제 업종에 해당하지 않음 (세세분류 대조 필요)'};
+      return {lv:r.lv, txt:txt, n:r.n, why:r.why, src:src, main:main||'', sure:!!sure}; };
+    
+    var code=String(m.taxBizCode||((/주업종코드\s*(\d{6})/.exec(String(m.industry2||''))||[])[1])||'');
+    if(code){
+      var tT=sp(m.taxBizType!==undefined?m.taxBizType:m.industry), tI=sp(m.taxBizItem!==undefined?m.taxBizItem:m.products);
+      var mainTxt=[tT[0],tI[0]].filter(Boolean).join(' '), subTxt=tT.slice(1).concat(tI.slice(1)).join(' ');
+      var main='법인세 신고서 주업종코드 '+code+(mainTxt?' ('+mainTxt+')':'');
+      var c=self.byCode(code), r=(c&&c.lv!=='ok')?c:(c?c:self.hit(mainTxt));
+      var o=out(r,'tax',main,main,true);
+      var sh=subTxt?self.hit(subTxt):null;
+      if(sh&&sh.lv==='out'&&o.lv!=='out'){ o.sub=sh.n; o.why+=' · 부업종 '+sh.n+' = 주된 사업 아님 (상증령 §15①1호, 조특령 §2③ 수입금액 큰 사업 기준)'; }
+      return o;
+    }
+    
+    var ind=[m.crIndustry!==undefined?m.crIndustry:(m.taxBizType!==undefined?'':m.industry), m.crIndustry2!==undefined?m.crIndustry2:(m.taxBizType!==undefined?'':m.industry2)].filter(function(x,i,a){ return x&&a.indexOf(x)===i; }).join(' ').trim();   
+    if(ind) return out(self.hit(ind),'cretop',ind,'크레탑 표준산업분류 '+ind,true);
+    
+    var txt=[m.industry,m.products].filter(Boolean).join(' ');
+    if(!txt) return {lv:'unknown', txt:'', n:'', why:'업종 정보 미판독', src:'', main:'', sure:false};
+    var its=sp(m.products).concat(sp(m.industry)), hs=its.map(function(t){ return self.hit(t); });
+    var nOut=hs.filter(function(h){ return h&&h.lv==='out'; }).length;
+    if(nOut>0&&nOut<its.length&&its.length>1){ var h0=hs.filter(function(h){ return h&&h.lv==='out'; })[0];
+      return {lv:'care', txt:txt, n:h0.n+' (부업종 가능성)', why:'주요제품에 여러 업종 — 주된 사업(수입금액 큰 사업, 조특령 §2③) 확인 요 · 법인세 신고서 주업종코드 필요', src:'products', main:'주요제품 '+txt, sure:false, multi:true}; }
+    return out(self.hit(txt),'products',txt,'주요제품 '+txt,its.length<=1);
   }
 };
 
@@ -23924,6 +23981,14 @@ var CKS={
   n:function(x){ return +String(x==null?'':x).replace(/[^0-9.\-]/g,'')||0; },
   
   
+  
+  retStd:function(){
+    var d=null; try{ d=(typeof evalBaseDate==='function')?evalBaseDate():new Date(); }catch(e){ d=new Date(); }
+    var Y=d.getFullYear(), M=d.getMonth()+1, sy=0;
+    try{ sy=CKS.n(CK.p.execStart); }catch(e){ sy=0; }
+    if(sy>0){ var L=CKS.retireLimit({startYear:sy,retYear:Y,retMonth:M,avgPay:1,avgPay2019:1,mult:2}); if(L.yrs>0) return {yrs:L.yrs,retYear:Y,retMonth:M,start:sy,src:'input'}; }
+    return {yrs:25,retYear:Y,retMonth:M,start:null,src:'default'};
+  },
   retireLimit:function(o){
     o=o||{};
     var sy=+o.startYear||2000, ey=+o.retYear||(new Date()).getFullYear();
@@ -24044,7 +24109,7 @@ var CKS={
   },
   
   insNote:function(r){ var I=r.ins, mw=function(v){ return Math.round(v/10000).toLocaleString()+'만'; };
-    return '건강 '+mw(I.health.total)+' · 국민연금 '+(I.pension.over60?'0 (60세 이상)':mw(I.pension.total))+
+    return '건강 '+mw(I.health.total)+' (본인 '+mw(I.health.emp)+' + 회사 '+mw(I.health.total-I.health.emp)+')'+' · 국민연금 '+(I.pension.over60?'0 (60세 이상)':mw(I.pension.total))+
       ' · 고용 '+(I.employ.worker?mw(I.employ.total):'0')+' · 산재 '+(I.injury.worker?mw(I.injury.total):'0')+
       (I.employ.worker?'':' (대표이사 = 근로자 아님)'); },
   
@@ -24906,7 +24971,7 @@ var CKSIM={
     var sh=unit>0?Math.ceil(G/unit):0;
     var acq=sh*par;
     var yrs=(S.brief&&S.brief.경영기간!==undefined&&S.brief.경영기간!==null)?S.brief.경영기간:10;
-    var by=(S.periods&&S.periods[S.baseCol])?+String(S.periods[S.baseCol]).slice(0,4):(new Date()).getFullYear();
+    var by=CKS.retStd().retYear;   
     var RO={startYear:CKS.n(CK.p.execStart)||(by-yrs), retYear:by, avgPay:CKS.retAvg(),
             avgPay2019:CKS.retAvg19(), mult:CKS.n(CK.p.execMult)||2};
     var RS=RO.avgPay>0?CKS.retireSplit(G,RO):null;
@@ -28701,7 +28766,7 @@ function dgSlCap(deck,re){ for(var i=0;i<deck.length;i++){ var s=deck[i]; if(!s|
 function dgTb(sl,k){ if(!sl) return null; var t=(sl.blocks||[]).filter(function(b){ return b&&b.t==='table'&&b.rows; })[k||0]; return t?t.rows.map(function(r){ return r.map(dgT); }):null; }
 function dgRow(rows,re){ if(!rows) return null; for(var i=1;i<rows.length;i++) if(re.test(rows[i][0])) return rows[i]; return null; }
 function dgCol(rows,re){ if(!rows) return -1; for(var i=0;i<rows[0].length;i++) if(re.test(rows[0][i])) return i; return -1; }
-function dgM(t,re,k){ var m=re.exec(String(t||'')); return m?m[k==null?1:k]:''; }
+function dgM(t,re,k){ var s=String(t||''), m=re.exec(s); if(!m&&typeof rdMoneyRe==='function'){ var r2=rdMoneyRe(re); if(r2) m=r2.exec(s); } return m?m[k==null?1:k]:''; }   
 function dgAll(){ for(var i=0;i<arguments.length;i++){ var v=arguments[i]; if(v==null||v==='') return false; } return true; }
 function dgDot(t){ return String(t==null?'':t).replace(/(\d) · (?=[\d△+])/g,'$1 / ').replace(/[ \t]+·[ \t]+/g,', '); }
 function dgW(t,fs,b){ t=String(t==null?'':t); var w=0; for(var i=0;i<t.length;i++){ var c=t.charCodeAt(i);
@@ -28865,7 +28930,7 @@ function dgBuild(deck,meta){
     out.loan=dgSlide('1안 가수금 무상대여 — 거래 구조도',
       '대표 가수금 → 자녀법인 무상 대여, 이자 상당액만 이전 (상증법 §45의5①1호)',
       '과세제외 원금 상한 '+n5[1]+' = '+n5[2],
-      dgA({src:{label:'대여자 (대표)',lines:[who,'가수금 '+n1[1]]},
+      dgA({src:{label:'대여자 (대표)',lines:[who,(/예시/.test(String(n1[0]))?'원금 상한 ':'가수금 ')+n1[1]]},   
         dst:{label:'자녀법인 (특정법인)',lines:['무상 대여 수령']},
         mv:{t:'가수금 무상 대여',d:'실제 지급이자율 '+n3[1]},
         tax:[{label:'연간 이익 상당액 (적정이자율 '+n2[1]+')',value:n4[1]},{label:'자녀법인 법인세',value:dgDot(n4[2])},{label:'원금',value:n6[1]}],
@@ -28941,7 +29006,7 @@ function dgBuild(deck,meta){
   var f1=dgRow(SC,/^② 1년 후 소각/), f2=SC?SC.filter(function(r){ return /의제배당액 \(증여 후/.test(r[0]); })[0]:null, f3=SC?SC.filter(function(r){ return /배당소득세 \(소득세법/.test(r[0]); })[0]:null;
   var ft=SC?SC.filter(function(r){ return /총 세금/.test(r[0]); }):[];
   if(SG&&dgAll(e1,e2,e3,e4,f1,f2,f3)&&ft.length>=2){
-    var sc=SG[0][1];
+    var sc=SG[0][1]+((e2&&e2[1]&&e2[1]!==SG[0][1])?' (증여재산가액 '+e2[1]+')':'');   
     out.spouse=dgSlide('배우자증여 후 이익소각 — 거래 구조도',
       '대표 → 배우자 주식 증여 '+sc+' 기준, 취득가액 = 증여재산가액 → 1년 후 이익소각, 의제배당 최소화',
       '총 세금 : 즉시 소각 '+ft[0][1]+'  vs  1년 후 소각 '+ft[1][1]+'  (증여 '+sc+' 기준)',
@@ -29598,7 +29663,6 @@ function rdStack(K,w,mks,gap){
 function rdSpace(h){ return {h:h,draw:function(){}}; }
 
 function rdEk(v){ if(!isFinite(v)) return '—'; var a=Math.abs(v),sg=v<0?'-':'';
-  if(a>=1e10) return sg+Math.floor(a/1e8).toLocaleString()+'억원';
   if(a>=1e8) return sg+(Math.floor(a/1e6)/100).toLocaleString(undefined,{maximumFractionDigits:2})+'억원';
   if(a>=1e4) return sg+Math.floor(a/1e4).toLocaleString()+'만원';
   return sg+Math.round(a).toLocaleString()+'원'; }
@@ -29682,7 +29746,15 @@ function rdTab(u,k){ if(!u) return null; var t=(u.blocks||[]).filter(function(b)
 function rdRows(u,k){ var t=rdTab(u,k); return t?t.rows.map(function(r){ var a=r.map(rdRaw); a.raw=r.map(function(c){ return (c&&typeof c==='object'&&isFinite(c.rv))?+c.rv:null; }); return a; }):null; }   
 function rdRowOf(rows,re){ if(!rows) return null; for(var i=1;i<rows.length;i++) if(re.test(rows[i][0])) return rows[i]; return null; }
 function rdColOf(rows,re){ if(!rows) return -1; for(var i=0;i<rows[0].length;i++) if(re.test(rows[0][i])) return i; return -1; }
-function rdM(t,re,k){ var m=re.exec(String(t||'')); return m?m[k==null?1:k]:''; }
+function rdM(t,re,k){ var s=String(t||''), m=re.exec(s); if(!m){ var r2=rdMoneyRe(re); if(r2) m=r2.exec(s); } return m?m[k==null?1:k]:''; }
+
+var RD_MONEY_RE={};
+function rdMoneyRe(re){
+  var src=re.source; if(!/\[\\d[.,]{1,2}\]\+억원/.test(src)) return null;
+  var key=src+'/'+re.flags; if(RD_MONEY_RE[key]!==undefined) return RD_MONEY_RE[key];
+  var r2=null; try{ r2=new RegExp(src.replace(/\[\\d[.,]{1,2}\]\+억원/g,'(?:[\\d.,]+억원|[\\d,]+만원|[\\d,]+원)'),re.flags); }catch(e){ r2=null; }
+  RD_MONEY_RE[key]=r2; return r2;
+}
 function rdOk(){ for(var i=0;i<arguments.length;i++){ var v=arguments[i]; if(v==null||v===''||(typeof v==='number'&&v<0)) return false; } return true; }
 function rdFillOf(c){ return c&&typeof c==='object'&&c.fill?String(c.fill).replace('#','').toUpperCase():''; }
 
@@ -30060,6 +30132,30 @@ function rdData(ctx){
   ctx.D=D; return D;
 }
 function rdExRow(D,re){ if(!D.ex) return null; for(var i=1;i<D.ex.length;i++) if(re.test(String(D.ex[i][1]).replace(/\s+/g,' '))) return D.ex[i]; return null; }
+
+function rdGate(ctx){
+  var D=rdData(ctx); if(D.gate) return D.gate;
+  var M=ctx.meta||{}, G={fb:{on:false,ok:true,why:''},sp:{st:'ok',why:'',okYear:null,after:'',gen1:''}};
+  var fN=rdColOf(D.fbt,/^현재/), ap=rdRowOf(D.fbt,/^적용 공제액/), yr=rdRowOf(D.fbt,/^경영기간/);
+  var SG=M.spGate||null;
+  if(D.fbt&&fN>0&&ap){ G.fb.on=true; var v=rdV(ap[fN]); G.fb.ok=isFinite(v)&&v>0;
+    if(!G.fb.ok) G.fb.why=rdFbWhy(yr?yr[fN]:'',SG); }
+  if(SG){ G.sp.st=SG.st||'ok'; G.sp.why=SG.why||''; G.sp.okYear=SG.okYear||null; }
+  else { var ex=rdExRow(D,/^증여특례/), lab=ex?String(ex[1]).replace(/\s+/g,' '):'';
+    G.sp.st=/적용 불가/.test(lab)?'blocked':(/미검증/.test(lab)?'pending':'ok');
+    if(ex){ G.sp.okYear=+rdM(ex[2],/(\d{4})년 충족 예상/)||null; var my=rdM(ex[2],/(경영기간 \d+년)/); if(my) G.sp.why=my; } }
+  var gen=rdRowOf(D.tm,/^일반 증여 시 증여세/), tot=rdRowOf(D.tm,/^특례 플랜 증여세 합계/), c1=rdColOf(D.tm,/①/), c2=rdColOf(D.tm,/②/);
+  G.sp.gen1=(gen&&c1>0)?gen[c1]:'';
+  if(G.sp.st==='blocked'&&G.sp.okYear){ var by=parseInt(String(M.baseYear||'').slice(0,4),10);
+    
+    G.sp.after=G.sp.okYear+'년 충족 뒤 특례'+((tot&&c2>0&&isFinite(by)&&G.sp.okYear<=by+2)?' '+tot[c2]:' 재판정'); }
+  D.gate=G; return G;
+}
+
+function rdFbWhy(cell,SG){ var c=rdTx(cell||''), n=rdM(c,/^(\d+)년/);
+  if(/업종/.test(c)) return '업종 등';
+  if(n===''||(+n===0&&(!SG||SG.yrs===null))) return '경영기간 미확인';
+  return /\d+년 미만/.test(c)?'경영기간 '+n+'년':''; }
 function rdBul(t){ return String(t||'').split('\n').map(function(s){ return s.replace(/^\s*[·•]\s*/,'').trim(); }).filter(Boolean); }
 
 function rdRecipe(ctx,u){
@@ -30135,12 +30231,24 @@ function rdExecPage(ctx,u){
   var grow=exInh?rdM(exInh[2],/\((자산 [\d.]+% · 이익 [\d.]+% 성장)\)/):'';
   var fix=exSp?rdM(exSp[2],/정비 과제 — ([^\n(]+?)\s*\(결산일 전\)/):'';
   var hasFb=!!(fbR&&fN>0);
-  var runs;
-  if(hasFb) runs=[{t:'가업상속공제 요건 충족 시 상속세 '+inhR[cN]+' → '+fbR[fN]+(D.privV===0&&rdV(fbR[fN])===0?' (주식만 상속 시)':'')},
-                  tot&&c1>0?{t:' / 생전 이전은 증여특례 올해 실행 '+tot[c1],b:true,col:RDC.gold}:null].filter(Boolean);
-  else runs=[{t:'현행 유지 시 상속세 '+inhR[cN]+', 20년 후 '+inhR[c20]},tot&&c1>0?{t:' / 증여특례 올해 실행 '+tot[c1],b:true,col:RDC.gold}:null].filter(Boolean);
   
-  if(window.__reqIn&&window.__reqIn.reformNow&&tot&&c1>0) runs=[{t:'2027. 7. 1. 개정 전 증여특례 실행 검토 — 지금 '+tot[c1]},{t:' / 개정 후 가업상속공제 사후관리 연장, 업종, 전문기술 요건, 사전심사로 활용 어려움',b:true,col:RDC.gold}];
+  var GT=rdGate(ctx), SPs=GT.sp, gen1=SPs.gen1;
+  var spRun=function(pre){ if(!(tot&&c1>0)) return null;
+    if(SPs.st==='blocked') return {t:' / 증여특례 올해 적용 불가'+(gen1?'(일반 증여세 '+gen1+')':'')+(SPs.after?' / '+SPs.after:''),b:true,col:RDC.gold};
+    if(SPs.st==='pending') return {t:' / 증여특례 요건 확인 필요'+(SPs.why?'('+SPs.why+')':'')+' — 충족 시 '+tot[c1]+(gen1?', 일반 증여세 '+gen1:''),b:true,col:RDC.gold};
+    return {t:' / '+pre+tot[c1],b:true,col:RDC.gold}; };
+  var runs;
+  if(hasFb&&GT.fb.on&&!GT.fb.ok) runs=[{t:'가업상속공제 요건 '+(/미확인/.test(GT.fb.why)?'확인 필요':'미충족')+(GT.fb.why?'('+GT.fb.why+')':'')+' → 현행 상속세 '+inhR[cN]},spRun('생전 이전은 증여특례 올해 실행 ')].filter(Boolean);
+  else if(hasFb) runs=[{t:'가업상속공제 요건 충족 시 상속세 '+inhR[cN]+' → '+fbR[fN]+(D.privV===0&&rdV(fbR[fN])===0?' (주식만 상속 시)':'')},
+                  spRun('생전 이전은 증여특례 올해 실행 ')].filter(Boolean);
+  else runs=[{t:'현행 유지 시 상속세 '+inhR[cN]+', 20년 후 '+inhR[c20]},spRun('증여특례 올해 실행 ')].filter(Boolean);
+  
+  var spCard=function(K,w2){ if(!(tot&&c1>0)) return null;
+    if(SPs.st==='blocked') return rdKpi(K,w2,{t:'증여특례 (조특법 §30의6)'+(SPs.why?' — '+SPs.why:''),v:'올해 적용 불가',sm:gen1?'일반 증여세 '+gen1:'',s:SPs.after?SPs.after+(/재판정$/.test(SPs.after)?'':' (내년 초 평가 기준)'):''});
+    if(SPs.st==='pending') return rdKpi(K,w2,{t:'증여특례 (조특법 §30의6) — 요건 확인 필요',v:tot[c1],sm:'충족 시',s:(SPs.why?SPs.why+' — ':'')+(gen1?'미충족 시 일반 증여세 '+gen1:'')+(fix?(gen1||SPs.why?' / ':'')+'결산일 전 정비 : '+fix:'')});
+    return rdKpi(K,w2,{t:'증여특례 (조특법 §30의6)',v:tot[c1],sm:c2>0?'올해 / 내년 '+tot[c2]:'',s:fix?'결산일 전 정비 : '+fix:''}); };
+  
+  if(window.__reqIn&&window.__reqIn.reformNow&&tot&&c1>0&&SPs.st!=='blocked') runs=[{t:'2027. 7. 1. 개정 전 증여특례 실행 검토 — 지금 '+tot[c1]},{t:' / 개정 후 가업상속공제 사후관리 연장, 업종, 전문기술 요건, 사전심사로 활용 어려움',b:true,col:RDC.gold}];
   
   var rows=[];
   D.ex.slice(1).forEach(function(r){
@@ -30148,12 +30256,15 @@ function rdExecPage(ctx,u){
     var bl=rdBul(r[2]), key='', body='';
     var joinB=function(a){ return a.filter(Boolean).join(' / '); };
     if(/급여/.test(g)){ var b1=bl[0]||'', b2=bl[1]||'';
-      key=rdM(b2,/(퇴직소득세 [\d,.]+만원)/)||rdM(b2,/(퇴직급여 한도 [\d.,]+억원)/);
+      key=rdM(b2,/(퇴직급여 한도 [\d.,]+억원)/)||rdM(b2,/(퇴직소득세 [\d,.]+만원)/);   
       body=joinB([rdM(b2,/(퇴직급여 한도 [\d.,]+억원 \(근속 \d+년\))/)+(rdM(b2,/실효 ([\d.]+%)/)?', 실효 '+rdM(b2,/실효 ([\d.]+%)/):''),
                   (rdM(b1,/^(급여 [\d,]+만)/)?rdM(b1,/^(급여 [\d,]+만)/)+' 실효 '+rdM(b1,/실효부담률 ([\d.]+%)/):'')+' → 퇴직급여 지급규정 정비 선행']); }
     else if(/특정법인/.test(g)){ key=(rdM(bl[1],/(무상제공 [\d.,]+억원)/)||rdM(bl.join(' '),/([\d.,]+억원)/));
-      body=joinB([bl[0]?bl[0].replace(/ — /,', ').replace(/\(§45의5\)/,'(상증법 §45의5)'):'', [rdM(bl[1],/(가수금 무상대여 [\d.,]+억원)/),rdM(bl[3],/(초과배당 연 [\d.,]+억원)/)].filter(Boolean).join(', ')]); }
+      body=joinB([bl[0]?bl[0].replace(/ — /,', ').replace(/\(§45의5\)/,'(상증법 §45의5)'):'', [rdM(bl[1],/(가수금 무상대여 (?:원금 상한 )?[\d.,]+억원)/),rdM(bl[3],/(초과배당 연 [\d.,]+억원)/)].filter(Boolean).join(', ')]); }
     else if(/일감/.test(g)){ key=rdM(bl[0],/매출 비중 ([\d%/]+)/)?'매출 비중 '+rdM(bl[0],/매출 비중 ([\d%/]+)/).replace('/',', '):'';
+      
+      try{ var JR=rdRows(rdFind(ctx.units,/^일감몰아주기 — 전이율별/)), jr=JR?rdRowOf(JR,/^상속세 감소효과/):null;
+        if(jr&&jr.length>2) key='상속세 감소 '+String(JR[0][1]).replace(/\n/g,' ')+' '+jr[1]+' ~ '+String(JR[0][jr.length-1]).replace(/\n/g,' ')+' '+jr[jr.length-1]+' (20년 후)'; }catch(e){}
       var cs=rdM(bl[2],/(대법원 [\d가-힣]+ \([^)]*\))/), os=rdM(bl[2],/([가-힣]+고등법원 [\d가-힣]+) \(원심\)/);
       if(cs&&os) cs=cs.replace(/\)$/,', 원심 '+os+')');
       body=joinB(['증여의제 (상증법 §45의3) 간편판정', cs?cs+' → 자체 경영성과 배제 소명자료 사전 확보':(bl[1]||'')]); }
@@ -30186,11 +30297,11 @@ function rdExecPage(ctx,u){
             ['핵심 요건',rq]];
     var gV=rdV(gen[c1]), sV=rdV(svT[c1]), pc1=(gV>0&&isFinite(sV))?' ('+(Math.round(sV/gV*1000)/10)+'%)':'';
     var tB=[['일반 증여',gen[c1],'상증법 §56, 최고세율 50%'],
-            ['증여특례 — 지금 실행',tot[c1],'10억원 공제 후 10%, 120억원 초과분 20%'],
+            [SPs.st==='blocked'?'증여특례 — 요건 충족 가정 (올해 적용 불가)':(SPs.st==='pending'?'증여특례 — 요건 충족 시':'증여특례 — 지금 실행'),tot[c1],'10억원 공제 후 10%, 120억원 초과분 20%'],
             [{text:'특례 절감액',b:true},{text:svT[c1]+pc1,b:true,g:1},'일반 증여 − 증여특례']];
     if(c2>0){ var dv=rdV(tot[c2])-rdV(tot[c1]); tB.push(['내년 초 실행 시',tot[c2],'평가액 상승 반영'+(isFinite(dv)&&dv>0?', '+rdEk(dv)+' 증가':'')]); }
     if(c3>0) tB.push(['자산 구성 조정 후 내년 초',tot[c3],window.__fyBaCashInfo?'금융상품 '+rdEk(window.__fyBaCashInfo.fin)+' 현금 전환 (과다보유현금 '+rdEk(window.__fyBaCashInfo.over)+' 사업무관)':(fix?fix.replace(/\s*·\s*/g,', ')+' 정리':'사업무관자산 정리')]);   
-    var stp=[{n:'1',t:'실행 시점 확정',d:'2027. 7. 1. 개정 전, 지금 '+tot[c1]+(c3>0?' / 자산 구성 조정 후 내년 초 '+tot[c3]:'')},
+    var stp=[{n:'1',t:'실행 시점 확정',d:SPs.st==='blocked'?('올해 적용 불가'+(SPs.why?'('+SPs.why+')':'')+(SPs.after?' / '+SPs.after:'')):('2027. 7. 1. 개정 전, 지금 '+tot[c1]+(c3>0?' / 자산 구성 조정 후 내년 초 '+tot[c3]:''))},
              {n:'2',t:'증여, 증여세 신고',d:'증여세 신고 시 과세특례 적용 신청'},
              {n:'3',t:'사후관리 5년',d:'가업 종사, 휴업, 폐업 금지, 지분 유지 (조특법 §30의6③)'}];
     return [{title:'핵심 요약',conclRuns:runs,build:function(K,top,opt){
@@ -30209,7 +30320,7 @@ function rdExecPage(ctx,u){
     if(opt.lite===2) return [tbL()];
     if(opt.lite===1){ var cards=[];
       if(tval) cards.push({f:1,mk:function(w2){ return rdKpi(K,w2,{t:'대표 지분 평가총액 ('+stake+', '+rdDate(ctx.meta.baseYear)+' 결산)',v:tval,sm:kr(/^1주 평가액/)?'1주 '+kr(/^1주 평가액/):'',s:(kr(/^순손익가치/)?'순손익가치 '+kr(/^순손익가치/)+', 순자산가치 '+kr(/^순자산가치/):'')+(ratio?' ('+ratio+')':'')}); }});
-      if(tot&&c1>0) cards.push({f:1,mk:function(w2){ return rdKpi(K,w2,{t:'증여특례 (조특법 §30의6)',v:tot[c1],sm:c2>0?'올해 / 내년 '+tot[c2]:'',s:fix?'결산일 전 정비 : '+fix:''}); }});
+      if(tot&&c1>0) cards.push({f:1,mk:function(w2){ return spCard(K,w2); }});
       return cards.length?[rdRow(K,W,cards,0.25),tbL()]:[tbL()]; }
     var bars=rdRow(K,W,[{f:1.45,mk:function(w){
         var gs=[[cN,'현재',fN],[c10,rdTx(D.tr[0][c10]),f10],[c20,rdTx(D.tr[0][c20]),f20]].filter(function(x){ return x[0]>0; }).map(function(x){
@@ -30221,7 +30332,7 @@ function rdExecPage(ctx,u){
       {f:1,mk:function(w){ return rdStack(K,w,[
         function(w2){ return tval?rdKpi(K,w2,{t:'대표 지분 평가총액 ('+stake+', '+rdDate(ctx.meta.baseYear)+' 결산)',v:tval,sm:kr(/^1주 평가액/)?'1주 '+kr(/^1주 평가액/):'',
           s:(kr(/^순손익가치/)?'순손익가치 '+kr(/^순손익가치/)+', 순자산가치 '+kr(/^순자산가치/):'')+(ratio?' ('+ratio+')':'')}):null; },
-        function(w2){ return (tot&&c1>0)?rdKpi(K,w2,{t:'증여특례 (조특법 §30의6)',v:tot[c1],sm:c2>0?'올해 / 내년 '+tot[c2]:'',s:fix?'결산일 전 정비 : '+fix:''}):null; }],0.10); }}],0.25);
+        function(w2){ return spCard(K,w2); }],0.10); }}],0.25);
     var tb=rdTable(K,W,{head:['구분','핵심 수치','내용'],rows:rows,cols:[{f:1.95,al:'left',b:true},{f:2.05,al:'left',b:true},{f:6.0,al:'left'}],fs:opt.fs});
     return [bars,tb];
   }}];
@@ -30288,7 +30399,14 @@ function rdValPage(ctx,u){
     if(n>0&&rdV(na[3])>0&&Math.abs(rdV(na[3])/n-rdV(nPer))<1) nSh=n; })();
   var nShT='1주당 순자산가액'+(nSh>0?' (÷ '+nSh.toLocaleString()+'주)':'');
   var runs=[{t:'1주 평가액 '+won(ps)},{t:' = (순손익가치 '+won(pPer)+' × 3 + 순자산가치 '+won(nPer)+' × 2) ÷ 5',b:true,col:RDC.gold}];
-  if(!/일반법인/.test(val[3]||'')) runs=[{t:'1주 평가액 '+ps},{t:' ('+rdTx(val[3])+')',b:true,col:RDC.gold}];
+  
+  var VF=tbs[0].vFloor||null, isPx=/부동산과다/.test(val[3]||''), wI=isPx?2:3, wA=isPx?3:2;
+  if(!VF&&rdV(pPer)>=0&&rdV(nPer)>0){ var w0=Math.floor((rdV(pPer)*wI+rdV(nPer)*wA)/5), f0=Math.floor(rdV(nPer)*0.8); VF={on:(rdV(ps)===f0&&w0<f0),w:w0,fl:f0,rate:0.8}; }
+  var flOn=!!(VF&&VF.on&&/일반법인|부동산과다/.test(val[3]||''));
+  var rPct=Math.round((VF&&VF.rate||0.8)*100)+'%';
+  if(flOn) runs=[{t:'1주 평가액 '+won(ps)+' = 순자산가치 '+won(nPer)+' × '+rPct+' 하한'},{t:' (가중평균 (순손익가치 '+won(pPer)+' × '+wI+' + 순자산가치 '+won(nPer)+' × '+wA+') ÷ 5 = '+won(fmt(VF.w))+' < 하한, 상증령 §54① 단서)',b:true,col:RDC.gold}];
+  else if(isPx) runs=[{t:'1주 평가액 '+won(ps)},{t:' = (순손익가치 '+won(pPer)+' × 2 + 순자산가치 '+won(nPer)+' × 3) ÷ 5',b:true,col:RDC.gold}];
+  if(!/일반법인|부동산과다/.test(val[3]||'')) runs=[{t:'1주 평가액 '+ps},{t:' ('+rdTx(val[3])+')',b:true,col:RDC.gold}];
   return [{title:u.title,conclRuns:runs,build:function(K,top,opt){
     var W=RD_W, items=[];
     
@@ -30296,7 +30414,8 @@ function rdValPage(ctx,u){
     
     if(/일반법인|부동산과다/.test(val[3]||'')){
       var w3=/부동산과다/.test(val[3])?['× 2','× 3']:['× 3','× 2'];
-      items.push(rdFx(K,W,[{t:'1주당 순손익가치',v:pPer},w3[0],'+',{t:'1주당 순자산가치',v:nPer},w3[1],'÷ 5','=',{t:'1주당 평가액',v:ps,res:1},'→',{t:'평가 총금액',v:tot[2],res:1}],15));
+      if(flOn) items.push(rdFx(K,W,[{t:'가중평균 ('+wI+' : '+wA+')',v:fmt(VF.w)},'<',{t:'순자산가치 × '+rPct+' (하한)',v:fmt(VF.fl)},'→',{t:'1주당 평가액',v:ps,res:1},'→',{t:'평가 총금액',v:tot[2],res:1}],15));
+      else items.push(rdFx(K,W,[{t:'1주당 순손익가치',v:pPer},w3[0],'+',{t:'1주당 순자산가치',v:nPer},w3[1],'÷ 5','=',{t:'1주당 평가액',v:ps,res:1},'→',{t:'평가 총금액',v:tot[2],res:1}],15));
     }
     
     items.push(rdRow(K,W,[
@@ -30391,7 +30510,8 @@ function rdYearPage(ctx,u){
   var R=tb.rows.map(function(r){ return r.map(rdRaw); }), ps=rdRowOf(R,/^1주당 평가액/), tv=rdRowOf(R,/^평가 총액/);
   if(!ps) return null;
   var yrs=R[0].slice(1).map(function(h){ return rdM(h,/\((\d{4}년 초)/)||h.replace(/\n/g,' '); });
-  var runs=[{t:'1주당 평가액 '+ps.slice(1).join(' → ')},tv?{t:' / 평가 총액 '+tv[tv.length-1]+' ('+yrs[yrs.length-1]+')',b:true,col:RDC.gold}:null].filter(Boolean);
+  
+  var runs=[{t:'1주당 평가액 '+ps.slice(1).join(' → ')},tv?{t:' / '+rdTx(tv[0])+' '+tv[tv.length-1]+' ('+yrs[yrs.length-1]+')',b:true,col:RDC.gold}:null].filter(Boolean);
   var capT=cap?rdTx(cap.text).replace(/^손익 반영 연도별 주식가치 — /,''):'';
   return [{title:u.title,conclRuns:runs,build:function(K,top,opt){
     var W=RD_W;
@@ -30604,14 +30724,17 @@ function rdRetSimPage(ctx,u){
   var c2=rdColOf(R,/^퇴직급여 \((?!최대)/), cN2=rdColOf(R,/^세후 \((?!최대)/), cM=rdColOf(R,/^퇴직급여 \(최대/), cTM=rdColOf(R,/^퇴직소득세 \(최대/), cNM=rdColOf(R,/^세후 \(최대/);
   if(c2<0) return null;
   var bR=body.filter(function(r){ return /◀/.test(String(r[0])); })[0]||first;   
-  var sub=String((u.sl&&u.sl.sub)||''), yrs=rdM(sub,/근속 (\d+년)/)||'25년', m2=rdM(R[0][c2],/\(([\d.]+배)\)/), mx=cM>0?rdM(R[0][cM],/최대 ([\d.]+배)/):'';
-  var runs=cM>0?[{t:'근속 '+yrs+' : 지급배수 '+m2+' → 최대 '+mx+'까지 전액 퇴직소득'},{t:' / 연봉 '+bR[0].replace(/\s*◀\s*/,'')+' 기준 '+bR[c2]+' → '+bR[cM]+' (세후 '+bR[cNM]+')',b:true,col:RDC.gold}]
+  var sub=String((u.sl&&u.sl.sub)||''), yrs=rdM(sub,/근속 (\d+년)/)||'25년', m2=rdM(R[0][c2],/\(([\d.]+배)\)/);
+  
+  var cutM=function(t){ return String(t||'').replace(/\s*\([\d.]+배\)\s*$/,''); };
+  var mx=cM>0?(rdM(bR[cM],/\(([\d.]+배)\)/)||rdM(R[0][cM],/최대 ([\d.]+배)/)):'';
+  var runs=cM>0?[{t:'근속 '+yrs+' : 지급배수 '+m2+' → 연봉 '+bR[0].replace(/\s*◀\s*/,'')+' 기준 최대 '+mx+'까지 전액 퇴직소득'},{t:' / '+bR[c2]+' → '+cutM(bR[cM])+' (세후 '+bR[cNM]+')',b:true,col:RDC.gold}]
                 :[{t:'근속 '+yrs+', '+m2+' : 연봉 '+first[0].replace(/\s*◀\s*/,'')+' → 퇴직급여 '+first[c2]},{t:' / 연봉 '+last[0].replace(/\s*◀\s*/,'')+' → '+last[c2],b:true,col:RDC.gold}];
   return [{title:'임원 퇴직급여 — 연봉별 시뮬레이션 (근속 '+yrs+')',conclRuns:runs,build:function(K,top,opt){
     var W=RD_W;
-    var cols=rdCols(K,W,{h:opt.tight?2.1:2.45,cap:'연평균급여별 퇴직급여',capSub:'근속 '+yrs+', 지급배수 '+m2+(mx?' vs 최대 '+mx:''),
-      cols:body.map(function(r){ var b=[{v:rdV(r[c2]),t:r[c2],c:RDC.line}]; if(cM>0) b.push({v:rdV(r[cM]),t:r[cM],c:RDC.mid,g:true}); return {l:r[0].replace(/\s*◀\s*/,' ◀'),bars:b}; }),
-      legend:[{t:'지급배수 '+m2,c:RDC.line}].concat(cM>0?[{t:'최대 '+mx+' (법정 한도까지)',c:RDC.mid}]:[])});
+    var cols=rdCols(K,W,{h:opt.tight?2.1:2.45,cap:'연평균급여별 퇴직급여',capSub:'근속 '+yrs+', 지급배수 '+m2+(mx?' vs 최대 배수(연봉별)':''),
+      cols:body.map(function(r){ var b=[{v:rdV(r[c2]),t:r[c2],c:RDC.line}]; if(cM>0) b.push({v:rdV(cutM(r[cM])),t:cutM(r[cM]),c:RDC.mid,g:true}); return {l:r[0].replace(/\s*◀\s*/,' ◀'),bars:b}; }),
+      legend:[{t:'지급배수 '+m2,c:RDC.line}].concat(cM>0?[{t:'최대 배수 (법정 한도까지, 연봉별)',c:RDC.mid}]:[])});
     var hi={}; body.forEach(function(r,i){ if(/◀/.test(r[0])) hi[i]=1; });
     var head=R[0].map(function(h){ return h.replace(/\n/g,' '); });
     return [cols,rdTable(K,W,{head:head,rows:body.map(function(r){ return r.map(function(c,i){ return i===0?c.replace(/\s*◀\s*/,' ◀'):c; }); }),fs:opt.fs,hi:hi,
@@ -30639,11 +30762,18 @@ function rdPayEndPage(ctx,u){
   }}];
 }
 
+function rdLimTx(c){
+  var s=rdTx(c||''); var a=rdM(s,/^([\d,]+억원)/); if(a) return a;
+  if(/×/.test(s)) return s.split(/\s*[·,]\s*/)[0].trim();   
+  var ms=s.match(/\d+년 [\d,]+억/g); if(ms&&ms.length>1) return ms[0].replace(/^\d+년 /,'')+'~'+ms[ms.length-1].replace(/^\d+년 /,'')+'원 (경영기간 구간)';
+  return s.split(/\s*[—·]\s*/)[0].trim()||'—';
+}
+
 function rdRiskPage(ctx,u){
   var R=rdRows(u,0); if(!R) return null;
   var yr=rdRowOf(R,/^피상속인 경영기간/), lm=rdRowOf(R,/^공제 한도/), pm=rdRowOf(R,/^사후관리/);
   var runs=[{t:'2027. 7. 1. 개정안 — 경영기간 '+(yr?rdM(yr[1],/(\d+년)/)+' → '+rdM(yr[2],/^(\d+년)/):'')+', 사후관리 '+(pm?pm[1]+' → '+rdM(pm[2],/^(\d+년)/):'')},
-             {t:' / '+(yr?rdTx(yr[3]):'')+(lm?', 한도 '+rdM(lm[1],/^([\d,]+억원)/)+' → '+rdM(lm[2],/^([\d,]+억원)/):''),b:true,col:RDC.gold}];
+             {t:' / '+(yr?rdTx(yr[3]):'')+(lm?', 한도 '+rdLimTx(lm[1])+' → '+rdLimTx(lm[2]):''),b:true,col:RDC.gold}];
   if(window.__reqIn&&window.__reqIn.reformNow){ var pmN=rdRowOf(R,/^사후관리/); runs=[{t:'개정 후 경영기간 '+(yr?rdM(yr[2],/^(\d+년)/):'30년')+' 미달분 사후관리 연장, 업종 한정, 전문기술, 사전심사 → 가업상속공제 활용 어려움'},{t:' / 2027. 7. 1. 전 지금 검토, 실행',b:true,col:RDC.gold}]; }   
   var head=R[0], body=R.slice(1);
   var finU=rdFind(ctx.units,/^가업승계 — 마무리/), fcap=finU?(finU.blocks||[]).filter(function(b){ return b&&b.t==='caption'; }).map(function(b){ return rdRaw(b.text); }).filter(function(t){ return /세제개편안/.test(t); })[0]:'';
@@ -30719,8 +30849,12 @@ function rdFbTrendPage(ctx,u){
   var pay=rdRowOf(R,/^납부할 상속세/), sv=rdRowOf(R,/^미반영 대비 절감/), inh=rdRowOf(D.tr,/^상속세$/);
   if(!pay) return null;
   var L=R[0].length-1;
-  var runs=[{t:R[0][L].replace(/\s*\(.*$/,'')+' 상속세 '+(inh?inh[inh.length-1]+' → ':'')+pay[L]},sv?{t:' / '+sv[L]+' 절감 (경영기간, 사후관리 요건 충족 전제)',b:true,col:RDC.gold}:null].filter(Boolean);
-  var sp=rdRowOf(R,/^사업용자산상당액/), ap=rdRowOf(R,/^적용 공제액/);
+  var sp=rdRowOf(R,/^사업용자산상당액/), ap=rdRowOf(R,/^적용 공제액/), yrR=rdRowOf(R,/^경영기간/);
+  var lastH=R[0][L].replace(/\s*\(.*$/,'');
+  var runs=[{t:lastH+' 상속세 '+(inh?inh[inh.length-1]+' → ':'')+pay[L]},sv?{t:' / '+sv[L]+' 절감 (경영기간, 사후관리 요건 충족 전제)',b:true,col:RDC.gold}:null].filter(Boolean);
+  
+  if(ap&&!(rdV(ap[L])>0)){ var why=rdFbWhy(yrR?yrR[L]:'',(ctx.meta||{}).spGate);
+    runs=[{t:lastH+' 상속세 '+pay[L]},{t:' / 가업상속공제 요건 '+(/미확인/.test(why)?'확인 필요':'미충족')+(why?'('+why+')':'')+' → 공제 0원',b:true,col:RDC.gold}]; }
   var dup=sp&&ap&&sp.slice(1).join('|')===ap.slice(1).join('|');
   var body=R.slice(1).filter(function(r){ return !(dup&&/^사업용자산상당액/.test(r[0])); }).map(function(r){ return dup&&/^적용 공제액/.test(r[0])?['적용 공제액 (= 사업용자산상당액)'].concat(r.slice(1)):r; });
   return [{title:u.title,conclRuns:runs,build:function(K,top,opt){
@@ -30746,7 +30880,7 @@ function rdSpReqPage(ctx,u){
     var items=R.slice(1).map(function(r){ return {ok:okRe.test(r[cJ]),mk:okRe.test(r[cJ])?'✓':'!',b:r[0]+'  '+(r[cC]&&r[cC]!=='—'?r[cC]:''),s:r[cB],st:r[cJ].replace(/ · /,'\n').replace(/·/g,', ')}; });
     var card=rdCheck(K,W*0.62,{title:'요건 점검',sub:'조특법 §30의6',items:items,stw:2.0});
     var D=rdData(ctx), tot=rdRowOf(D.tm,/^특례 플랜 증여세 합계/), gen=rdRowOf(D.tm,/^일반 증여 시/), sav=rdRowOf(D.tm,/^특례 절감액/), c1=rdColOf(D.tm,/①/);
-    var note=rdStack(K,W*0.35,[function(w){ return (tot&&c1>0)?rdKpi(K,w,{t:'특례 플랜 증여세 (지금 실행)',v:tot[c1],s:gen?'일반 증여 시 '+gen[c1]:''}):null; },
+    var note=rdStack(K,W*0.35,[function(w){ return (tot&&c1>0)?rdKpi(K,w,{t:'특례 플랜 증여세 ('+(rdGate(ctx).sp.st==='ok'?'지금 실행':'요건 충족 시')+')',v:tot[c1],s:gen?'일반 증여 시 '+gen[c1]:''}):null; },
       function(w){ return (sav&&c1>0)?rdKpi(K,w,{t:'특례 절감액',v:sav[c1],s:gen?'일반 증여 '+gen[c1]+' 대비':''}):null; }],0.14);
     return [{h:Math.max(card.h,note.h),draw:function(x,y){ card.draw(x,y); note.draw(x+W*0.65,y); }}];
   }}];
@@ -30758,14 +30892,17 @@ function rdSpTimePage(ctx,u){
   var tot=rdRowOf(R,/^특례 플랜 증여세 합계/), gen=rdRowOf(R,/^일반 증여 시/), sav=rdRowOf(R,/^특례 절감액/);
   if(!tot||c1<0) return null;
   var same3=c3>0&&R.slice(1).every(function(r){ return r[c3]===r[c2]; });
-  var runs=[{t:(c3>0&&!same3?'특례 증여세 올해 ':'올해 실행 시 증여세 ')+tot[c1]+', 내년 '+tot[c2]+(c3>0&&!same3?', 비율 조정 후 '+tot[c3]:'')},cd>0?{t:' / '+(c3>0&&!same3?'③ − ① = '+String(tot[cd]).replace(/^[+\-−]/,'')+(rdV(tot[cd])<0?' 감소':' 증가'):'미루면 '+tot[cd]+' 증가 (일반 증여 '+gen[c1]+' 대비 '+sav[c1]+' 절감)'),b:true,col:RDC.gold}:null].filter(Boolean);
+  var SPs=rdGate(ctx).sp;
+  var runs=[{t:(SPs.st==='pending'?'요건 충족 시 ':'')+(c3>0&&!same3?'특례 증여세 올해 ':'올해 실행 시 증여세 ')+tot[c1]+', 내년 '+tot[c2]+(c3>0&&!same3?', 비율 조정 후 '+tot[c3]:'')},cd>0?{t:' / '+(c3>0&&!same3?'③ − ① = '+String(tot[cd]).replace(/^[+\-−]/,'')+(rdV(tot[cd])<0?' 감소':' 증가'):'미루면 '+tot[cd]+' 증가 (일반 증여 '+gen[c1]+' 대비 '+sav[c1]+' 절감)'),b:true,col:RDC.gold}:null].filter(Boolean);
+  
+  if(SPs.st==='blocked') runs=[{t:'올해 증여특례 적용 불가'+(SPs.why?'('+SPs.why+')':'')+(gen?', 일반 증여세 '+gen[c1]:'')},{t:' / '+(SPs.after||'요건 충족 뒤 재판정')+(/재판정$/.test(SPs.after||'재판정')?'':' (내년 초 평가 기준)')+', 특례 열 = 요건 충족 가정',b:true,col:RDC.gold}];
   return [{title:u.title,conclRuns:runs,build:function(K,top,opt){
     var W=RD_W;
     
     var b1=parseFloat(rdM(R[0][c1],/([\d.]+)%/)), b3=c3>0?parseFloat(rdM(R[0][c3],/([\d.]+)%/)):NaN;
     var CI=window.__fyBaCashInfo;
-    var sub3=(!same3&&isFinite(b1)&&isFinite(b3))?(CI?', ③ = 금융상품 '+rdEk(CI.fin)+' 현금 전환, 과다보유현금 '+rdEk(CI.over)+' 사업무관':', 비율 조정 후 = 사업무관자산 정리로 사업용자산비율 '+b1.toFixed(1)+'% → '+b3.toFixed(1)+'% 가정'+(Math.abs(b3-Math.min(100,b1+20))<0.05?' (+20%p, 100% 상한)':'')):'';
-    var bars=rdBars(K,W,{cap:'증여세 비교',capSub:'특례 플랜 vs 일반 증여'+sub3,groups:[[c1,'지금 실행'],[c2,'내년 초']].concat(c3>0&&!same3?[[c3,'비율 조정 후']]:[]).map(function(x){ return {l:x[1],bars:[{v:rdV(tot[x[0]]),t:'특례 '+tot[x[0]],c:RDC.mid,g:true},{v:rdV(gen[x[0]]),t:'일반 '+gen[x[0]],c:RDC.bar2}]}; }),lw:1.2,bh:(c3>0&&!same3)?0.19:0.24,gap:0.02,gg:(c3>0&&!same3)?0.07:0.10});
+    var sub3=(!same3&&isFinite(b1)&&isFinite(b3))?(CI?', ③ = 금융상품 '+rdEk(CI.fin)+' 현금 전환, 과다보유현금 '+rdEk(CI.over)+' 사업무관':', 비율 조정 후 = 사업무관자산 정리로 사업용자산비율 '+b1.toFixed(1)+'% → '+b3.toFixed(1)+'% 가정'+(Math.abs(b3-Math.min(100,b1+20))<0.05?((b1+20>100)?' (+'+(b3-b1).toFixed(1)+'%p, +20%p 가정 중 100% 상한)':' (+20%p 가정)'):'')):'';   
+    var bars=rdBars(K,W,{cap:'증여세 비교',capSub:'특례 플랜'+(SPs.st==='blocked'?' (요건 충족 가정)':'')+' vs 일반 증여'+sub3,groups:[[c1,'지금 실행'],[c2,'내년 초']].concat(c3>0&&!same3?[[c3,'비율 조정 후']]:[]).map(function(x){ return {l:x[1],bars:[{v:rdV(tot[x[0]]),t:'특례 '+tot[x[0]],c:RDC.mid,g:true},{v:rdV(gen[x[0]]),t:'일반 '+gen[x[0]],c:RDC.bar2}]}; }),lw:1.2,bh:(c3>0&&!same3)?0.19:0.24,gap:0.02,gg:(c3>0&&!same3)?0.07:0.10});
     var keep=[0,c1,c2]; if(c3>0&&!same3) keep.push(c3); if(cd>0) keep.push(cd);
     var head=keep.map(function(i){ return R[0][i]; }), rows=R.slice(1).map(function(r){ return keep.map(function(i){ return r[i]; }); });
     var hi={}; rows.forEach(function(r,i){ if(/^(특례 플랜 증여세 합계|특례 절감액)/.test(r[0])) hi[i]=1; });
@@ -30784,6 +30921,10 @@ function rdSpPctPage(ctx,u){
   var cS=rdColOf(R,/특례 플랜/), cG=rdColOf(R,/일반증여/), cV=rdColOf(R,/절감/);
   var last=R[R.length-1];
   var runs=[{t:'대표 지분 '+last[0]+' 이전 시 특례 '+last[cS]+' vs 일반증여 '+last[cG]},{t:' / '+last[cV]+' 절감',b:true,col:RDC.gold}];
+  
+  var SPp=rdGate(ctx).sp;
+  if(SPp.st==='blocked') runs=[{t:'올해 증여특례 적용 불가'+(SPp.why?'('+SPp.why+')':'')+' — 대표 지분 '+last[0]+' 일반증여 '+last[cG]},{t:' / 요건 충족 가정 시 특례 '+last[cS]+(SPp.after?' ('+SPp.after.replace(/ 특례.*$/,'')+')':''),b:true,col:RDC.gold}];
+  else if(SPp.st==='pending') runs[0].t='요건 충족 시 '+runs[0].t;
   return [{title:'가업승계 — 이전 지분율별 세부담 (대표 지분 10~100%)',conclRuns:runs,build:function(K,top,opt){
     var W=RD_W;
     var bars=rdCols(K,W,{h:opt.tight?1.75:2.05,cols:R.slice(1).map(function(r){ return {l:r[0],bars:[{v:rdV(r[cS]),t:r[cS],c:RDC.mid,g:true},{v:rdV(r[cG]),t:r[cG],c:RDC.bar2}]}; }),legend:[{t:'특례 플랜 증여세',c:RDC.mid},{t:'일반증여 시 증여세',c:RDC.bar2}]});
@@ -30792,7 +30933,15 @@ function rdSpPctPage(ctx,u){
   }}];
 }
 
-function rdSuccEndPage(ctx,u){ if(ctx.done.route) return []; return null; }
+function rdSuccEndPage(ctx,u){ if(ctx.done.route) return [];
+  
+  var tb=(u.blocks||[]).filter(function(b){ return b&&b.t==='table'&&b.rows; })[0]; if(!tb) return null;
+  var R=tb.rows.map(function(r){ return r.map(rdRaw); }), sm=rdRowOf(R,/^종합/); if(!sm) return null;
+  var no=R.slice(1).filter(function(r){ return /미충족|미검증/.test(String(r[3]||'')); }).map(function(r){ return r[0]+' '+r[2]+(/미검증/.test(r[3])?' (미검증)':''); });
+  var SP=null; try{ SP=rdGate(ctx).sp; }catch(e){ SP=null; }
+  var runs=[{t:'증여특례 '+rdTx(sm[3]||'')+(no.length?' — 미충족 '+no.join(', '):'')},(SP&&SP.after)?{t:' / '+SP.after,b:true,col:RDC.gold}:null].filter(Boolean);
+  return [{title:u.title,conclRuns:runs,build:function(K,top,opt){ return rdBlocksItems(ctx,u.blocks,opt); }}];
+}
 
 function rdRoutePage(ctx,u){
   var D=rdData(ctx), K=ctx.K;
@@ -30806,6 +30955,10 @@ function rdRoutePage(ctx,u){
   
   var cWin=rdV(s1[1])<=rdV(g1[1]);
   var runs=[{t:'생전 이전 시 C 증여특례 '+s1[1]+' vs D 일반증여 '+g1[1]},{t:' / '+(cWin?'C 증여특례 유리'+(sav?' ('+sav+' 절감)':''):'D 일반증여 유리'),b:true,col:RDC.red}];
+  
+  var SPr=rdGate(ctx).sp;
+  if(SPr.st==='blocked') runs=[{t:'C 증여특례 올해 적용 불가'+(SPr.why?'('+SPr.why+')':'')+' — D 일반증여 '+g1[1]},{t:' / '+(SPr.after||'요건 충족 뒤 재판정'),b:true,col:RDC.red}];
+  else if(SPr.st==='pending') runs[0].t='요건 충족 시 '+runs[0].t;
   var rows=[['A 공제 미적용 상속',inh[1],'가업상속공제 미적용'+(eff?', 실효세율 '+eff[1]:'')],
             ['B 가업상속공제',fb[1],'공제 '+ded+' (상증법 §18의2), 요건 충족 전제'+(stocksOnly?'\n주식만 상속 시 0원, 개인재산은 별도 과세':'\n개인재산 '+D.priv+' 별도 과세')],
             ['C 증여특례 (올해 / 내년)',s1[1]+(s2?'\n'+s2[1]:''),'10억 공제 후 10% (조특법 §30의6)'+(lim?', 한도 '+lim[cR]+(yr?' (경영기간 '+yr+')':''):'')+(s2?'\n내년 실행 시 '+rdTx(s2[2]).replace(/ vs 올해, /,', ').replace(/^(\+[\d.,]+억원)/,'$1'):'')],
@@ -30875,10 +31028,11 @@ function rdLoanPage(ctx,u){
   var A=rdRows(u,0), B=rdRows(u,1); if(!A) return null;
   var n1=rdRowOf(A,/^가수금 잔액/), n2=rdRowOf(A,/^적정이자율/), n4=rdRowOf(A,/^연간 이익 상당액/), n5=rdRowOf(A,/^과세제외 원금 상한/), n6=rdRowOf(A,/^원금의 성격/);
   if(!rdOk(n1,n2,n4)) return null;
-  var runs=[{t:'가수금 '+n1[1]+' 무상대여 → 연 '+n4[1]+' 이자 상당액만 이전'},{t:' / 원금은 '+(n6?n6[1]:'상속재산에 잔존')+', 법인세 없음',b:true,col:RDC.gold}];
+  var ex1=/예시/.test(String(n1[0]));   
+  var runs=[{t:(ex1?'무상대여 원금 상한 '+n1[1]+' (예시) 설정 시':'가수금 '+n1[1]+' 무상대여')+' → 연 '+n4[1]+' 이자 상당액만 이전'},{t:' / 원금은 '+(n6?n6[1]:'상속재산에 잔존')+', 법인세 없음',b:true,col:RDC.gold}];
   return [{title:'1안 가수금 무상대여 — 이자 상당액만 이전',conclRuns:runs,build:function(K,top,opt){
     var W=RD_W;
-    var fx=rdFx(K,W,[{t:'가수금 잔액',v:n1[1]},'×',{t:'적정이자율',v:n2[1]},'=',{t:'연간 이익 상당액',v:n4[1],res:1},'|',{t:'과세제외 원금 상한',v:n5?n5[1]:''},{t:'산식',v:n5?rdTx(n5[2]):''}],15);
+    var fx=rdFx(K,W,[{t:ex1?'무상대여 원금 (상한 예시)':'가수금 잔액',v:n1[1]},'×',{t:'적정이자율',v:n2[1]},'=',{t:'연간 이익 상당액',v:n4[1],res:1},'|',{t:'과세제외 원금 상한',v:n5?n5[1]:''},{t:'산식',v:n5?rdTx(n5[2]):''}],15);
     var it=[fx,rdTable(K,W,{head:A[0],rows:A.slice(1),fs:opt.fs,hi:(function(){ var h={}; A.slice(1).forEach(function(r,i){ if(/^연간 이익/.test(r[0])) h[i]=1; }); return h; })(),cols:[{f:3.0,al:'left',b:true},{f:2.0,al:'right',b:true},{f:5.0,al:'left'}]})];
     if(B) it.push(rdTable(K,W,{head:B[0],rows:B.slice(1),fs:opt.fs,cols:[{f:3.0,al:'left',b:true},{f:4.0,al:'left'},{f:3.0,al:'left'}]}));
     return it;
@@ -30940,7 +31094,7 @@ function rdDivPage(ctx,u){
 function rdScEndPage(ctx,u){
   var R=rdRows(u,0); if(!R) return null;
   var g=rdRowOf(R,/^① /), l=rdRowOf(R,/^② /), x=rdRowOf(R,/^③ /);
-  var runs=[{t:'4가지 수단 모두 증여세 0원'},{t:' / 무상제공 '+(g?g[1]:'')+', 가수금 '+(l?l[1]:'')+', 지분 양수도 '+(x?x[1]:'')+', 초과배당 연 단위',b:true,col:RDC.gold}];
+  var runs=[{t:'4가지 수단 모두 증여세 0원'},{t:' / 무상제공 '+(g?g[1]:'')+', 가수금 '+(l&&/상한/.test(l[0])?'원금 상한 ':'')+(l?l[1]:'')+', 지분 양수도 '+(x?x[1]:'')+', 초과배당 연 단위',b:true,col:RDC.gold}];
   return [{title:u.title,conclRuns:runs,build:function(K,top,opt){
     var W=RD_W;
     var cur=R.slice(1).filter(function(r,i){ var f=(rdTab(u,0).rows[i+1]||[])[0]; return /초과배당/.test(r[0])&&rdFillOf(f)&&rdFillOf(f)!==String(PPT.hdr).replace('#','').toUpperCase(); })[0];
@@ -31054,7 +31208,9 @@ function rdSpGiftPage(ctx,u){
   var R=rdRows(u,0), nt=(u.blocks||[]).filter(function(b){ return b&&b.t==='note'; })[0]; if(!R) return null;
   var tx=rdRowOf(R,/^증여세$/), sh=rdRowOf(R,/^증여 주식수/);
   var nt3=rdRowOf(R,/^세후 이전 가액/);
-  var runs=tx?(nt3?[{t:'배우자 증여 '+R[0][1]+' → 증여세 '+tx[1]+', 세후 '+nt3[1]+' 그대로 이전'},{t:' / '+R[0][3]+' 증여해도 세후 '+nt3[3]+' 이전 (증여세 '+tx[3]+')',b:true,col:RDC.gold}]
+  
+  var gv=rdRowOf(R,/^증여재산가액/), gA=function(i){ return (gv&&gv[i]&&gv[i]!==R[0][i])?gv[i]+' (목표 '+R[0][i]+')':R[0][i]; };
+  var runs=tx?(nt3?[{t:'배우자 증여 '+gA(1)+' → 증여세 '+tx[1]+', 세후 '+nt3[1]+' 그대로 이전'},{t:' / '+gA(3)+' 증여해도 세후 '+nt3[3]+' 이전 (증여세 '+tx[3]+')',b:true,col:RDC.gold}]
     :[{t:'배우자 증여 '+R[0][1]+' (주식 '+(sh?sh[1]:'')+') → 증여세 '+tx[1]},{t:' / '+R[0][2]+' '+tx[2]+', '+R[0][3]+' '+tx[3],b:true,col:RDC.gold}]):null;
   return [{title:u.title,conclRuns:runs,build:function(K,top,opt){ var W=RD_W;
     
@@ -32114,6 +32270,9 @@ function txBootstrap(){
   })();
   
   if(top.f1){
+    
+    if(meta.crIndustry===undefined&&meta.taxBizType===undefined){ meta.crIndustry=meta.industry||''; meta.crIndustry2=meta.industry2||''; meta.crProducts=meta.products||''; }
+    meta.taxBizType=top.f1.bizType||''; meta.taxBizItem=top.f1.bizItem||''; meta.taxBizCode=top.f1.bizCode||'';
     meta.industry  = top.f1.bizType||'';
     meta.industry2 = top.f1.bizCode?('주업종코드 '+top.f1.bizCode):'';
     meta.products  = top.f1.bizItem||'';
@@ -34970,7 +35129,7 @@ $('xlsx').addEventListener('click',function(){
         '양도차익 3억 이하 전체 22%·초과 시 전체 27.5%(지방세 포함, 구간이 아닌 단일세율) + 증권거래세 0.35%(가지급금 기준) · 취득가 액면 가정 · CKSIM.gaji와 동일 산식']);
       var RSx=null; try{
         var yrsX=(S.brief&&S.brief.경영기간!==undefined&&S.brief.경영기간!==null)?S.brief.경영기간:10;
-        var byX=(S.periods&&S.periods[S.baseCol])?+String(S.periods[S.baseCol]).slice(0,4):(new Date()).getFullYear();
+        var byX=CKS.retStd().retYear;   
         var ROx={startYear:CKS.n(CK.p.execStart)||(byX-yrsX),retYear:byX,avgPay:CKS.retAvg(),
                  avgPay2019:CKS.retAvg19(),mult:CKS.n(CK.p.execMult)||2};
         if(ROx.avgPay>0) RSx=CKS.retireSplit(Gx,ROx);
@@ -35105,7 +35264,7 @@ $('xlsx').addEventListener('click',function(){
     var CKp2=(typeof CK==='object'&&CK.p)?CK.p:{};
     var basePayX=CKS.curPay();   
     
-    var retYearX=(function(){ try{ var by=(S.periods&&S.periods[S.baseCol])||''; return (+by||(new Date()).getFullYear()); }catch(e){ return new Date().getFullYear(); } })();
+    var retYearX=CKS.retStd().retYear;   
     var startYearX=0; try{ startYearX=CKS.n(CKp2.execStart)||0; }catch(e){ startYearX=0; }
     var srvX=(function(){ try{ return CKS.retireLimit({startYear:startYearX||(retYearX-24),retYear:retYearX,
       avgPay:basePayX,avgPay2019:basePayX,mult:2}).yrs; }catch(e){ return 25; } })();
@@ -35919,7 +36078,7 @@ var V8=(function(){
     return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]; }); }
   function ek(n){ if(!isFinite(n)) return '—'; var a=Math.abs(n), sg=n<0?-1:1;
     
-    if(a>=1e10) return (sg*Math.floor(a/1e8)).toLocaleString()+'억원';
+    
     if(a>=1e8) return (sg*Math.floor(a/1e6)/100).toLocaleString(undefined,{maximumFractionDigits:2})+'억원';
     if(a>=1e4) return (sg*Math.floor(a/1e4)).toLocaleString()+'만원';
     return Math.round(n).toLocaleString()+'원'; }
@@ -37160,6 +37319,12 @@ function selGet(m){ if(MOD_ALWAYS[m.id]) return false;
     var coverName=M.root;
     try{ if(typeof window.__coverName==='string'&&window.__coverName.trim()) coverName=window.__coverName.trim(); }catch(e){}
     var meta={name:coverName, today:today, baseYear:baseYear, ymd:ymd};
+    
+    try{ var G0=pvSpecGate(S.brief||buildBrief(S.result));
+      if(G0){ var L0=G0.L||{}, w0=[];
+        if(G0.blocked){ if(L0.blockedByAge) w0.push('증여자 '+L0.age+'세'); if(L0.blockedByYrs) w0.push('경영기간 '+L0.yrs+'년'); if(L0.blockedByDonee) w0.push('수증자 비거주자'); }
+        else if(G0.pending){ if(L0.ageWarn) w0.push('증여자 나이 미확인'); if(L0.yrsWarn) w0.push('경영기간 미확인'); if((G0.pending_reasons||[]).some(function(x){ return /업종/.test(x); })) w0.push('업종 확인 필요'); }
+        meta.spGate={st:G0.blocked?'blocked':(G0.pending?'pending':'ok'), why:w0.join(', '), okYear:G0.okYear||null, yrs:(L0.yrs===null||L0.yrs===undefined)?null:L0.yrs}; } }catch(e){DIAG(e,'spGate')}
     var deck=[];
     
     
@@ -37628,7 +37793,8 @@ function selGet(m){ if(MOD_ALWAYS[m.id]) return false;
               vr('1주당 순자산가치',function(x){ return fmt(Math.round(x.v.assetPerShare))+'원'; }),
               vr('순자산가액',function(x){ return ek(x.netAsset!==undefined?x.netAsset:(+CVP.netAsset||0)); }),
               vr('1주당 평가액',function(x){ return fmt(Math.round(x.v.finalValue))+'원'; },true),
-              vr('평가 총액',function(x){ return ek(x.v.finalValue*sh); },true),
+              
+              vr('평가 총액 ('+((D.c&&D.c.ts>0)?'자기주식 뺀 '+fmt(sh)+'주':'발행주식 100%')+')',function(x){ return ek(x.v.finalValue*sh); },true),
               vr('직전 대비 증감',function(x){
                 if(x.y===0) return '—';
                 var pv=SS[x.y-1].v.finalValue*sh, cv=x.v.finalValue*sh, d=cv-pv;
@@ -37640,7 +37806,7 @@ function selGet(m){ if(MOD_ALWAYS[m.id]) return false;
               colW:[2.6].concat(SS.map(function(){ return 7.64/SS.length; }))});
             blocks.push({t:'note',keep:true,text:'순손익 3개년 가중평균 편입 · 순자산 누적 · 2년차부터 이익증가율 '+pvGrowthRates().i+'% 적용 · '+   
               '부동산·주식 재평가(자산상승률) 미반영 — 순손익 변동 효과만 산정 · '+
-              '자산상승률 반영 미래가치 = 이익소각·가업승계 실행시점 비교 장 참조'});
+              '가업승계 실행 시점 비교(내년 초 가액)도 같은 기준 · 자산상승률 반영 1년 후 가액 = 배우자증여 후 이익소각 장(1년 후 소각) 참조'});   
           }
         }
       }catch(e){DIAG(e)}
@@ -37735,7 +37901,7 @@ function selGet(m){ if(MOD_ALWAYS[m.id]) return false;
             prevPerYLabel=yLabel;
             A.push([CH.c(yLabel),
                     CH.n(nv===null?'—':fmt(Math.round(nv))),
-                    CH.n(nv===null?'—':fmt(Math.round(nv/vc.eff))),
+                    CH.n(nv===null?'—':fmt((vr2.incomePerShareByYear&&vr2.incomePerShareByYear[yi]!=null)?vr2.incomePerShareByYear[yi]:Math.round(nv/vc.eff))),   
                     CH.n(spanMid?fmt(Math.round(vr2.weightedIncomePerShare||0)):'',spo),
                     CH.n(spanMid?fmt(Math.round(vr2.incomePerShare||0)):'',spo)]);
           }
@@ -37756,7 +37922,8 @@ function selGet(m){ if(MOD_ALWAYS[m.id]) return false;
                    CH.n(fmt(base1*vc.eff)),
                    CH.n(vr2.premiumApplied?fmt(Math.round(vr2.finalValue)*vc.eff):'해당없음')]];
           
-          var blk2=[{t:'table',fs:12,dense:true,rows:A,colW:w5}];
+          
+          var blk2=[{t:'table',fs:12,dense:true,rows:A,colW:w5,vFloor:{on:!!vr2.floorApplied,w:Math.floor(+vr2.weightedValue||0),fl:Math.floor(+vr2.netAssetFloor||0),rate:(+vr2.floorRate||0.8)}}];
           blk2.push({t:'table',fs:12,dense:true,rows:A2,colW:[2.5,2.5,2.5,2.5]});
           
           
@@ -37836,7 +38003,7 @@ function selGet(m){ if(MOD_ALWAYS[m.id]) return false;
       var RQr=window.__reqIn||{}; if(!RQr.reList||!RQr.reList.length) return;
       try{
         var bk=+S.baREBook||0, mk=+S.baRENAV||0, gap=Math.max(0,mk-bk);
-        var ek=function(v){ var x=Math.abs(v||0); return x>=1e8?(v<0?'-':'')+(Math.round(x/1e6)/100).toLocaleString(undefined,{maximumFractionDigits:2})+'억원':rdEk(v); };   
+        var ek=function(v){ var x=Math.abs(v||0); return x>=1e8?(v<0?'-':'')+(Math.floor(x/1e6)/100).toLocaleString(undefined,{maximumFractionDigits:2})+'억원':rdEk(v); };   
         var shN=(S.result&&S.result.effectiveShares)||TE.num($('shares').value)||0;
         var t1=[[CH.h('소재지'),CH.h('토지 면적'),CH.h('토지 장부가 (건물 제외)'),CH.h('토지 공시지가'),CH.h('시가 (토지 + 건물)')]];
         RQr.reList.forEach(function(r){ t1.push([CH.rh(r.addr,{align:'left'}),CH.d(r.area||'—'),CH.n(r.landBook>0?ek(r.landBook):'—'),CH.n(r.landPub>0?ek(r.landPub):'—'),
@@ -37960,6 +38127,7 @@ function selGet(m){ if(MOD_ALWAYS[m.id]) return false;
         rw('상속재산가액',function(x){ return ek(x.estate); },true)]).concat((b0.priorAdd>0)?[
         
         rw('(+) 사전증여 가산 — §13① 10년 이내',function(x){ return x.priorAdd>0?ek(x.priorAdd):'0원'; })]:[]).concat([
+        ]).concat(R.some(function(x){ return x.funDed>0; })?[rw('(−) 장례비용',function(x){ return x.funDed>0?ek(x.funDed):'—'; })]:[]).concat([   
         rw('(−) 일괄공제',function(x){ return ek(x.lumpDed); }),                                   
         rw('(−) 배우자 상속공제',function(x){ return ek(x.spouseDed); }),
         rw('(−) 금융재산 상속공제',function(x){ return x.finDed>0?ek(x.finDed):'—'; }),          
@@ -38163,10 +38331,7 @@ function selGet(m){ if(MOD_ALWAYS[m.id]) return false;
       var basePay=CKS.curPay();   
       
       
-      var baseSrv=null, RY=(+baseYear||(new Date()).getFullYear());
-      try{ var sy=CKS.n(CK.p.execStart);
-           if(sy>0) baseSrv=CKS.retireLimit({startYear:sy,retYear:RY,avgPay:basePay,
-                                             avgPay2019:basePay,mult:2}).yrs; }catch(e){ baseSrv=null; }
+      var RSd=CKS.retStd(), baseSrv=RSd.yrs, RY=RSd.retYear;   
       if(!(baseSrv>0)) baseSrv=SRV_DEF;
       var near=function(arr,v){ return arr.reduce(function(a,x){ return Math.abs(x-v)<Math.abs(a-v)?x:a; },arr[0]); };
       
@@ -38252,14 +38417,16 @@ function selGet(m){ if(MOD_ALWAYS[m.id]) return false;
       
       var SP=CKS.RETIRE_SIM_PAYS.slice(); if(SP.indexOf(retBase)<0){ SP.push(retBase); SP.sort(function(a,b){ return a-b; }); }
       var mxT=qMax?(qMax.m+'배'):'';
-      var t2=[[CH.h('연평균급여'),CH.h('퇴직급여 ('+multTxt+')'),CH.h('세후 ('+multTxt+')')].concat(qMax?[CH.h('퇴직급여 (최대 '+mxT+')'),CH.h('퇴직소득세 (최대)'),CH.h('세후 (최대)')]:[CH.h('퇴직소득세'),CH.h('실효세율')])];
+      
+      var netAll=function(a,q){ var ov=Math.max(0,Math.round(q.over||0)), ot=ov>0?Math.max(0,CKS.payRow(a+ov).tax-CKS.payRow(a).tax):0; return q.pay-q.tax-ot; };
+      var t2=[[CH.h('연평균급여'),CH.h('퇴직급여 ('+multTxt+')'),CH.h('세후 ('+multTxt+')')].concat(qMax?[CH.h('퇴직급여 (최대 배수)'),CH.h('퇴직소득세 (최대)'),CH.h('세후 (최대)')]:[CH.h('퇴직소득세'),CH.h('실효세율')])];
       SP.forEach(function(a){
         var q=retPay(a,baseSrv), on=(a===retBase), qm=null; try{ qm=CKS.retireMaxMult(a,baseSrv,RY); }catch(e){ qm=null; }
         var CN=on?CH.emn:CH.n;
-        t2.push([on?CH.em(mw(a)+'  ◀',{align:'left'}):CH.rh(mw(a),{align:'left'}),CN(ek(q.pay)),CN(ek(q.net))].concat(qMax&&qm?[CN(ek(qm.pay)),CN(mw(qm.tax)+' ('+(qm.rate*100).toFixed(1)+'%)'),CN(ek(qm.net))]:[CN(mw(q.tax)),CN((q.rate*100).toFixed(1)+'%')]));
+        t2.push([on?CH.em(mw(a)+'  ◀',{align:'left'}):CH.rh(mw(a),{align:'left'}),CN(ek(q.pay)),CN(ek(netAll(a,q)))].concat(qMax&&qm?[CN(ek(qm.pay)+' ('+qm.m+'배)'),CN(mw(qm.tax)+' ('+(qm.rate*100).toFixed(1)+'%)'),CN(ek(qm.net))]:[CN(mw(q.tax)),CN((q.rate*100).toFixed(1)+'%')]));
       });
       content('Ⅲ+. 임원 퇴직급여 — 연봉별 시뮬레이션',
-        '근속 '+baseSrv+'년 · 지급배수 '+multTxt+(qMax?' vs 최대 '+mxT:'')+' · 소득세법 §22③ · 소득세법 §48',[
+        '근속 '+baseSrv+'년 · 지급배수 '+multTxt+(qMax?' vs 최대 배수(연봉별)':'')+' · 소득세법 §22③ · 소득세법 §48',[
         {t:'table',fs:13,rows:t2,colW:qMax?[1.7,1.6,1.6,1.8,2.0,1.54]:[1.8,2.6,1.9,1.6,2.34]},
         {t:'note',text:'퇴직급여 = 연평균급여 × 10% × 근속 '+baseSrv+'년 × 지급배수'+(qMax?' · 최대 '+mxT+' = 법정 한도(2012~2019년분 3배, 2020년 이후분 2배)까지 전액 퇴직소득으로 받는 배수, 정관 지급규정에 정해야 함':'')+' · 퇴직소득세는 지방소득세 포함 · 분류과세, 건강보험료 부과 대상 아님'}
       ]);
@@ -38288,13 +38455,13 @@ function selGet(m){ if(MOD_ALWAYS[m.id]) return false;
              CH.c('소득세법 §55\n국민건강보험법 §69\n법인세법 §19'),
              CH.d(b0?('연봉 '+mw(b0.annual)+' (매년)'):'—')],
             [CH.rh('임원 퇴직급여',{align:'left'}),
-             CH.d('퇴직소득세 '+(q0?(q0.rate*100).toFixed(1)+'%':'연분연승')+' · 분류과세 · 건강보험료 부과 대상 아님'),
+             CH.d('퇴직소득세 '+(q0?((function(){ var ov=Math.max(0,Math.round(q0.over||0)), ot=ov>0?Math.max(0,CKS.payRow(q0.annual+ov).tax-CKS.payRow(q0.annual).tax):0; return ((q0.tax+ot)/q0.pay*100).toFixed(1); })()+'% (전체 실효, 한도 초과분 근로소득세 포함)'):'연분연승')+' · 분류과세 · 건강보험료 부과 대상 아님'),   
              CH.d('지급 사업연도 손금 산입 · 순자산가액·순손익가치 동시 감소'),
              CH.em('세부담 최저 · 1회성 · 정관 지급규정 · 근속연수 확보 전제'),
              CH.c('소득세법 §22③\n법인세법 시행령 §44④\n소득세법 §48'),
              CH.d(q0?('연평균급여 '+mw(q0.annual)+' × 10% × 근속 '+q0.yrs+'년 × '+multTxt+' = '+ek(q0.pay)+' (1회)'):'—')],
             [CH.rh('배당',{align:'left'}),
-             CH.d('배당소득세 14% 원천징수 · 금융소득 2,000만원 초과분 종합과세'),
+             CH.d('배당소득세 15.4% (원천징수 14% + 지방소득세 1.4%) · 금융소득 2,000만원 초과분 종합과세'),   
              CH.d('순자산가액만 감소 · 순손익가치 불변'),
              CH.d('손금 불산입 · 법인세 절감 효과 없음'),
              CH.c('소득세법 §17·§129\n법인세법 §19②'),
@@ -38360,7 +38527,7 @@ function selGet(m){ if(MOD_ALWAYS[m.id]) return false;
           ' · 증여세특례(조특법 §30의6)·가업상속공제(상증법 §18의2) 공통 판정 기준',idleB);
         
         try{ if((window.__reqIn||{}).baWhy&&ba2&&ba2.ratio!==null&&ba2.ta>0){
-          var ekB=function(v){ var x=Math.abs(v||0); return x>=1e8?(v<0?'-':'')+(Math.round(x/1e6)/100).toLocaleString(undefined,{maximumFractionDigits:2})+'억원':rdEk(v); };
+          var ekB=function(v){ var x=Math.abs(v||0); return x>=1e8?(v<0?'-':'')+(Math.floor(x/1e6)/100).toLocaleString(undefined,{maximumFractionDigits:2})+'억원':rdEk(v); };   
           var tw=[[CH.h('자산총액 (분모)'),CH.h('금액'),CH.h('산정')]], ad=function(l,v,t){ if(v>0) tw.push([CH.rh(l,{align:'left'}),CH.n(ekB(v)),CH.d(t||'',{align:'left'})]); };
           tw.push([CH.rh('장부 자산총계',{align:'left'}),CH.n(ekB(ba2.taBook)),CH.d('재무상태표',{align:'left'})]);
           ad('(+) 대손충당금 환원',ba2.allow,'차감 전 채권 총액으로 환원');
@@ -38390,13 +38557,13 @@ function selGet(m){ if(MOD_ALWAYS[m.id]) return false;
           var cw=[2.6].concat(R.map(function(){ return 7.64/R.length; }));
           try{
             var hdrFB=[CH.h('구분')].concat(R.map(function(x){
-              return CH.h((x.y===0?'현재':(x.y+'년 후'))+'\n(경영 '+x.fbYrs+'년 · '+(x.fbReform?'개정안':'현행')+')'); }));   
+              return CH.h((x.y===0?'현재':(x.y+'년 후'))+'\n('+(x.fbYrs===null?'경영기간 확인 필요':'경영 '+x.fbYrs+'년')+' · '+(x.fbReform?'개정안':'현행')+')'); }));      
             var rwFB=function(lab,fn,em){
               return [em?CH.em(lab,{align:'left'}):CH.rh(lab,{align:'left'})]
                 .concat(R.map(function(x){ return em?CH.emn(fn(x)):CH.n(fn(x)); }));
             };
             var tbFB=[hdrFB,
-              rwFB('경영기간 (현행 10년↑ / 개정안 20년↑)',function(x){ var mn=x.fbReform?20:10; return x.fbYrs+'년'+(x.fbDed>0?'':(x.fbYrs<mn?' · 요건 미달('+mn+'년 미만)':' · 요건 미달(업종 등 — '+mn+'년은 충족)')); }),
+              rwFB('경영기간 (현행 10년↑ / 개정안 20년↑)',function(x){ var mn=x.fbReform?20:10; if(x.fbYrs===null) return '확인 필요 (경영기간 미확인 — 공제 미반영)'; return x.fbYrs+'년'+(x.fbDed>0?'':(x.fbYrs<mn?' · 요건 미달('+mn+'년 미만)':' · 요건 미달(업종 등 — '+mn+'년은 충족)')); }),
               rwFB('사후관리기간 (현행 5년 / 개정안 10년+30년 부족분)',function(x){ return x.fbDed>0?(x.fbFollowUp+'년'):'—'; }),
               rwFB('한도 (현행 경영기간 구간 / 개정안 경영연수×20억)',function(x){ return x.fbDed>0?ek(x.fbLim):'—'; }),
               rwFB('사업용자산상당액',function(x){ return x.fbDed>0?ek(x.fbTot):'—'; }),
@@ -38472,8 +38639,8 @@ function selGet(m){ if(MOD_ALWAYS[m.id]) return false;
            CH.c(L.age?L.age+'세':'미확인'),
            CH.d(L.ageOk===false?('미충족'+(L.age60Year?' · '+L.age60Year+'년 도달':'')):(L.ageOk?'충족':'미검증'))],
           [CH.rh('경영기간',{align:'left'}),CH.d('10년 이상 계속 경영 — 증여자·피상속인 기준',{align:'left'}),
-           CH.c(L.yrs===null?'미확인':L.yrs+'년'),
-           CH.d(L.yrsOk===false?('미충족'+(L.yrsOkYear?' · '+L.yrsOkYear+'년 충족':'')):(L.yrsOk?'충족':'미검증'))],
+           CH.c(L.yrs===null?'미확인':L.yrs+'년'+(L.yrsAt?'\n('+L.yrsAt+'년 결산)':'')),
+           CH.d(L.yrsOk===false?('미충족'+(L.yrsOkYear?(L.yrsOkReform?' · 개정안 20년 '+L.yrsOkYear+'년 충족 (현행 10년 '+L.yrsOkYearCur+'년)':' · '+L.yrsOkYear+'년 충족'):'')):(L.yrsOk?'충족':'미검증'))],   
           [CH.rh('경영기간 기산 근거',{align:'left'}),CH.d('법인 존속기간이 아니라 증여자가 그 가업을 경영한 기간',{align:'left'}),
            CH.c(mgmtStartYear()?mgmtStartYear()+'년~':'—'),CH.d(L.basisLabel||'—')],
           
@@ -38638,7 +38805,7 @@ function selGet(m){ if(MOD_ALWAYS[m.id]) return false;
         {t:'table',fs:13,rows:tb,colW:[2.9,1.9,1.9,2.1,1.44]},
         {t:'note',keep:(G3&&G3.blocked)?true:undefined,text:
           (G3&&G3.blocked?'※ 요건 미달성으로 증여특례 활용 불가 — 위 수치는 요건 충족 가정 참고용 시산 · ':'')+
-          (T.baAuto?'③ = 사업무관자산 정리로 사업용자산비율 +20%p 가정 ('+baNow+'% → '+baFix+'%, 100% 상한) · ':'')+
+          (T.baAuto?'③ = 사업무관자산 정리로 사업용자산비율 +20%p 가정 ('+baNow+'% → '+baFix+'%'+((+baNow+20>100)?', 100% 상한으로 +'+(+baFix-baNow).toFixed(1)+'%p':'')+') · ':'')+
           '최저 '+bestLab[0]+' '+ek(bestLab[1])+' · ②→③ 절감 '+((N&&Fx)?ek(N.planTax-Fx.planTax):'—')+' · 비율 정비는 결산일 전 완료 · 특례분 상속 시 합산 · 사후관리 5년'}
       ]);
       
@@ -38657,12 +38824,15 @@ function selGet(m){ if(MOD_ALWAYS[m.id]) return false;
             rw3('Ⓐ 사전 이전 없이 상속 — 상속세',function(x){ return ek(x.taxA); },true),
             rw3('Ⓑ 가업상속공제 적용 — 상속세',function(x){ return x.fbOk?ek(x.taxB):(ek(x.taxB)+' (요건 미달)'); },true),
             rw3('Ⓒ ① 특례 증여세 (지금 납부)',function(x){ return ek(x.giftC); }),
-            rw3('Ⓒ ② 특례 주식 가산 (증여 당시 가액)',function(x){ return ek(x.addC); }),
+            
+            rw3('Ⓒ ② 증여재산 가산 (특례 주식 + 10년 내 일반증여분)',function(x){ return ek(x.addC); }),
             rw3('Ⓒ ③ 상속세 산출세액',function(x){ return ek(x.calcC); }),
-            rw3('Ⓒ ④ 기납부 증여세액공제',function(x){ return '−'+ek(x.credSp+x.credGen); }),
+            rw3('Ⓒ ④ 기납부 증여세액공제',function(x){ return '−'+ek((x.credAp!=null)?x.credAp:(x.credSp+x.credGen)); }),
+            rw3('Ⓒ ④-2 신고세액공제 (3%)',function(x){ return x.rptC>0?'−'+ek(x.rptC):'0원'; }),
             rw3('Ⓒ ⑤ 납부할 상속세',function(x){ return ek(x.inhC); }),
             rw3('Ⓒ 증여특례 후 상속 — 총세금 (①+⑤)',function(x){ return ek(x.totC); },true),
-            rw3('결론',function(x){ return (x.y===0?'현재':(x.y+'년 후'))+' 최저 '+best3(x)+' '+ek(Math.min(x.taxA,x.taxB,x.totC)); },true)];
+            
+            rw3('결론',function(x){ var b3=best3(x); return (x.y===0?'현재':(x.y+'년 후'))+' 최저 '+b3+' '+ek(Math.min(x.taxA,x.taxB,x.totC))+((b3==='Ⓒ'&&G3&&(G3.blocked||G3.pending))?' (특례 요건 충족 가정)':''); },true)];
           var L3=R3[R3.length-1], F3=R3[0];
           content('Ⅳ. 가업승계 — 세 경로 총세금 비교 (공제 미적용 상속, 가업상속공제, 증여특례 후 상속)',
             '대상 법인 '+TGT+' · 대표 지분 '+W3.pct.toFixed(2)+'% 전부 승계 자녀 1인 · 특례 증여 = 지금 '+ek(W3.gift)+
@@ -38782,7 +38952,9 @@ function selGet(m){ if(MOD_ALWAYS[m.id]) return false;
         var GS0b=(PV.state.GS>0)?PV.state.GS:Math.floor(gsCap/1e8)*1e8;
         var FREEb=pvIsFreeLoan(), LRb=pvLoanRate();
         var tB=[[CH.h('구분'),CH.h('금액'),CH.h('근거')],
-          [CH.rh('가수금 잔액',{align:'left'}),CH.n(ek(GS0b)),CH.d('대표의 법인에 대한 채권')],
+          
+          (PV.state.GSauto===false&&PV.state.GS>0)?[CH.rh('가수금 잔액',{align:'left'}),CH.n(ek(GS0b)),CH.d('대표의 법인에 대한 채권 (사안 설정)')]
+                         :[CH.rh('가수금 잔액 (예시 — 무상대여 원금 상한)',{align:'left'}),CH.n(ek(GS0b)),CH.d('설계 예시, 실제 대여액 아님 — 과세제외 원금 상한(억 단위 절사)까지 무상대여 가정')],
           [CH.rh('적정이자율',{align:'left'}),CH.c('4.6%'),CH.d('상증칙 · 당좌대출이자율')],
           [CH.rh('실제 지급이자율',{align:'left'}),CH.c(LRb+'%'),CH.d(FREEb?'무이자 → 1호':'저가대여 → 2호 별도 판정')],
           [CH.em('연간 이익 상당액',{align:'left'}),CH.emn(ek(pvGasuBenefit(GS0b))),CH.d('익금이 아니므로 법인세 없음')],
@@ -38823,7 +38995,7 @@ function selGet(m){ if(MOD_ALWAYS[m.id]) return false;
           var blkD=[{t:'flow',h:1.45,steps:[
             {n:'STEP 1',t:'지분 양도',tone:'on',d:'부모 → 자녀법인 '+X.sh.toLocaleString()+'주 · 시가 '+ek(X.price)+' · 대금 미지급금'},
             {n:'STEP 2',t:'부모 세액',tone:'no',d:'양도소득세·지방세·거래세 '+ek(X.need)+' — 즉시 현금 필요'},
-            {n:'STEP 3',t:'자기주식 매각',tone:'on',d:'자녀법인 → 모법인 '+X.nBack.toLocaleString()+'주 × '+fmt(Math.round(X.unit),0)+'원 = '+ek(X.back)+' · 취득가 = 양도가 → 차익 0'},
+            {n:'STEP 3',t:'자기주식 매각',tone:'on',d:'자녀법인 → 모법인 '+X.nBack.toLocaleString()+'주 × '+fmt(Math.round(X.unit),0)+'원 = '+ek(X.back)+' · 차익 0'},   
             {n:'STEP 4',t:'이익소각',tone:'',d:'모법인 배당가능이익 한도 · 주총 결의 · 부모 청약 불참'},
             {n:'STEP 5',t:'대금 지급',tone:'on',d:'자녀법인 → 부모 '+ek(X.back)+' → 세액 납부 · 잔여 '+ek(X.rest)+' 미지급금'}]},
           {t:'caption',text:'대금 조달 계산'},
@@ -39584,7 +39756,7 @@ function selGet(m){ if(MOD_ALWAYS[m.id]) return false;
       var Lm={yrs:null,lim:0,age:0}; try{ Lm=pvSuccLim(Bd)||Lm; }catch(e){DIAG(e)}
       var yrsTxt=(Lm.yrs===null||Lm.yrs===undefined)?'미확인':Lm.yrs+'년';
       var typeLab2=((PV.state.corpType||'small')==='small')?'소규모 성실신고대상법인 (전 구간 20%)':'일반법인 (2억 이하 10%)';
-      var pct2=function(v){ return isFinite(v)?(v*100).toFixed(1)+'%':'—'; };
+      var pct2=function(v){ return isFinite(v)?(v*100).toFixed(2)+'%':'—'; };   
 
       
       
@@ -39630,7 +39802,7 @@ function selGet(m){ if(MOD_ALWAYS[m.id]) return false;
              s:'일반 증여세율 적용 (상증법 §56) · 특례세율 적용 불가',tone:'on'},
             {k:'요건 동시 충족',v:(GD.okYear?GD.okYear+'년':'확인 요'),
              s:'그때까지 특정법인·배당·일반증여 분할로 대응',tone:''}]},
-          {t:'caption',text:'제외 사유 — 조특법 §30의6①'},
+          {t:'caption',text:'요건 판정 — 조특법 §30의6①'},   
           {t:'table',fs:13,rows:[[CH.h('요건'),CH.h('기준'),CH.h('현재'),CH.h('판정')],
             [CH.rh('증여자 연령',{align:'left'}),CH.d('60세 이상 부모 (조특법 §30의6①)'),
              CH.c(Lm.age?Lm.age+'세':'미확인'),CH.d(Lm.ageOk===false?'미충족':(Lm.ageOk?'충족':'미검증'))],
@@ -39700,10 +39872,10 @@ function selGet(m){ if(MOD_ALWAYS[m.id]) return false;
         var tb=[[CH.h('수단'),CH.h('이전액'),CH.h('법인세'),CH.h('증여세'),CH.h('1억원 기준금액 · 근거')],
           [CH.rh('① 재산 무상제공',{align:'left'}),CH.n(ek(cap2)),CH.n(b2?ek(b2.nat+b2.loc):'—'),CH.n('0원'),
            CH.d('§45의5① 1호 · ② 한도 ≤ 0 · 제외 기준금액(연) '+ek(free2))],
-          [CH.rh('② 가수금 무상대여',{align:'left'}),CH.n(ek(gs2)),CH.n('0원'),CH.n('0원'),
+          [CH.rh((PV.state.GSauto===false&&PV.state.GS>0)?'② 가수금 무상대여':'② 가수금 무상대여 (원금 상한)',{align:'left'}),CH.n(ek(gs2)),CH.n('0원'),CH.n('0원'),   
            CH.d('1호·2호 · 자녀 '+kids2+'명×1억÷4.6% · 이자 이익만 이전')],
           [CH.rh('③ 지분 양수도 · 소각',{align:'left'}),CH.n(X?ek(X.price):'—'),CH.n(X?'양도소득세 '+ek(X.need):'—'),CH.n('0원'),
-           CH.d(X?('부모 '+X.pct.toFixed(1)+'% 양도 · 소각 '+X.nBack.toLocaleString()+'주 · 자녀법인 '+pct2(X.kidPctAfter)):'—')],
+           CH.d(X?('부모 '+X.pct.toFixed(2)+'% 양도 · 소각 '+X.nBack.toLocaleString()+'주 · 자녀법인 '+pct2(X.kidPctAfter)):'—')],
           [CH.rh('④ 초과배당',{align:'left'}),CH.n(cur?ek(cur.D)+'/연':'—'),CH.n(cur?ek(cur.tax):'—'),CH.n(cur?(cur.over?'과세':'0원'):'—'),
            CH.d('3의2호 · 소각 후 지분 '+(+dR).toFixed(1)+'% · 익금불산입 '+(cur?(cur.exRate*100).toFixed(0)+'%':'—'))]];
         
@@ -39754,13 +39926,15 @@ function selGet(m){ if(MOD_ALWAYS[m.id]) return false;
         
         
         var YG=yeonbuGasan(target,{start:ygStartAt((gLast&&target===gLast.tax&&target!==need0)?(gLast.y||20):0)});
+        
+        var t20=!!(gLast&&target===gLast.tax&&target!==need0), tLab=t20?((gLast.y||20)+'년 후 상속세'):'현재 상속세';
         var GASAN_RATE=YG.rate, gasanTot=YG.total, realTax=target+gasanTot;
         if(YG.years>0){ annPay=YG.per; insCovers=(annPay>0)?(insTarget/annPay):0; }
         var tb=[[CH.h('방안'),CH.h('내용'),CH.h('수치')],
           [CH.rh('연부연납',{align:'left'}),
            
            CH.d('신고납부 1회 + '+(YG.years||10)+'년 분할 = '+((YG.years||10)+1)+'회 균등 (상증법 §71② · 상증령 §68①3호 · 각 회분 1천만원 초과) · 가업상속재산 최장 20년 · 가산금 별도'),
-           CH.d(YG.years>0?('총 '+ek(target)+' ÷ '+(YG.years+1)+'회 = 회당 '+ek(YG.per)):'2천만원 이하 — 연부연납 대상 아님')],
+           CH.d(YG.years>0?(tLab+' 총 '+ek(target)+' ÷ '+(YG.years+1)+'회 = 회당 '+ek(YG.per)):'2천만원 이하 — 연부연납 대상 아님')],
           [CH.rh('연부연납 가산금(이자상당액)',{align:'left'}),
            CH.d('회차별 잔액 × 일수 × 연 '+(GASAN_RATE*100).toFixed(1)+'% ÷ 365 (상증법 §72 · 상증령 §69 · 국세기본법 시행규칙 §19의3) · 신고기한 '+(YG.due0||'—')+'부터 '+(YG.years||0)+'회'),
            CH.d(YG.years>0?ek(gasanTot):'—')],
@@ -39768,11 +39942,11 @@ function selGet(m){ if(MOD_ALWAYS[m.id]) return false;
            CH.d('신고세액 + 연부연납 총 이자상당액 — 실제 현금유출 총액 기준'),
            CH.d(target>2e7?ek(realTax):ek(target))],
           [CH.rh('물납',{align:'left'}),CH.d('부동산·유가증권 50% 초과 · 금융재산 부족 시 (§73)'),
-           CH.d('주식 비중 '+(M.estate>0?pct2(M.shares/M.estate):'—'))],
+           CH.d('주식 비중 '+(M.estate>0?pct2(M.shares/M.estate):'—')+' (현재)')],
           ((GD&&GD.blocked)
             ? [CH.rh('사전증여 분산',{align:'left'}),
                CH.d('증여특례 적용 불가 ('+GD.text+') → 일반증여 10년 분할로 대체 · 상속 시 합산 정산'),
-               CH.d((T&&T.A&&T.A.genTax)?('일반증여세 '+ek(T.A.genTax)+' ('+T.pct.toFixed(1)+'%)'):'—')]
+               CH.d((T&&T.A&&T.A.genTax)?('일반증여세 '+ek(T.A.genTax)+' ('+T.pct.toFixed(1)+'%, 현재)'):'—')]
             : [CH.rh('사전증여 분산',{align:'left'}),
                CH.d('증여특례로 지분 이전 → 상속 시 합산 정산 · 평가액 고정'),
                CH.d((T&&T.A)?('증여세 '+ek(needG)+' ('+T.pct.toFixed(1)+'%)'):'특례 산출 불가')]),
@@ -39784,16 +39958,14 @@ function selGet(m){ if(MOD_ALWAYS[m.id]) return false;
           [CH.rh('임원 퇴직급여',{align:'left'}),
            CH.d('소득세법 §22③ 구간별 한도 · 분류과세 · 건강보험료 부과 대상 아님'),
            CH.d((function(){ try{ var bp=CKS.retAvg();   
-             var y=null; try{ var sy=CKS.n(CK.p.execStart);
-               if(sy>0) y=CKS.retireLimit({startYear:sy,retYear:(+baseYear||new Date().getFullYear()),avgPay:bp,avgPay2019:bp,mult:2}).yrs; }catch(e2){DIAG(e2)}
-             if(!(y>0)) y=25;
-             var q=CKS.retirePay(bp,y,(+baseYear||(new Date()).getFullYear())); var ov=Math.max(0,Math.round(q.over||0)), ot=ov>0?Math.max(0,CKS.payRow(bp+ov).tax-CKS.payRow(bp).tax):0; return '근속 '+y+'년 × '+q.mult+'배 '+ek(q.pay)+' · 세후 '+ek(q.pay-q.tax-ot)+(ov>0?' (한도 초과분 근로소득세 포함)':''); }   catch(e){ return '—'; } })())],
+             var RSd=CKS.retStd(), y=RSd.yrs;   
+             var q=CKS.retirePay(bp,y,RSd.retYear); var ov=Math.max(0,Math.round(q.over||0)), ot=ov>0?Math.max(0,CKS.payRow(bp+ov).tax-CKS.payRow(bp).tax):0; return '근속 '+y+'년 × '+q.mult+'배 '+ek(q.pay)+' · 세후 '+ek(q.pay-q.tax-ot)+(ov>0?' (한도 초과분 근로소득세 포함)':''); }   catch(e){ return '—'; } })())],
           [CH.rh('배당 · 퇴직급여 활용',{align:'left'}),CH.d('이익잉여금 정리 → 평가액 하향 · 개인 납세재원 확보'),
            CH.d('이익잉여금 '+(re0>0?ek(re0):'미판독'))],
           
           [CH.em('법인 계약 종신보험',{align:'left'}),
            CH.em('CEO 유고 대비 보완 수단 · 연부연납 11회 중 초기 3회분 현금 충당 → 지분 급매 없는 유동화 시간 확보 · 보험금은 법인 유입 후 감자 단계에서 상속인 현금화(다음 장)',{align:'left'}),
-           CH.emn('목표 '+ek(insTarget)+' (상속세의 '+Math.round(insRate*100)+'%) · 회당 '+ek(annPay)+' × 약 '+insCovers.toFixed(1)+'회분')]];
+           CH.emn('목표 '+ek(insTarget)+' ('+tLab+'의 '+Math.round(insRate*100)+'%) · 회당 '+ek(annPay)+' × 약 '+insCovers.toFixed(1)+'회분')]];
         
         content('Ⅶ. 마무리 — 납세재원 마련방안',
           '상속세 '+ek(need0)+' (20년 후 '+(gLast?ek(need20):'—')+') · 법인 현금성자산 '+ek(cash0)+' · 개인 금융자산 '+ek(fin0),[
@@ -39822,7 +39994,7 @@ function selGet(m){ if(MOD_ALWAYS[m.id]) return false;
         content('Ⅶ. 마무리 — 상속주식 감자 플랜 (유고 시 대비)',
           '대표 유고 시 20년 후 추정 상속세 '+ek(need0)+' 중 '+Math.round(insRate*100)+'%('+ek(retireAmt)+')를 법인 자금(종신보험금)으로 준비 · 감자 '+fmt(retireShares,0)+'주 · 잔액은 연부연납',[
           {t:'flow', h:2.10, steps:[
-            {n:'STEP 1',t:'주식 상속',tone:'',d:'대표 유고 시 → 상속인 · 1주 '+ek(pv)+'(20년 후 추정) × '+fmt(stakeShares,0)+'주 = '+ek(stakeVal20)+' · 상속개시일 시가로 취득가액 확정'},
+            {n:'STEP 1',t:'주식 상속',tone:'',d:'대표 유고 시 → 상속인 · 1주 '+fmt(Math.round(pv))+'원(20년 후 추정) × '+fmt(stakeShares,0)+'주 = '+ek(stakeVal20)+' · 상속개시일 시가로 취득가액 확정'},
             {n:'STEP 2',t:'보험금 수령',tone:'on',d:'보험사 → 법인 '+ek(retireAmt)+' · 20년 후 추정 상속세의 '+Math.round(insRate*100)+'% 수준(전 장 목표) — 감자대가 재원'},
             {n:'STEP 3',t:'감자·소각',tone:'on',d:'자기주식 매입소각 · 상속인 → 법인 '+fmt(retireShares,0)+'주 소각 · 상법 §341 배당가능이익 한도 내'},
             {n:'STEP 4',t:'감자대가 지급',tone:'on',d:'법인 → 상속인 '+ek(retireAmt)+' · 취득가액과 동일 → 의제배당(소득세법 §17②1호) 최소화'},
@@ -39843,18 +40015,18 @@ function selGet(m){ if(MOD_ALWAYS[m.id]) return false;
         var PR=[[CH.h('NO'),CH.h('확인 항목'),CH.h('현재 가정'),CH.h('반영 효과')]];
         
         var pin=function(f){ try{ return f()||''; }catch(e){ return ''; } };
-        var peok=function(w){ return (Math.round(w/1e6)/100).toLocaleString()+'억'; };
+        var peok=function(w){ return (Math.floor(w/1e6)/100).toLocaleString()+'억'; };   
         var pCk=(typeof CK==='object'&&CK.p)?CK.p:{};
         var pPrior=pin(function(){ var v=CK.n(pCk.prior); return v>0?peok(v)+' (입력)':''; });
         var pBirth=pin(function(){ return (S.meta&&S.meta.ceoBirthIn&&S.meta.ceoBirth)?S.meta.ceoBirth+' (입력)':''; });
         var pIdle=pin(function(){ var v=parseFloat($('baReIdle').value); return v>0?v+'% (입력)':''; });
         var pPay=pin(function(){ var v=CK.n(pCk.execPay); return v>0?peok(v)+' · 지급배수 '+(CK.n(pCk.execMult)||2)+'배 (입력)':''; });
         var pRe=pin(function(){ var a=wonOf('reAppraised'), b=wonOf('reMarket');
-          return (a>0||b>0)?[a>0?'공시가 '+peok(a):'',b>0?'시가 '+peok(b):''].filter(Boolean).join(' · ')+' (입력)':''; });
+          return (a>0||b>0)?[a>0?'공시가 '+peok(a):'',b>0?'시가 '+peok(b):''].filter(Boolean).join(' · ')+((a>0&&b>0)?' (입력)':' — '+(a>0?'시가':'공시가')+' 미입력'):''; });   
         [
           ['사업개시일 (사업자등록 개업일)',pbm.bizStartAt?pbm.bizStartAt+' (입력)':'설립일('+pfd+') 간주','3년 판정 확정 — 순자산가치 단독 / 가중평균 (상증령 §54④2호)'],
-          ['평가기준일 (증여·양도 예정일)',pev+' 기준','3년 판정 · 평가 시점 확정'],
-          
+          ['평가기준일 (증여·양도 예정일)',pev+' 기준'+(pin(function(){ return evalDateInput(); })?' (입력)':''),'3년 판정 · 평가 시점 확정'],
+             
           ['10년 내 사전증여 내역',pPrior||'미입력 시 0원','상속세 합산(상증법 §13) · 증여세액공제(§28)'],
           ['대표 생년월일',pBirth||'크레탑·등기 자동 판독','증여특례 60세 요건(조특법 §30의6①) 판정'],
           ['사업무관 부동산 비율 (임대·비업무용)',pIdle||'0% (전부 사업용 가정)','사업용자산비율 → 가업승계 공제·특례 적용액'],
@@ -39871,6 +40043,9 @@ function selGet(m){ if(MOD_ALWAYS[m.id]) return false;
         ].forEach(function(x,i){ PR.push([CH.c(i+1),CH.d(x[0]),CH.d(x[1]),CH.d(x[2])]); });
         
         if(window.__simAudience==='client'){
+          
+          PR=[PR[0]].concat(PR.slice(1).filter(function(r){ return !/\(입력\)/.test(String((r[2]&&r[2].text!=null)?r[2].text:r[2])); }));
+          PR.forEach(function(r,i){ if(i) r[0]=CH.c(i); });
           PR=PR.map(function(r){ return [r[0],r[1],r[3]]; });
           PR[0]=[CH.h('NO'),CH.h('요청 자료'),CH.h('반영 효과')];
           content('Ⅶ. 마무리 — 추가 제공 요청 자료',
@@ -40937,12 +41112,10 @@ function selGet(m){ if(MOD_ALWAYS[m.id]) return false;
         try{
           var bp=CKS.curPay();   
           var pr=CKS.payRow(bp);
-          var yq=25; try{ var sy=CKS.n(CK.p.execStart);
-            if(sy>0) yq=CKS.retireLimit({startYear:sy,retYear:(+baseYear||new Date().getFullYear()),
-              avgPay:bp,avgPay2019:bp,mult:2}).yrs; }catch(e){DIAG(e)}
+          var RSq=CKS.retStd(), yq=RSq.yrs;   
           var rb=CKS.retAvg();   
-          var q=CKS.retireRow(rb,yq,(+baseYear||new Date().getFullYear()));
-          var qp=CKS.retirePay(rb,yq,(+baseYear||new Date().getFullYear()));   
+          var q=CKS.retireRow(rb,yq,RSq.retYear);
+          var qp=CKS.retirePay(rb,yq,RSq.retYear);   
           var t3=[HD];
           t3.push(A('근로소득공제','구간별 공제 · 한도 2,000만',W(bp),W(pr.deduct),'소득세법 §47①'));
           t3.push(A('과세표준','총급여 − 근로소득공제 − 기본공제 150만',
@@ -41130,7 +41303,7 @@ function selGet(m){ if(MOD_ALWAYS[m.id]) return false;
       var d2fb=(y20&&y20.fbDed>0)
         ?('· 20년 후 가업상속공제(2027.7.1. 개정안 기준) 요건 달성 가정 시 '+ek(y20.fbTax)+' — 미반영 대비 '+ek(y20.tax-y20.fbTax)+
           ' 절감 (경영기간 '+y20.fbYrs+'년·사후관리 '+y20.fbFollowUp+'년·위원회 통과 전제)')
-        :(y20?('· 가업상속공제(2027.7.1. 개정안 — 경영 20년↑ 조건부) 20년 내 요건 미달 예상 ('+(y20.fbYrs<20?'경영기간 '+y20.fbYrs+'년 그침':'경영기간 '+y20.fbYrs+'년 충족 · 업종 등 다른 요건 미달')+')'):null);
+        :(y20?('· 가업상속공제(2027.7.1. 개정안 — 경영 20년↑ 조건부) 20년 내 요건 미달 예상 ('+(y20.fbYrs===null?'경영기간 확인 필요 — 공제 미반영':y20.fbYrs<20?'경영기간 '+y20.fbYrs+'년 그침':'경영기간 '+y20.fbYrs+'년 충족 · 업종 등 다른 요건 미달')+')'):null);
       var d2=LI([
         '· 현행 유지 시 상속세 '+(inhNow===null?'—':ek(inhNow))+' (실효세율 '+(inhEff===null?'—':pc(inhEff))+')',
         (y10&&y20)?('· 10년 후 '+ek(y10.tax)+' · 20년 후 '+ek(y20.tax)+' (자산 '+gr.a+'% · 이익 '+gr.i+'% 성장)'):null,
@@ -41165,7 +41338,7 @@ function selGet(m){ if(MOD_ALWAYS[m.id]) return false;
       var tsSim=null; try{ tsSim=pvTreasuryCancelSim(); }catch(e){DIAG(e)}
       var d4=LI([
         '· 자녀 '+nk+'명 균등출자 법인 — 주주별 1억원 미만 비과세(§45의5)',
-        '· 무상제공 '+(cap>0?ek(cap):'—')+' · 가수금 무상대여 '+(gsCap>0?ek(gsCap):'—')+'까지 증여세 0 · 호별 합산 유의',
+        '· 무상제공 '+(cap>0?ek(cap):'—')+' · 가수금 무상대여 원금 상한 '+(gsCap>0?ek(gsCap):'—')+'까지 증여세 0 · 호별 합산 유의',
         (bb&&bb.sh>0)?('· 지분 '+bb.pct.toFixed(1)+'% 양도 '+ek(bb.price)+' → 자기주식 소각 후 자녀법인 '+(bb.kidPctAfter*100).toFixed(0)+'%'):null,
         '· 초과배당 연 '+(dv?ek(dv.D):'—')+' (익금불산입 '+(dv?(dv.exRate*100).toFixed(0):'—')+'%)']);
       var d6=tsSim?LI([
@@ -41196,17 +41369,16 @@ function selGet(m){ if(MOD_ALWAYS[m.id]) return false;
         var mw2=function(v){ return fmt(Math.round(v/10000),0)+'만'; };
         
         
-        var RYX=(+baseYear||(new Date()).getFullYear());
+        var RSx=CKS.retStd(), RYX=RSx.retYear;   
         var bp=CKS.curPay();   
-        var bs=null; try{ var sy2=CKS.n(CK.p.execStart);
-          if(sy2>0) bs=CKS.retireLimit({startYear:sy2,retYear:RYX,avgPay:bp,avgPay2019:bp,mult:2}).yrs; }catch(e2){DIAG(e2)}
+        var bs=RSx.yrs;
         if(!(bs>0)) bs=25;
         var nr=function(arr,v){ return arr.reduce(function(a,x){ return Math.abs(x-v)<Math.abs(a-v)?x:a; },arr[0]); };
         var pL=CKS.payRow(CKS.PAY_LEVELS[0]), pH=CKS.payRow(CKS.PAY_LEVELS[CKS.PAY_LEVELS.length-1]);
         
       var bd=function(r){ return ((r.tax+r.ins.emp)/r.annual*100).toFixed(1)+'%'; };   
         var pB=CKS.payRow(bp);
-        var yB=(bs!==null)?nr(CKS.RETIRE_YRS,bs):null;
+        var yB=bs;   
         var qB=CKS.retireRow(CKS.retAvg(),yB,RYX);   
         
         d2b=LI([

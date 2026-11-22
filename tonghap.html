@@ -6356,7 +6356,7 @@ window.LANDQ = (function () {
   function LPER(a,k){ var v=a[k]; if(v==='all') return [[a.acqD,a.saleD]]; if(v==='part'&&a[k+'a']&&a[k+'b']) return [[a[k+'a'],a[k+'b']]]; return []; }
   var LAP=[['all','보유 기간 내내'],['part','일부 기간만'],['none','아니요']];
   function lPart(k,on,q1,q2){   
-    return [{id:k+'a', on:function(a){ return on(a)&&a[k]==='part'; }, q:q1+' — 시작한 날은요?', h:'보유 기간(산 날 ~ 판 날) 안 날짜 · 기간이 여럿이면 가장 긴 기간(나머지 = 「특수 사례 더 보기」 → 비사업용 토지 기간 판정)', t:'d', rng:LDR, pre:function(a){ return a.acqD||''; }},
+    return [{id:k+'a', on:function(a){ return on(a)&&a[k]==='part'; }, q:q1+' — 시작한 날은요?', h:'보유 기간(산 날 ~ 판 날) 안 날짜 · 기간이 여럿이면 가장 긴 기간(나머지 = 양도세 탭 「특수 사례 더 보기」 → 비사업용 토지 기간 판정)', t:'d', rng:LDR, pre:function(a){ return a.acqD||''; }},
             {id:k+'b', on:function(a){ return on(a)&&a[k]==='part'; }, q:q1+' — 끝난 날은요?', h:'지금도 그렇다면 판 날 · '+q2, t:'d', rng:function(a){ return [a[k+'a']||a.acqD||'',a.saleD||'']; }, pre:function(a){ return a.saleD||''; }}]; }
   function LQS(){
     var U_O=function(a){ var o=[['none','해당 없어요'],['3나','공익사업으로 협의매수·수용 — 사업인정고시일부터 5년 전에 취득']];
@@ -6398,17 +6398,17 @@ window.LANDQ = (function () {
       
       {id:'lnOR', on:function(a){ return LJ(a,'forest'); }, q:'보유하는 동안 임야 가까이 살았어요(재촌)?', h:'재촌 = 임야가 있는 시·군·구, 연접 시·군·구, 또는 임야에서 직선거리 30km 안에 주민등록 + 실제 거주(소득세법 시행령 §168의9②)', t:'b', o:LAP}
     ],lPart('lnOR',function(a){ return LJ(a,'forest'); },'가까이 산(재촌) 기간','이사 나간 날'),[
-      {id:'lnOP', on:function(a){ return LJ(a,'forest'); }, q:'공익, 보호 목적으로 지정된 임야예요?', h:'지정 기간 = 사업용(소득세법 §104의3①2호가, 시행령 §168의9①) · 그 밖 지정(공원, 문화유산 보호구역 등) = 「특수 사례 더 보기」 → 비사업용 토지 기간 판정', t:'b',
+      {id:'lnOP', on:function(a){ return LJ(a,'forest'); }, q:'공익, 보호 목적으로 지정된 임야예요?', h:'지정 기간 = 사업용(소득세법 §104의3①2호가, 시행령 §168의9①) · 그 밖 지정(공원, 문화유산 보호구역 등) = 양도세 탭 「특수 사례 더 보기」 → 비사업용 토지 기간 판정', t:'b',
        o:[['none','아니요'],['1','산림보호구역, 채종림, 시험림'],['8','개발제한구역 안 임야'],['13','상수원보호구역 안 임야'],['2','산림경영계획 인가 시업 중, 특수산림사업지구']]},
       {id:'lnOB', on:function(a){ return LJ(a,'forest'); }, q:'임업, 휴양 등에 쓰거나 상속받은 임야예요?', h:'거주, 사업과 관련된 임야(소득세법 시행령 §168의9③)', t:'b',
        o:[['none','아니요'],['1','임업후계자가 임산물 생산에 씀'],['3','자연휴양림'],['7','상속받은 임야 — 상속개시일부터 3년'],['8','종중 임야(2005.12.31. 이전 취득)']]},
       
-      {id:'lnRD', on:function(a){ return LJ(a,'ranch'); }, q:'그 땅에서 직접 축산업을 했어요?', h:'목장용지 = 축산업 하는 사람이 가축별 기준면적 안에서 쓰는 땅(소득세법 §104의3①3호, 시행령 §168의10 · 별표 1의3) · 기준면적 넘는 부분 = 「특수 사례 더 보기」 → 비사업용 토지 기간 판정', t:'b', o:LAP}
+      {id:'lnRD', on:function(a){ return LJ(a,'ranch'); }, q:'그 땅에서 직접 축산업을 했어요?', h:'목장용지 = 축산업 하는 사람이 가축별 기준면적 안에서 쓰는 땅(소득세법 §104의3①3호, 시행령 §168의10 · 별표 1의3) · 기준면적 넘는 부분 = 양도세 탭 「특수 사례 더 보기」 → 비사업용 토지 기간 판정', t:'b', o:LAP}
     ],lPart('lnRD',function(a){ return LJ(a,'ranch'); },'축산업 한 기간','축산업을 그만둔 날'),[
       
       {id:'lnBT', on:function(a){ return LJ(a,'bare'); }, q:'재산세가 「별도합산」 또는 「분리과세」였던 기간이 있어요?', h:'재산세 고지서, 과세대장의 토지 구분 · 빈 땅 = 보통 「종합합산」 = 비사업용 기간 · 별도합산, 분리과세, 비과세, 면제 기간 = 사업용 기간(소득세법 §104의3①4호가, 나)', t:'b', o:[['none','없어요(종합합산)'],['all','보유 기간 내내'],['part','일부 기간만']]}
     ],lPart('lnBT',function(a){ return LJ(a,'bare'); },'별도합산, 분리과세 기간','종합합산으로 바뀐 날'),[
-      {id:'lnBE', on:function(a){ return LJ(a,'bare'); }, q:'그 땅을 사업에 쓴 적이 있어요?', h:'거주, 사업과 관련된 토지 = 사업용(소득세법 시행령 §168의11①) · 그 밖(체육시설, 하치장 등) = 아래 「특수 사례 더 보기」 → 비사업용 토지 기간 판정', t:'b',
+      {id:'lnBE', on:function(a){ return LJ(a,'bare'); }, q:'그 땅을 사업에 쓴 적이 있어요?', h:'거주, 사업과 관련된 토지 = 사업용(소득세법 시행령 §168의11①) · 그 밖(체육시설, 하치장 등) = 아래 양도세 탭 「특수 사례 더 보기」 → 비사업용 토지 기간 판정', t:'b',
        o:[['none','없어요'],['park','주차장 운영업(노외주차장)'],['spa','광천지(온천, 약수 용출구)'],['fish','양어장, 지소(허가, 신고 없이 운영)'],['ind','블록·석물 제조, 조경작물, 화훼 판매, 정비·운전 학원 등'],['home','집 없는 세대의 집 지을 땅(1필지 660㎡ 안)']]},   
       {id:'lnBI', on:function(a){ return LJ(a,'bare')&&a.lnBE==='ind'; }, q:'어떤 사업이에요?', h:'업종마다 수입금액 비율 기준이 달라요(소득세법 시행규칙 §83의4⑮)', t:'b', o:[['block','블록, 석물, 토관 제조(20%)'],['garden','조경작물 식재, 화훼 판매시설(7%)'],['acad','자동차·중장비 정비, 중장비 운전 학원(10%)'],['acadF','농업 학원(7%)'],['retail','블록, 조경작물, 농수축산물 등 도매·소매(10%)']]},
       {id:'lnBP', on:REVK, q:function(a){ return '1년 '+REVN(a)+' 수입금액이 땅값의 '+REVS(a)+'% 이상이었어요?'; }, h:function(a){ return '수입금액 비율 = 1년 수입금액 ÷ 토지가액, 그 해 비율과 직전 해와 합친 비율 중 큰 쪽(소득세법 시행령 §168의11①'+REVL1(a)+', ②) · 기준 '+REVS(a)+'%(시행규칙 §83의4'+({park:'⑥',spa:'⑬',fish:'⑬',ind:'⑮'}[a.lnBE]||'')+')'; }, t:'b',
@@ -6429,7 +6429,7 @@ window.LANDQ = (function () {
       {id:'lnHF', on:function(a){ return LJ(a,'houseLand'); }, q:'주택 정착면적(바닥면적)은요?', h:'기준면적 = 정착면적 × 배율 · 넘는 부분 = 비사업용(소득세법 §104의3①5호, 시행령 §168의12)', t:'w', u:'㎡', werr:'주택 정착면적(㎡)을 넣어 주세요'},
       {id:'lnHZ', on:function(a){ return LJ(a,'houseLand'); }, q:'어느 지역이에요?', h:'괄호 = 정착면적에 곱하는 배율(시행령 §168의12 · 2021.12.31. 이전 양도 수도권 주거·상업·공업 5배)', t:'b', o:[['capRes','수도권 도시지역 주거, 상업, 공업(3배)'],['capGreen','수도권 도시지역 녹지(5배)'],['outCap','수도권 밖 도시지역(5배)'],['nonUrban','도시지역 밖(10배)']]},
       
-      {id:'lnHd', on:LNX, q:'땅을 쓰지 못한 부득이한 사유가 있었어요?', h:'부득이한 사유 기간 = 사업용으로 봄(소득세법 시행령 §168의14①, 시행규칙 §83의5①) · 그 밖 사유 = 「특수 사례 더 보기」 → 비사업용 토지 기간 판정', t:'b',
+      {id:'lnHd', on:LNX, q:'땅을 쓰지 못한 부득이한 사유가 있었어요?', h:'부득이한 사유 기간 = 사업용으로 봄(소득세법 시행령 §168의14①, 시행규칙 §83의5①) · 그 밖 사유 = 양도세 탭 「특수 사례 더 보기」 → 비사업용 토지 기간 판정', t:'b',
        o:[['none','없어요'],['r1','법령으로 사용이 금지, 제한된 기간'],['k7','소유권 소송 중인 기간'],['k9','건물이 멸실, 철거된 뒤(그날부터 5년)'],['k5','빈 땅을 사서 건물을 짓는 중(산 날부터 2년 + 공사 기간)']]},
       {id:'lnHda', on:function(a){ return LNX(a)&&!!a.lnHd&&a.lnHd!=='none'; }, q:function(a){ return a.lnHd==='k9'?'건물이 멸실, 철거된 날은요?':a.lnHd==='k5'?'공사를 시작한(착공) 날은요?':'그 사유가 시작된 날은요?'; }, h:'보유 기간 안 날짜', t:'d', rng:LDR},
       {id:'lnHdb', on:function(a){ return LNX(a)&&(a.lnHd==='r1'||a.lnHd==='k7'||a.lnHd==='k5'); }, q:function(a){ return a.lnHd==='k5'?'공사가 끝난(준공) 날은요?':'그 사유가 끝난 날은요?'; }, h:'지금도 계속이면 판 날', t:'d', rng:function(a){ return [a.lnHda||a.acqD||'',a.saleD||'']; }, pre:function(a){ return a.saleD||''; }},
@@ -6495,12 +6495,12 @@ window.LANDQ = (function () {
     if(j==='forest'){ lnPP(set,lnF('forest.res'),P('lnOR')); var pb=a.lnOP&&a.lnOP!=='none'?a.lnOP:'', bz=a.lnOB&&a.lnOB!=='none'?a.lnOB:''; set(lnF('forest.pub'),pb); set(lnF('forest.biz'),bz);
       set(lnF('forest.pubP')+'_a',''); set(lnF('forest.pubP')+'_b',''); set(lnF('forest.bizP')+'_a',bz==='7'?(a.acqD||''):''); set(lnF('forest.bizP')+'_b','');
       if(pb) D.push('공익, 보호 임야 지정 기간 = 보유 기간 전체'); if(bz&&bz!=='7'&&bz!=='8') D.push('임업, 휴양 등에 쓴 기간 = 보유 기간 전체'); if(bz==='7') D.push('상속개시일 = 「언제 샀어요?」 답(상속받은 날)'); }
-    if(j==='ranch'){ lnPP(set,lnF('ranch.direct'),P('lnRD')); set(lnF('ranch.deem'),''); set(lnF('ranch.heads'),''); K.push('목장 가축별 기준면적(별표 1의3) 넘는 부분 = 판정 안 함 → 「특수 사례 더 보기」 → 비사업용 토지 기간 판정 「가축 종류, 두수, 면적」 [확인 필요]'); }
+    if(j==='ranch'){ lnPP(set,lnF('ranch.direct'),P('lnRD')); set(lnF('ranch.deem'),''); set(lnF('ranch.heads'),''); K.push('목장 가축별 기준면적(별표 1의3) 넘는 부분 = 판정 안 함 → 양도세 탭 「특수 사례 더 보기」 → 비사업용 토지 기간 판정 「가축 종류, 두수, 면적」 [확인 필요]'); }
     if(j==='bare'||j==='bld'){
       var tx=j==='bld'?P('lnGW'):(a.lnBT==='none'?[]:P('lnBT')); lnPP(set,lnF('bare.tax'),tx);
       var etc='', ep=[], RC={park:'2다',spa:'10',fish:'11다',ind:'12'}[a.lnBE], RN={park:'주차장',spa:'광천지',fish:'양어장',ind:'그 사업'}[a.lnBE], RS=a.lnBE==='park'?3:a.lnBE==='ind'?({block:20,garden:7,acad:10,acadF:7,retail:10}[a.lnBI||'block']||20):4;   
       set(lnF('bare.ind'),a.lnBE==='ind'?(a.lnBI||'block'):'block');
-      if(j==='bare'&&RC&&a.lnBP==='y'){ etc=RC; ep=P('lnBEp'); K.push(RN+' 수입금액 비율 '+RS+'% = '+'답(예)'+' 그대로 · 다른 해도 같았다고 봄 — 해마다 다르면 「특수 사례 더 보기」 → 비사업용 토지 기간 판정 「연도별 수입금액」 칸에 넣으면 엔진이 해마다 판정 [확인 필요]'); }
+      if(j==='bare'&&RC&&a.lnBP==='y'){ etc=RC; ep=P('lnBEp'); K.push(RN+' 수입금액 비율 '+RS+'% = '+'답(예)'+' 그대로 · 다른 해도 같았다고 봄 — 해마다 다르면 양도세 탭 「특수 사례 더 보기」 → 비사업용 토지 기간 판정 「연도별 수입금액」 칸에 넣으면 엔진이 해마다 판정 [확인 필요]'); }
       if(j==='bare'&&RC&&a.lnBP==='n') D.push(RN+' 수입금액 '+RS+'% 미만 → 그 기간도 사업용 아님(소득세법 시행령 §168의11①'+{park:'2호다',spa:'10호',fish:'11호다',ind:'12호'}[a.lnBE]+')');
       if(j==='bare'&&a.lnBE==='home'){ etc='13'; ep=P('lnBEp'); }
       set(lnF('bare.etc'),etc); set(lnF('bare.etcP')+'_a',ep[0]?ep[0][0]:''); set(lnF('bare.etcP')+'_b',ep[0]?ep[0][1]:'');
@@ -6659,15 +6659,15 @@ window.LANDQ = (function () {
   var NG = function (a) { return a.mode === 'ngift'; }, NP = function (a) { return NG(a) && a.nTo !== 'corp'; }, NC = function (a) { return NG(a) && a.nTo === 'corp'; }, NH = function (a) { return NG(a) && a.nKind === 'house'; };
   var CQ = function (a) { return C(a) || BC(a) || NC(a); };
   
-  var LBC = function (a) { return a.mode === 'low' && a.lSeller !== 'corp' && a.lBuyer === 'corp'; };   
+  var LBC = function (a) { return a.mode === 'low' && !LC(a) && a.lBuyer === 'corp'; };   
   var LBCL = function (a) { return LBC(a) && a.lDir !== 'high'; }, LHB = function (a) { return LBC(a) && a.lDir === 'high'; };
-  var LHC = function (a) { return a.mode === 'low' && a.lDir === 'high' && a.lSeller === 'corp'; };   
+  var LHC = function (a) { return false && a.mode === 'low' && a.lDir === 'high' && a.lSeller === 'corp'; };      
   var GSC = function (a) { return a.mode === 'gsell' && a.sTo === 'corp' && !(a.sRel === 'spouse' && +a.sDebt > 0); };
   var CQH = function (a) { return CQ(a) || LBCL(a) || GSC(a) || LHC(a); };
   
   var L = function (a) { return a.mode === 'low'; }, LH = function (a) { return L(a) && a.lKind === 'house'; };
   
-  var LHI = function (a) { return L(a) && a.lDir === 'high'; }, LC = function (a) { return L(a) && a.lSeller === 'corp'; }, LP = function (a) { return L(a) && !LC(a); }, LHS = function (a) { return LH(a) && !LC(a); };
+  var LHI = function (a) { return L(a) && a.lDir === 'high'; }, LC = function (a) { return L(a) && a.lDir === 'fair' && a.lSeller === 'corp'; }   , LP = function (a) { return L(a) && !LC(a); }, LHS = function (a) { return LH(a) && !LC(a); };
   var LPB = function (a) { return LP(a) && !LBC(a); };   
   var LK = function (a) { return LP(a) && a.lAcqK === 'y'; }, LN = function (a) { return LP(a) && a.lAcqK === 'n'; };
   var SW = function (a) { return a.mode === 'swap'; }, SWHA = function (a) { return SW(a) && a.waKind === 'house'; }, SWHB = function (a) { return SW(a) && a.wbKind === 'house'; };
@@ -6911,15 +6911,15 @@ window.LANDQ = (function () {
     
     { id: 'lKind', t: 'b', on: L, q: '무엇을 사고팔아요?', h: '주택 = 1세대1주택 비과세, 다주택 중과, 취득세 주택 세율 · 토지, 상가 = 기본세율 · 땅은 다음 질문(「어떤 땅이에요?」)으로 사업용, 비사업용을 판정(비사업용 = 기본세율 + 10%p · 소득세법 §104①8호)',
       o: [['house', '주택(아파트, 단독주택 등)'], ['land', '토지, 상가 등 건물(사업용인지 비사업용인지 다음 질문으로 판정)']] },
-    { id: 'lDir', t: 'b', stg: 'basic', pdef: 'low', on: L, q: '시가보다 싸게, 비싸게, 시가 그대로 사고팔아요?', h: '싸게 = 사는 사람이 이익(증여세), 파는 사람 양도세는 시가로 · 비싸게 = 파는 사람이 이익(증여세), 그만큼 양도가액에서 빠짐 · 시가 그대로 = 증여세 없음, 양도세, 취득세만(배우자, 직계존비속끼리는 대가를 낸 증거가 없으면 증여로 추정)',
+    { id: 'lDir', t: 'b', stg: 'basic', pdef: 'low', on: L, q: '시가보다 싸게, 비싸게, 시가 그대로 사고팔아요?', h: '싸게 = 사는 사람이 이익(증여세), 파는 사람 양도세는 시가로 · 비싸게 = 파는 사람이 이익(증여세), 그만큼 양도가액에서 빠짐 · 시가 그대로 = 증여세 없음, 양도세, 취득세만(배우자, 직계존비속끼리는 대가를 낸 증거가 없으면 증여로 추정) · 파는 쪽이 법인이면 시가 그대로만(법인세법 §52)',
       o: [['low', '시가보다 싸게(저가)'], ['high', '시가보다 비싸게(고가)'], ['fair', '시가 그대로(정상 거래)']] },
-    { id: 'lSeller', t: 'b', stg: 'basic', pdef: 'person', on: L, q: '파는 쪽은 개인이에요, 법인이에요?', h: function (a) { return a.lDir === 'high' ? '가족 법인이 사는 사람(그 법인 주주 등)에게 비싸게 팔면 = 비싸게 낸 금액만큼 법인 이익 → 다른 가족 주주 증여세(상증법 §45의5①3호) + 법인 법인세' : '법인이 주주, 임원에게 싸게 팔면 = 싸게 산 금액이 사는 사람 상여, 배당(소득세) · 증여세 없음'; },
-      o: function (a) { return [['person', '개인'], ['corp', a.lDir === 'high' ? '가족 법인 — 사는 사람이나 그 가족이 주주인 법인' : '법인 — 사는 사람이 그 법인의 주주, 임원이나 주주의 가족']]; } },
-    { id: 'lBuyer', t: 'b', stg: 'basic', pdef: 'person', on: function (a) { return L(a) && a.lSeller !== 'corp'; }, q: '사는 쪽은 개인이에요, 법인이에요?', h: function (a) { return a.lDir === 'high' ? '가족 법인에 비싸게 팔면 = 시가 넘는 금액은 파는 사람 배당, 상여(소득세 · 법인세법 §52), 양도세는 시가로(소득세법 §96③1호) + 법인 취득세' : '가족이 주주인 법인(자녀, 손자녀 법인 등)에 팔면 = 파는 사람 양도세 + 법인 취득세 + 시가보다 많이 싸면 법인 주주 증여세(상증법 §45의5)'; },
+    { id: 'lSeller', t: 'b', stg: 'basic', pdef: 'person', on: function (a) { return L(a) && a.lDir === 'fair'; }, q: '파는 쪽은 개인이에요, 법인이에요?', h: '법인이 파는 거래 = 시가로(시가와 다르면 법인세법 §52 부당행위계산 부인 → 법인 익금산입, 사는 사람 배당·상여 처분) · 그래서 법인이 파는 경우는 「시가 그대로」에서만 고를 수 있어요 · 법인 = 양도세 없음(법인세), 사는 사람 = 취득세',
+      o: [['person', '개인'], ['corp', '법인 — 시가로 팔아요']] },
+    { id: 'lBuyer', t: 'b', stg: 'basic', pdef: 'person', on: function (a) { return L(a) && !LC(a); }, q: '사는 쪽은 개인이에요, 법인이에요?', h: function (a) { return a.lDir === 'high' ? '가족 법인에 비싸게 팔면 = 시가 넘는 금액은 파는 사람 배당, 상여(소득세 · 법인세법 §52), 양도세는 시가로(소득세법 §96③1호) + 법인 취득세' : '가족이 주주인 법인(자녀, 손자녀 법인 등)에 팔면 = 파는 사람 양도세 + 법인 취득세 + 시가보다 많이 싸면 법인 주주 증여세(상증법 §45의5)'; },
       o: [['person', '개인(자녀, 배우자 등)'], ['corp', '가족이 주주인 법인(자녀, 손자녀 법인 등)']] },
     { id: 'lCorpNew', t: 'b', pdef: 'n', on: LBC, q: '사는 법인이 수도권 과밀억제권역(서울 등) 안에서 설립되거나 옮겨 온 지 5년이 안 됐어요?', h: '대도시 안 법인의 부동산 취득 = 취득세 중과(지방세법 §13②)', o: [['n', '아니요'], ['y', '예']] },
     
-    { id: 'lHiRole', t: 'b', pdef: 'share', on: function (a) { return LHB(a) || (LC(a) && a.lDir !== 'high'); }, q: function (a) { return (LHB(a) ? '파는' : '사는') + ' 사람은 그 법인에 어떤 사람이에요?'; }, h: function (a) { return '시가와의 차액(' + (LHB(a) ? '비싸게 받은' : '싸게 산') + ' 금액) = 주주면 배당, 임원·직원이면 상여, 그 밖이면 기타소득(법인세법 시행령 §106①1호) → 종합소득세 · 증여세 없음(상증법 §4의2③)'; },
+    { id: 'lHiRole', t: 'b', pdef: 'share', on: function (a) { return LHB(a); }, q: function (a) { return (LHB(a) ? '파는' : '사는') + ' 사람은 그 법인에 어떤 사람이에요?'; }, h: function (a) { return '시가와의 차액(' + (LHB(a) ? '비싸게 받은' : '싸게 산') + ' 금액) = 주주면 배당, 임원·직원이면 상여, 그 밖이면 기타소득(법인세법 시행령 §106①1호) → 종합소득세 · 증여세 없음(상증법 §4의2③)'; },
       o: [['share', '주주(임원, 직원은 아니에요)'], ['exec', '임원, 직원(주주여도 이쪽)'], ['fam', '주주도 임원도 아닌 주주의 가족']] },
     { id: 'lCOth', t: 'm', pdef: '', unk: '모르겠어요 — 0원으로 볼게요', on: LHC, q: '파는 법인의 올해 다른 소득금액은요?(이번에 비싸게 받은 금액 빼고)', h: '주주 증여세에서 빼 주는 법인세 상당액 = 법인 산출세액 × 비싸게 받은 금액 ÷ 소득금액(상증령 §34의5④2호) · 이 땅·집 처분이익(시가 − 장부가액), 영업이익 등 · 모르면 0원(주주 증여세가 많은 쪽)' },
     { id: 'lCo', t: 'b', stg: 'basic', pdef: 'n', on: function (a) { return LPB(a) && a.lDir !== 'high' && a.lKind !== 'house' && (a.lRel === 'parent' || a.lRel === 'grand'); }, q: '파는 쪽이 부부 공동명의예요?(부모 둘, 조부모 둘이 함께 팔아요)',
@@ -7443,13 +7443,14 @@ window.LANDQ = (function () {
     var xr = (X.xfer && X.xfer.res) || {}, ac = X.acq, g = X.gift, L1, L2, title, sub3, d = X.total - X.fair, lines = X.judge.slice();
     var xNote = !X.xfer ? (X.corp ? '파는 쪽 = 법인(법인세)' : '증여 추정 → 양도 아님') : xr.nt && xr.nt.ok ? '1세대1주택 비과세' + (xr.hi ? ' — 12억원 초과분만 과세' : '') : xr.loss ? '양도차손 → 세금 없음' : (xr.rate && xr.rate.n ? xr.rate.n : '');
     if (X.corp) {
-      title = '법인에게서 싸게 산 사람 세금(취득세 · ' + ((IGLP.ROLE[X.P.role] || [])[1] || '상여, 배당') + ' 소득세는 따로)'; sub3 = '시가대로 살 때 취득세 ' + won(X.fair);
+      title = X.gap === 0 ? '법인에게서 시가로 산 사람 세금(취득세 · 파는 법인은 법인세)' : '법인에게서 싸게 산 사람 세금(취득세 · ' + ((IGLP.ROLE[X.P.role] || [])[1] || '상여, 배당') + ' 소득세는 따로)'; sub3 = '시가대로 살 때 취득세 ' + won(X.fair);
       L1 = [{ k: '사는 사람 증여세', v: 0, law: '처분액에 소득세 → 증여세 없음(상증법 §4의2③)' },
         { k: '사는 사람 ' + ((IGLP.ROLE[X.P.role] || [])[1] || '상여, 배당') + ' 처분액(소득세 과세 · 합계 밖)', v: X.bonus, law: X.bonus ? '시가 − 대가(법인세법 §52, §67)' : '부당행위 아님' },
         { k: '사는 사람 취득세(지방교육세, 농어촌특별세 포함)', v: X.acqTax, law: '과세표준 ' + won(ac.base) + ' · ' + RT(ac) + ((ac.dual || []).length ? ' · ⚠ 두 값 아래' : '') },
         { k: '세금 합계(취득세)', v: X.total, big: true }];
       L2 = [{ k: '사는 사람 취득세(시가로 살 때)', v: X.fairAcq, law: RT(X.acq0) }, { k: '시가 거래 합계', v: X.fair, big: true }];
-      lines.push('취득세 ' + (d <= 0 ? '△' + won(-d) + ' 적음' : won(d) + ' 많음') + ' — 시가 ' + won(X.V) + '에 살 때와 비교 · 대금 ' + won(X.gap) + ' 덜 내는 대신 상여, 배당 ' + won(X.bonus) + '에 소득세');
+      if (X.gap === 0) sub3 = '법인이 시가로 팜 — 부당행위계산 부인, 상여·배당 처분 없음(법인세법 §52)';   
+      else lines.push('취득세 ' + (d <= 0 ? '△' + won(-d) + ' 적음' : won(d) + ' 많음') + ' — 시가 ' + won(X.V) + '에 살 때와 비교 · 대금 ' + won(X.gap) + ' 덜 내는 대신 상여, 배당 ' + won(X.bonus) + '에 소득세');
     } else {
       var who = X.deemGift ? '사는 사람' : '파는 사람';
       title = '고가양수도 세금 합계(증여세, 양도세, 취득세)'; sub3 = '시가대로 사고팔 때 ' + won(X.fair);
@@ -7464,7 +7465,7 @@ window.LANDQ = (function () {
     h += '<div class="pk-wr ok"><div class="pk-wr0">' + esc(title) + '</div><div class="pk-wr1">' + esc(won(X.total)) + '</div>' + wonFull(X.total) +
       '<div class="pk-wr3">' + esc(sub3) + '</div>' +
       '<ul class="pk-wl">' + lines.map(function (x) { return '<li>' + esc(x) + '</li>'; }).join('') + '</ul>' + stepTable(L1) +
-      '<div class="pk-wr0" style="margin-top:12px">비교 — 시가대로 사고팔 때</div>' + stepTable(L2) + '</div>';
+      (X.corp && X.gap === 0 ? '' : '<div class="pk-wr0" style="margin-top:12px">비교 — 시가대로 사고팔 때</div>' + stepTable(L2)) + '</div>';
     var box = function (t, Lx) { return Lx.length ? '<div class="pk-wdf"><b>' + t + '</b><br>' + Lx.map(escN).join('<br>') + '</div>' : ''; };
     h += (X.corp ? '' : landCmpHtml()) + box('[확인 필요]', X.checks) + box('[기본값으로 둔 것]', W.D) + box('[참고]', X.notes);
     h += answers();

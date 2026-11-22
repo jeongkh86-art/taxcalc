@@ -1740,6 +1740,147 @@ if (typeof module !== 'undefined') module.exports = ACQ;
 <script>
 
 (function () {
+  if (typeof document === 'undefined' || window.SPXQA) return;
+  var css = document.createElement('style');
+  css.textContent = '#pkRoot .pk-spraw{position:absolute!important;left:-20000px;top:0;width:640px;visibility:hidden;pointer-events:none}' +
+    '#pkRoot .pk-spg{position:relative}#pkRoot .pk-spq{margin:4px 0 6px}#pkRoot .pk-spq .pk-wq{margin-top:8px}' +
+    '#pkRoot .pk-spqt{display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:16px;color:#7A848F}' +
+    '#pkRoot .pk-spqt button{font-size:16px;padding:6px 10px;border-radius:10px;border:1px solid #E5E1DA;background:#fff;color:#4E5968}' +
+    '#pkRoot .pk-spq .pk-wi input{width:100%;font-size:20px;padding:12px;border-radius:12px;border:2px solid #E5E1DA;box-sizing:border-box}' +
+    '#pkRoot .pk-spq .pk-wn{display:flex;flex-direction:column;gap:8px;margin-top:12px}#pkRoot .pk-spq .pk-wn button{flex:0 0 auto;min-height:48px}' +
+    '#pkRoot .pk-spq .pk-wo button{text-align:center;justify-content:center}' +
+    '#pkRoot .pk-spqd{font-size:16px;line-height:1.55;margin:8px 2px;word-break:keep-all}#pkRoot .pk-spqd li{margin:0 0 4px}#pkRoot .pk-spqe{color:#E4572E;font-size:16px;margin-top:6px}';
+  document.head.appendChild(css);
+  var esc = function (s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;'); };
+  function labOf(f) {
+    if (f.type === 'checkbox' || f.type === 'radio') { var l = f.closest('label'); if (l) return l.textContent.replace(/\s+/g, ' ').trim(); }
+    if (f.id) { var lf = document.querySelector('label[for="' + f.id + '"]'); if (lf) return lf.textContent.replace(/\s+/g, ' ').trim(); }
+    var fl = f.closest('.fld'), l2 = fl && fl.querySelector('label'); if (l2) return l2.textContent.replace(/\s+/g, ' ').trim();
+    var l3 = f.closest('label'); if (l3) return l3.textContent.replace(/\s+/g, ' ').trim();
+    return f.getAttribute('aria-label') || f.placeholder || f.id; }
+  var CITE = /§|별표|법\b|시행령|시행규칙|\d+호|문언|책 \d|p\.\d/;
+  
+  var CITE_RE = /\s?(?:(?:[가-힣]{1,8}(?:법|령|칙))(?: 시행령| 시행규칙)?\s?)?§\s?\d+(?:의\d+)?[①-⑳]*(?:\s?\d+호)?(?:[가-힣]목)?(?:\s?[·,]\s?(?:[①-⑳]+|\d+호[가-힣]?목?|[가-힣]목)+)*(?:\s?(?:본문|단서|후단|전단))?/g;
+  function noCite(t) { var c = clean(t); return c[0]; }
+  
+  function clean(t) {
+    var u = '', m = /\((만원|원|㎡|%|년|개월|명|주|회|km)\)\s*$/.exec(t); if (m) { u = m[1]; t = t.slice(0, m.index).trim(); }
+    var cited = false, out = '', i = 0;
+    while (i < t.length) { var c = t[i];
+      if (c === '(') { var d = 1, j = i + 1; while (j < t.length && d) { if (t[j] === '(') d++; else if (t[j] === ')') d--; j++; }
+        var inner = t.slice(i + 1, j - 1); if (CITE.test(inner)) { cited = true; var keep = inner.split(/\s·\s|,\s/).filter(function (x) { return !CITE.test(x) && !/^\s*[①-⑳]+\s*$/.test(x); }).join(', '); if (keep.trim()) out += '(' + keep.trim() + ')'; } else out += t.slice(i, j); i = j; continue; }
+      out += c; i++; }
+    var o2 = out.replace(CITE_RE, function () { cited = true; return ''; });
+    o2 = o2.replace(/\s*—\s*$/, '').replace(/\(\s*\)/g, '').replace(/\s{2,}/g, ' ').replace(/^[└\s]+/, '').trim();
+    if (!u && /%/.test(o2) && /율|비율|%$/.test(o2)) u = '%';
+    if (!u && /연수|햇수|\(년\)/.test(o2)) u = '년';
+    return [o2 || t, u, cited]; }
+  function isDate(f, lab) { if (f.type === 'date') return true; if (f.type !== 'text') return false; if (/쉼표|YYYY-MM-DD\)?,|공휴일/.test(lab)) return false; return /(일|날|일자)(\s|\(|$|·)|일$|날짜|시작$|끝$|시작\)|끝\)/.test(lab.replace(/\(.*?\)/g, '').trim()) || /^\d{4}-\d{2}-\d{2}$/.test(f.value || '') || /YYYY/.test(f.placeholder || ''); }
+  function shown(f, raw) { if (f.type === 'hidden' || f.disabled) return false;   
+    for (var e = f; e && e !== raw; e = e.parentElement) { if (e.hidden || getComputedStyle(e).display === 'none') return false; }
+    return true; }
+  function sw(f) { return f.type === 'checkbox' && /(^|_)on$|[a-z]On$/.test(f.id || ''); }
+  function cont(f, raw) { var c = f.closest('[id^="b3Box_"],.box,details'); return c && raw.contains(c) && c !== raw ? c : null; }
+  function list(g) {
+    var st = g._qa, raw = st.raw, o = st.opt;
+    [].forEach.call(raw.querySelectorAll('details'), function (d) { d.open = true; });
+    var F = [].filter.call(raw.querySelectorAll('input[id],select[id],textarea[id]'), function (f) { return shown(f, raw) && !(o.pre || []).some(function (x) { return x === f.id; }) && !(o.skip && o.skip(f, st)); });
+    
+    var C = [], S = {}; F.forEach(function (f) { var c = cont(f, raw); if (c && sw(f) && !S[c.id || (c.id = 'spq' + Math.random().toString(36).slice(2, 8))]) S[c.id] = f; });
+    var out = [], put = {};
+    F.forEach(function (f) { var c = cont(f, raw), s = c && S[c.id];
+      if (s && s !== f) { if (st.asked[s.id] && !s.checked) return; if (!put[s.id]) { out.push(s); put[s.id] = 1; } }
+      if (!put[f.id]) { out.push(f); put[f.id] = 1; } });
+    
+    (o.virt || []).forEach(function (v) { if (v.on && !v.on()) return; var i = -1; out.forEach(function (f, k) { if (i < 0 && f.id === v.before) i = k; }); if (i < 0) return; out.splice(i, 0, { virt: v, id: 'v_' + v.id }); });
+    return out; }
+  function opts(g, f) { var o = g._qa.opt; return [].filter.call(f.options, function (x) { return x.textContent.trim() && (!o.optOk || o.optOk(f, x.value)); }); }
+  function ansTxt(g, f) {
+    if (f.virt) { var v = g._qa.v[f.virt.id], h = (f.virt.o || []).filter(function (x) { return x[0] === v; })[0]; return h ? h[1] : ''; }
+    if (f.type === 'checkbox') return f.checked ? '예' : '아니요';
+    if (f.tagName === 'SELECT') { var s = f.options[f.selectedIndex]; return s ? noCite(s.textContent) : ''; }
+    var u = unitOf(g, f); if (f.value === '') return '빈칸(그대로)';
+    if (f.type === 'number' && /^-?\d+(\.\d+)?$/.test(f.value)) return (+f.value).toLocaleString('ko-KR') + (u ? ' ' + u : '');
+    return f.value + (u ? ' ' + u : ''); }
+  function qOf(g, f) { var o = g._qa.opt; return (o.q && o.q[f.id]) || clean(labOf(f))[0]; }   
+  function unitOf(g, f) { var c = clean(labOf(f)); return c[1] || (g._qa.opt.unit ? g._qa.opt.unit(f) || '' : ''); }
+  function draw(g) {
+    var st = g._qa, L = list(g), cur = null, n = 0;
+    L.forEach(function (f) { if (st.asked[f.id]) n++; else if (!cur) cur = f; });
+    var h = '<div class="pk-spqt"><span>' + (cur ? '질문 ' + (n + 1) + ' / ' + L.length : '답 ' + n + '개') + '</span><span>' +
+      (st.hist.length ? '<button type="button" data-pkqb="1">‹ 이전</button> ' : '') + (cur && n ? '<button type="button" data-pkqend="1">나머지는 그대로</button>' : '') + '</span></div>';
+    if (!cur) {
+      var A = L.filter(function (f) { return st.asked[f.id]; });
+      h += '<div class="pk-spqd">' + (A.length ? '<ul>' + A.map(function (f) { var q = f.virt ? f.virt.q : qOf(g, f); return '<li>' + esc(q) + ' : <b>' + esc(ansTxt(g, f)) + '</b></li>'; }).join('') + '</ul>' : '') +
+        (st.opt.doneTxt ? esc(st.opt.doneTxt) + ' · ' : '') + '답을 계산에 넣었어요 — 결과가 바로 바뀌어요</div>' +
+        '<div class="pk-wn"><button type="button" class="pk-wz0" data-pkqre="1">이 사례 처음부터 다시 묻기</button></div>';
+    } else if (cur.virt) {
+      var v = cur.virt, vv = st.v[v.id];
+      h += '<div class="pk-wq">' + esc(v.q) + '</div>' + (v.h ? '<div class="pk-wh">' + esc(v.h) + '</div>' : '') +
+        '<div class="pk-wo">' + v.o.map(function (x) { return '<button type="button" class="' + (vv === x[0] ? 'on' : '') + '" data-pkqv="' + esc(x[0]) + '"><span>' + esc(x[1]) + '</span></button>'; }).join('') + '</div>';
+    } else {
+      var lb = labOf(cur), c = clean(lb); c[0] = qOf(g, cur); var hp = st.opt.help && st.opt.help[cur.id], u = unitOf(g, cur);
+      h += '<div class="pk-wq">' + esc(c[0]) + (cur.type === 'checkbox' ? (/해당|있음|했음|요$|\?$/.test(c[0]) ? (/\?$/.test(c[0]) ? '' : '?') : '에 해당해요?') : '') + '</div>' + (hp ? '<div class="pk-wh">' + esc(hp) + '</div>' : '') + (c[2] ? '<div class="pk-wh">' + esc(lb) + '</div>' : '');
+      if (cur.type === 'checkbox') h += '<div class="pk-wo"><button type="button" class="' + (st.asked[cur.id] !== undefined && cur.checked ? 'on' : '') + '" data-pkqv="1"><span>예</span></button><button type="button" data-pkqv="0"><span>아니요</span></button></div>';
+      else if (cur.tagName === 'SELECT') h += '<div class="pk-wo">' + opts(g, cur).map(function (x) { return '<button type="button" class="' + (cur.value === x.value ? 'on' : '') + '" data-pkqv="' + esc(x.value) + '"><span>' + esc(noCite(x.textContent)) + '</span></button>'; }).join('') + '</div>';
+      else {
+        var dt = isDate(cur, lb), inp = dt ? '<input type="date" data-pkqi="1" value="' + esc(/^\d{4}-\d{2}-\d{2}$/.test(cur.value) ? cur.value : '') + '">' :
+          cur.type === 'number' ? '<div class="pk-wm"><input type="number" inputmode="decimal" step="any" data-pkqi="1" value="' + esc(cur.value) + '"><span>' + esc(u) + '</span></div>' :
+          '<input type="text" data-pkqi="1" value="' + esc(cur.value) + '" placeholder="' + esc(cur.placeholder || '') + '">';
+        h += '<div class="pk-wi">' + inp + '</div><div class="pk-we" data-pkqe="1">' + esc(prev(cur.value, u)) + '</div><div class="pk-wn"><button type="button" class="pk-go" data-pkqn="1">다음</button>' +
+          (cur.value !== '' ? '<button type="button" class="pk-wz0" data-pkqs="1">지금 값 그대로(' + esc(ansTxt(g, cur)) + ')</button>' : '<button type="button" class="pk-wz0" data-pkqs="1">모르겠어요(빈칸)</button>') + '</div><div class="pk-spqe" data-pkqer="1"></div>';
+      }
+    }
+    st.q.innerHTML = h; st.cur = cur; }
+  function prev(v, u) { if (v === '' || v == null || !/^\d+(\.\d+)?$/.test(String(v))) return ''; var n = +v; if (u === '만원') { var w = n * 1e4, e = Math.floor(w / 1e8), m = Math.round((w - e * 1e8) / 1e4); return n >= 1e4 ? '= ' + (e ? e.toLocaleString('ko-KR') + '억' : '') + (m ? ' ' + m.toLocaleString('ko-KR') + '만' : '') + '원' : '= ' + n.toLocaleString('ko-KR') + '만원'; } return n >= 1000 ? '= ' + n.toLocaleString('ko-KR') + (u ? ' ' + u : '') : ''; }
+  function fire(f) { f.dispatchEvent(new Event('input', { bubbles: true })); f.dispatchEvent(new Event('change', { bubbles: true })); if (typeof f.onchange === 'function' && !f._spqOc) {  } }
+  function setF(g, f, v) { if (f.type === 'checkbox') f.checked = v === '1' || v === true; else f.value = v; fire(f); if (g._qa.opt.after) g._qa.opt.after(f); }
+  function answer(g, v) {
+    var st = g._qa, f = st.cur; if (!f) return;
+    if (f.virt) { st.v[f.virt.id] = v; if (f.virt.apply) f.virt.apply(v, function (id, x) { var e = document.getElementById(id); if (e) setF(g, e, x); }, st); }
+    else setF(g, f, v);
+    st.asked[f.id] = 1; st.hist.push(f.id); draw(g); }
+  document.addEventListener('click', function (e) {
+    var t = e.target.closest && e.target.closest('#pkRoot .pk-spq [data-pkqv],#pkRoot .pk-spq [data-pkqn],#pkRoot .pk-spq [data-pkqs],#pkRoot .pk-spq [data-pkqb],#pkRoot .pk-spq [data-pkqend],#pkRoot .pk-spq [data-pkqre]'); if (!t) return;
+    var g = t.closest('.pk-spg'); if (!g || !g._qa) return; var st = g._qa, d = t.dataset; e.preventDefault();
+    if (d.pkqv !== undefined) { answer(g, d.pkqv); return; }
+    if (d.pkqs) { st.asked[st.cur.id] = 1; st.hist.push(st.cur.id); draw(g); return; }
+    if (d.pkqn) { var i = st.q.querySelector('[data-pkqi]'), x = i ? i.value.trim() : '', er = st.q.querySelector('[data-pkqer]');
+      if (x !== '' && st.cur.type === 'number' && !/^-?\d*\.?\d+$/.test(x)) { if (er) er.textContent = '숫자로 넣어 주세요(쉼표 없이 · 소수는 점)'; return; }
+      if (x !== '' && i.type === 'date' && !/^\d{4}-\d{2}-\d{2}$/.test(x)) { if (er) er.textContent = '날짜를 골라 주세요'; return; }
+      answer(g, x); return; }
+    if (d.pkqb) { var id = st.hist.pop(); delete st.asked[id]; draw(g); return; }
+    if (d.pkqend) { list(g).forEach(function (f) { st.asked[f.id] = st.asked[f.id] || 2; }); draw(g); return; }
+    if (d.pkqre) { st.asked = {}; st.hist = []; st.v = {}; draw(g); return; }
+  });
+  document.addEventListener('keydown', function (e) { var t = e.target; if (e.key !== 'Enter' || !t || !t.dataset || t.dataset.pkqi === undefined) return; e.preventDefault(); var g = t.closest('.pk-spg'), b = g && g.querySelector('[data-pkqn]'); if (b) b.click(); }, true);
+  
+  document.addEventListener('input', function (e) { var t = e.target; if (!t || !t.dataset || t.dataset.pkqi === undefined) return; e.stopPropagation(); var g = t.closest('.pk-spg'); if (!g || !g._qa || !g._qa.cur) return; var p = g.querySelector('[data-pkqe]'); if (p) p.textContent = prev(t.value.trim(), unitOf(g, g._qa.cur)); }, true);
+  document.addEventListener('change', function (e) { var t = e.target; if (t && t.dataset && t.dataset.pkqi !== undefined) e.stopPropagation(); }, true);
+  window.SPXQA = {
+    
+    mount: function (g, opt) {
+      if (!g._qa) {
+        var raw = document.createElement('div'); raw.className = 'pk-spraw'; raw.setAttribute('aria-hidden', 'true');
+        [].slice.call(g.childNodes).forEach(function (n) { if (!(n.classList && n.classList.contains('pk-spgh'))) raw.appendChild(n); });
+        var q = document.createElement('div'); q.className = 'pk-spq'; g.appendChild(q); g.appendChild(raw);
+        g._qa = { raw: raw, q: q, opt: opt || {}, asked: {}, hist: [], v: {}, cur: null };
+      } else if (opt) g._qa.opt = opt;
+      draw(g); return g._qa; },
+    redraw: function (g) { if (g && g._qa) draw(g); },
+    
+    cur: function (g) { var st = g && g._qa, f = st && st.cur; if (!f) return null; if (f.virt) return { id: f.id, q: f.virt.q, t: 'b', o: f.virt.o.map(function (x) { return x[0]; }) };
+      return { id: f.id, q: qOf(g, f), t: f.type === 'checkbox' ? 'c' : f.tagName === 'SELECT' ? 's' : isDate(f, labOf(f)) ? 'd' : f.type === 'number' ? 'n' : 'x', o: f.tagName === 'SELECT' ? opts(g, f).map(function (x) { return x.value; }) : f.type === 'checkbox' ? ['1', '0'] : [] }; },
+    go: function (g, v) { if (v === null) { var st = g._qa; st.asked[st.cur.id] = 1; st.hist.push(st.cur.id); draw(g); return; } answer(g, v === true ? '1' : v === false ? '0' : String(v)); },
+    list: function (g) { return list(g).map(function (f) { return f.id; }); },
+    clean: clean, labOf: labOf
+  };
+})();
+
+</script>
+<script>
+
+(function () {
   if (typeof document === 'undefined' || !window.ACQUI || !document.getElementById('pkRoot')) return;
   var $ = function (id) { return document.getElementById(id); };
   var UI = window.ACQUI;
@@ -1962,9 +2103,11 @@ if (typeof module !== 'undefined') module.exports = ACQ;
     var Bx = $('pkSpxB');
     act.forEach(function (it) { var g = $('pkSpg_' + it.id);
       if (!g) { g = document.createElement('div'); g.className = 'pk-spg'; g.id = 'pkSpg_' + it.id; g.innerHTML = '<div class="pk-spgh">' + it.t + '</div>'; it.el.forEach(function (x) { nodes(x).forEach(function (n) { put(n, g); }); }); }
-      Bx.appendChild(g); });
+      Bx.appendChild(g); if (window.SPXQA) { var qf = document.activeElement; if (!(g._qa && qf && g._qa.q.contains(qf) && qf.tagName === 'INPUT')) SPXQA.mount(g, spxQO(it)); } });   
     Bx.classList.toggle('pk-hide', !act.length);
   }
+  var SPXM = null;   
+  function spxQO(it) { return { pre: it.box ? [it.box] : [], unit: function (f) { if (!SPXM) { SPXM = {}; try { String(UI.input).replace(/\bM\('([A-Za-z0-9_]+)'\)/g, function (m, x) { SPXM[x] = 1; }); } catch (e) {} } return f.type === 'number' && SPXM[f.id] ? '만원' : ''; } }; }
   function spxSet(id, v) {
     var it = SPX.filter(function (x) { return x.id === id; })[0]; if (!it) return;
     if (!v) ids(it).forEach(function (k) { delete W.U[k]; var e = $(k), d = UI.DEF[k]; if (e && d !== undefined) { if (typeof d === 'boolean') e.checked = d; else e.value = d; } });   
@@ -1975,7 +2118,7 @@ if (typeof module !== 'undefined') module.exports = ACQ;
     if (W.done) { calc(); draw(); } else draw();
   }
   var spT = null;
-  function spxMark(e) { var t = e.target; if (!t || !t.closest || !t.closest('#pkSpxB') || t.closest('#spDet')) return; if (t.id) W.U[t.id] = 1; UI.ui(); clearTimeout(spT); spT = setTimeout(function () { if (W.done && !XP) { calc(); draw(); } }, 200); }
+  function spxMark(e) { var t = e.target; if (!t || !t.closest || !t.closest('#pkSpxB') || t.closest('#spDet') || t.closest('.pk-spq')) return; if (t.id) W.U[t.id] = 1; UI.ui(); clearTimeout(spT); spT = setTimeout(function () { if (W.done && !XP) { calc(); draw(); } }, 200); }
   document.addEventListener('input', spxMark); document.addEventListener('change', spxMark);
 
   
@@ -2157,7 +2300,7 @@ if (typeof module !== 'undefined') module.exports = ACQ;
   function mapIn() { if (XP || W.done) return null; return { I: preview(), now: STG[W.cur] || '', basic: basicItems(), rank: RANK }; }
   
   function basicItems() { var a = live(); return W.path.filter(function (id) { return STG[id] === 'basic' && a[id] !== undefined; }).map(function (id) { var t = ansTxt(step(id), a[id], a); t = String(t).replace(/<[^>]+>/g, ''); if (t.indexOf(' — ') >= 0) t = t.split(' — ')[1]; return t.replace(/\s*\([^)]*\)/g, '').trim(); }); }
-  window.ACQWZ = { shortTxt: shortTxt, STG: STG, RANK: RANK, basicItems: basicItems, step: step, next: next, vis: vis, hqd: hqd, WS: WS, SPX: SPX, W: W, live: live, vals: vals, go: go, back: goBack, edit: edit, restart: restart, xp: xp, isXP: function () { return XP; }, spxSet: spxSet, mapIn: mapIn, stale: stale, draw: draw, calc: calc };
+  window.ACQWZ = { keep: keep, cur: function () { return W.cur; }, shortTxt: shortTxt, STG: STG, RANK: RANK, basicItems: basicItems, step: step, next: next, vis: vis, hqd: hqd, WS: WS, SPX: SPX, W: W, live: live, vals: vals, go: go, back: goBack, edit: edit, restart: restart, xp: xp, isXP: function () { return XP; }, spxSet: spxSet, mapIn: mapIn, stale: stale, draw: draw, calc: calc };
   var q = typeof URLSearchParams === 'function' ? new URLSearchParams(location.search) : null;
   xp(!!(q && q.get('xp')));
 })();

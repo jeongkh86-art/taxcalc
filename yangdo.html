@@ -485,19 +485,10 @@ body .y4box .y4e{color:var(--pd-acc)!important}
 <linearGradient id="gPlane" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffffff"/><stop offset="1" stop-color="#b9c0ca"/></linearGradient>
 </defs></svg>
 <div id="pkRoot">
-  <div class="pk-mtab pk-hide"><button type="button" data-pkm="quick" class="on">바로 계산</button><button type="button" data-pkm="pick">그림으로 고르기</button><button type="button" data-pkm="off">접기</button></div>
+  
   <div id="pkQuick">
     <div class="pk-step pk-wz" id="pkWz"></div>
     <details class="pk-spx pk-hide" id="pkSpx"><summary>특수 사례 더 보기<span id="pkSpxN"></span></summary><div class="pk-spl" id="pkSpxL"></div><div id="pkSpxB" class="pk-hide"></div></details>
-  </div>
-  <div id="pkPick" class="pk-hide">
-    <div class="pk-step"><div class="pk-sh"><i>1</i>양도 자산</div><div class="pk-kinds" id="pkKinds"></div></div>
-    <div class="pk-step"><div class="pk-sh"><i>2</i><span id="pkQ2"></span></div><div class="pk-sp" id="pkQ2s"></div>
-      <div class="pk-cnt" id="pkCnt"></div><div class="pk-terms" id="pkTerms2"></div><div class="pk-tdef" id="pkTdef2"></div><div class="pk-shapes" id="pkShapes"></div></div>
-    <div class="pk-step pk-pick3" id="pkS3"><div class="pk-sh"><i>3</i><span id="pkQ3"></span></div>
-      <div class="pk-sp">그림이 정한 칸 = 아래 상세 칸에 주황 「그림에서 자동 · 확인」 · 채울 칸 = 파란 점선</div>
-      <div class="pk-big" id="pkBig"></div><div class="pk-terms" id="pkTerms3"></div><div class="pk-tdef" id="pkTdef3"></div>
-      <div id="pkSwap"></div><div id="pkBiz"></div><div class="pk-opts" id="pkOpts"></div><div class="pk-res" id="pkRes"></div></div>
   </div>
   <div class="pk-xpl pk-hide" id="pkXpl"><button type="button" id="pkXpBtn" data-pkxp="1">전체 입력 보기(전문가)</button></div>
 </div>
@@ -5513,6 +5504,146 @@ if(typeof module!=='undefined'&&module.exports)module.exports=SPR;
 </script>
 <script>
 
+(function () {
+  if (typeof document === 'undefined' || window.SPXQA) return;
+  var css = document.createElement('style');
+  css.textContent = '#pkRoot .pk-spraw{position:absolute!important;left:-20000px;top:0;width:640px;visibility:hidden;pointer-events:none}' +
+    '#pkRoot .pk-spg{position:relative}#pkRoot .pk-spq{margin:4px 0 6px}#pkRoot .pk-spq .pk-wq{margin-top:8px}' +
+    '#pkRoot .pk-spqt{display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:16px;color:#7A848F}' +
+    '#pkRoot .pk-spqt button{font-size:16px;padding:6px 10px;border-radius:10px;border:1px solid #E5E1DA;background:#fff;color:#4E5968}' +
+    '#pkRoot .pk-spq .pk-wi input{width:100%;font-size:20px;padding:12px;border-radius:12px;border:2px solid #E5E1DA;box-sizing:border-box}' +
+    '#pkRoot .pk-spq .pk-wn{display:flex;flex-direction:column;gap:8px;margin-top:12px}#pkRoot .pk-spq .pk-wn button{flex:0 0 auto;min-height:48px}' +
+    '#pkRoot .pk-spq .pk-wo button{text-align:center;justify-content:center}' +
+    '#pkRoot .pk-spqd{font-size:16px;line-height:1.55;margin:8px 2px;word-break:keep-all}#pkRoot .pk-spqd li{margin:0 0 4px}#pkRoot .pk-spqe{color:#E4572E;font-size:16px;margin-top:6px}';
+  document.head.appendChild(css);
+  var esc = function (s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;'); };
+  function labOf(f) {
+    if (f.type === 'checkbox' || f.type === 'radio') { var l = f.closest('label'); if (l) return l.textContent.replace(/\s+/g, ' ').trim(); }
+    if (f.id) { var lf = document.querySelector('label[for="' + f.id + '"]'); if (lf) return lf.textContent.replace(/\s+/g, ' ').trim(); }
+    var fl = f.closest('.fld'), l2 = fl && fl.querySelector('label'); if (l2) return l2.textContent.replace(/\s+/g, ' ').trim();
+    var l3 = f.closest('label'); if (l3) return l3.textContent.replace(/\s+/g, ' ').trim();
+    return f.getAttribute('aria-label') || f.placeholder || f.id; }
+  var CITE = /§|별표|법\b|시행령|시행규칙|\d+호|문언|책 \d|p\.\d/;
+  
+  var CITE_RE = /\s?(?:(?:[가-힣]{1,8}(?:법|령|칙))(?: 시행령| 시행규칙)?\s?)?§\s?\d+(?:의\d+)?[①-⑳]*(?:\s?\d+호)?(?:[가-힣]목)?(?:\s?[·,]\s?(?:[①-⑳]+|\d+호[가-힣]?목?|[가-힣]목)+)*(?:\s?(?:본문|단서|후단|전단))?/g;
+  function noCite(t) { var c = clean(t); return c[0]; }
+  
+  function clean(t) {
+    var u = '', m = /\((만원|원|㎡|%|년|개월|명|주|회|km)\)\s*$/.exec(t); if (m) { u = m[1]; t = t.slice(0, m.index).trim(); }
+    var cited = false, out = '', i = 0;
+    while (i < t.length) { var c = t[i];
+      if (c === '(') { var d = 1, j = i + 1; while (j < t.length && d) { if (t[j] === '(') d++; else if (t[j] === ')') d--; j++; }
+        var inner = t.slice(i + 1, j - 1); if (CITE.test(inner)) { cited = true; var keep = inner.split(/\s·\s|,\s/).filter(function (x) { return !CITE.test(x) && !/^\s*[①-⑳]+\s*$/.test(x); }).join(', '); if (keep.trim()) out += '(' + keep.trim() + ')'; } else out += t.slice(i, j); i = j; continue; }
+      out += c; i++; }
+    var o2 = out.replace(CITE_RE, function () { cited = true; return ''; });
+    o2 = o2.replace(/\s*—\s*$/, '').replace(/\(\s*\)/g, '').replace(/\s{2,}/g, ' ').replace(/^[└\s]+/, '').trim();
+    if (!u && /%/.test(o2) && /율|비율|%$/.test(o2)) u = '%';
+    if (!u && /연수|햇수|\(년\)/.test(o2)) u = '년';
+    return [o2 || t, u, cited]; }
+  function isDate(f, lab) { if (f.type === 'date') return true; if (f.type !== 'text') return false; if (/쉼표|YYYY-MM-DD\)?,|공휴일/.test(lab)) return false; return /(일|날|일자)(\s|\(|$|·)|일$|날짜|시작$|끝$|시작\)|끝\)/.test(lab.replace(/\(.*?\)/g, '').trim()) || /^\d{4}-\d{2}-\d{2}$/.test(f.value || '') || /YYYY/.test(f.placeholder || ''); }
+  function shown(f, raw) { if (f.type === 'hidden' || f.disabled) return false;   
+    for (var e = f; e && e !== raw; e = e.parentElement) { if (e.hidden || getComputedStyle(e).display === 'none') return false; }
+    return true; }
+  function sw(f) { return f.type === 'checkbox' && /(^|_)on$|[a-z]On$/.test(f.id || ''); }
+  function cont(f, raw) { var c = f.closest('[id^="b3Box_"],.box,details'); return c && raw.contains(c) && c !== raw ? c : null; }
+  function list(g) {
+    var st = g._qa, raw = st.raw, o = st.opt;
+    [].forEach.call(raw.querySelectorAll('details'), function (d) { d.open = true; });
+    var F = [].filter.call(raw.querySelectorAll('input[id],select[id],textarea[id]'), function (f) { return shown(f, raw) && !(o.pre || []).some(function (x) { return x === f.id; }) && !(o.skip && o.skip(f, st)); });
+    
+    var C = [], S = {}; F.forEach(function (f) { var c = cont(f, raw); if (c && sw(f) && !S[c.id || (c.id = 'spq' + Math.random().toString(36).slice(2, 8))]) S[c.id] = f; });
+    var out = [], put = {};
+    F.forEach(function (f) { var c = cont(f, raw), s = c && S[c.id];
+      if (s && s !== f) { if (st.asked[s.id] && !s.checked) return; if (!put[s.id]) { out.push(s); put[s.id] = 1; } }
+      if (!put[f.id]) { out.push(f); put[f.id] = 1; } });
+    
+    (o.virt || []).forEach(function (v) { if (v.on && !v.on()) return; var i = -1; out.forEach(function (f, k) { if (i < 0 && f.id === v.before) i = k; }); if (i < 0) return; out.splice(i, 0, { virt: v, id: 'v_' + v.id }); });
+    return out; }
+  function opts(g, f) { var o = g._qa.opt; return [].filter.call(f.options, function (x) { return x.textContent.trim() && (!o.optOk || o.optOk(f, x.value)); }); }
+  function ansTxt(g, f) {
+    if (f.virt) { var v = g._qa.v[f.virt.id], h = (f.virt.o || []).filter(function (x) { return x[0] === v; })[0]; return h ? h[1] : ''; }
+    if (f.type === 'checkbox') return f.checked ? '예' : '아니요';
+    if (f.tagName === 'SELECT') { var s = f.options[f.selectedIndex]; return s ? noCite(s.textContent) : ''; }
+    var u = unitOf(g, f); if (f.value === '') return '빈칸(그대로)';
+    if (f.type === 'number' && /^-?\d+(\.\d+)?$/.test(f.value)) return (+f.value).toLocaleString('ko-KR') + (u ? ' ' + u : '');
+    return f.value + (u ? ' ' + u : ''); }
+  function qOf(g, f) { var o = g._qa.opt; return (o.q && o.q[f.id]) || clean(labOf(f))[0]; }   
+  function unitOf(g, f) { var c = clean(labOf(f)); return c[1] || (g._qa.opt.unit ? g._qa.opt.unit(f) || '' : ''); }
+  function draw(g) {
+    var st = g._qa, L = list(g), cur = null, n = 0;
+    L.forEach(function (f) { if (st.asked[f.id]) n++; else if (!cur) cur = f; });
+    var h = '<div class="pk-spqt"><span>' + (cur ? '질문 ' + (n + 1) + ' / ' + L.length : '답 ' + n + '개') + '</span><span>' +
+      (st.hist.length ? '<button type="button" data-pkqb="1">‹ 이전</button> ' : '') + (cur && n ? '<button type="button" data-pkqend="1">나머지는 그대로</button>' : '') + '</span></div>';
+    if (!cur) {
+      var A = L.filter(function (f) { return st.asked[f.id]; });
+      h += '<div class="pk-spqd">' + (A.length ? '<ul>' + A.map(function (f) { var q = f.virt ? f.virt.q : qOf(g, f); return '<li>' + esc(q) + ' : <b>' + esc(ansTxt(g, f)) + '</b></li>'; }).join('') + '</ul>' : '') +
+        (st.opt.doneTxt ? esc(st.opt.doneTxt) + ' · ' : '') + '답을 계산에 넣었어요 — 결과가 바로 바뀌어요</div>' +
+        '<div class="pk-wn"><button type="button" class="pk-wz0" data-pkqre="1">이 사례 처음부터 다시 묻기</button></div>';
+    } else if (cur.virt) {
+      var v = cur.virt, vv = st.v[v.id];
+      h += '<div class="pk-wq">' + esc(v.q) + '</div>' + (v.h ? '<div class="pk-wh">' + esc(v.h) + '</div>' : '') +
+        '<div class="pk-wo">' + v.o.map(function (x) { return '<button type="button" class="' + (vv === x[0] ? 'on' : '') + '" data-pkqv="' + esc(x[0]) + '"><span>' + esc(x[1]) + '</span></button>'; }).join('') + '</div>';
+    } else {
+      var lb = labOf(cur), c = clean(lb); c[0] = qOf(g, cur); var hp = st.opt.help && st.opt.help[cur.id], u = unitOf(g, cur);
+      h += '<div class="pk-wq">' + esc(c[0]) + (cur.type === 'checkbox' ? (/해당|있음|했음|요$|\?$/.test(c[0]) ? (/\?$/.test(c[0]) ? '' : '?') : '에 해당해요?') : '') + '</div>' + (hp ? '<div class="pk-wh">' + esc(hp) + '</div>' : '') + (c[2] ? '<div class="pk-wh">' + esc(lb) + '</div>' : '');
+      if (cur.type === 'checkbox') h += '<div class="pk-wo"><button type="button" class="' + (st.asked[cur.id] !== undefined && cur.checked ? 'on' : '') + '" data-pkqv="1"><span>예</span></button><button type="button" data-pkqv="0"><span>아니요</span></button></div>';
+      else if (cur.tagName === 'SELECT') h += '<div class="pk-wo">' + opts(g, cur).map(function (x) { return '<button type="button" class="' + (cur.value === x.value ? 'on' : '') + '" data-pkqv="' + esc(x.value) + '"><span>' + esc(noCite(x.textContent)) + '</span></button>'; }).join('') + '</div>';
+      else {
+        var dt = isDate(cur, lb), inp = dt ? '<input type="date" data-pkqi="1" value="' + esc(/^\d{4}-\d{2}-\d{2}$/.test(cur.value) ? cur.value : '') + '">' :
+          cur.type === 'number' ? '<div class="pk-wm"><input type="number" inputmode="decimal" step="any" data-pkqi="1" value="' + esc(cur.value) + '"><span>' + esc(u) + '</span></div>' :
+          '<input type="text" data-pkqi="1" value="' + esc(cur.value) + '" placeholder="' + esc(cur.placeholder || '') + '">';
+        h += '<div class="pk-wi">' + inp + '</div><div class="pk-we" data-pkqe="1">' + esc(prev(cur.value, u)) + '</div><div class="pk-wn"><button type="button" class="pk-go" data-pkqn="1">다음</button>' +
+          (cur.value !== '' ? '<button type="button" class="pk-wz0" data-pkqs="1">지금 값 그대로(' + esc(ansTxt(g, cur)) + ')</button>' : '<button type="button" class="pk-wz0" data-pkqs="1">모르겠어요(빈칸)</button>') + '</div><div class="pk-spqe" data-pkqer="1"></div>';
+      }
+    }
+    st.q.innerHTML = h; st.cur = cur; }
+  function prev(v, u) { if (v === '' || v == null || !/^\d+(\.\d+)?$/.test(String(v))) return ''; var n = +v; if (u === '만원') { var w = n * 1e4, e = Math.floor(w / 1e8), m = Math.round((w - e * 1e8) / 1e4); return n >= 1e4 ? '= ' + (e ? e.toLocaleString('ko-KR') + '억' : '') + (m ? ' ' + m.toLocaleString('ko-KR') + '만' : '') + '원' : '= ' + n.toLocaleString('ko-KR') + '만원'; } return n >= 1000 ? '= ' + n.toLocaleString('ko-KR') + (u ? ' ' + u : '') : ''; }
+  function fire(f) { f.dispatchEvent(new Event('input', { bubbles: true })); f.dispatchEvent(new Event('change', { bubbles: true })); if (typeof f.onchange === 'function' && !f._spqOc) {  } }
+  function setF(g, f, v) { if (f.type === 'checkbox') f.checked = v === '1' || v === true; else f.value = v; fire(f); if (g._qa.opt.after) g._qa.opt.after(f); }
+  function answer(g, v) {
+    var st = g._qa, f = st.cur; if (!f) return;
+    if (f.virt) { st.v[f.virt.id] = v; if (f.virt.apply) f.virt.apply(v, function (id, x) { var e = document.getElementById(id); if (e) setF(g, e, x); }, st); }
+    else setF(g, f, v);
+    st.asked[f.id] = 1; st.hist.push(f.id); draw(g); }
+  document.addEventListener('click', function (e) {
+    var t = e.target.closest && e.target.closest('#pkRoot .pk-spq [data-pkqv],#pkRoot .pk-spq [data-pkqn],#pkRoot .pk-spq [data-pkqs],#pkRoot .pk-spq [data-pkqb],#pkRoot .pk-spq [data-pkqend],#pkRoot .pk-spq [data-pkqre]'); if (!t) return;
+    var g = t.closest('.pk-spg'); if (!g || !g._qa) return; var st = g._qa, d = t.dataset; e.preventDefault();
+    if (d.pkqv !== undefined) { answer(g, d.pkqv); return; }
+    if (d.pkqs) { st.asked[st.cur.id] = 1; st.hist.push(st.cur.id); draw(g); return; }
+    if (d.pkqn) { var i = st.q.querySelector('[data-pkqi]'), x = i ? i.value.trim() : '', er = st.q.querySelector('[data-pkqer]');
+      if (x !== '' && st.cur.type === 'number' && !/^-?\d*\.?\d+$/.test(x)) { if (er) er.textContent = '숫자로 넣어 주세요(쉼표 없이 · 소수는 점)'; return; }
+      if (x !== '' && i.type === 'date' && !/^\d{4}-\d{2}-\d{2}$/.test(x)) { if (er) er.textContent = '날짜를 골라 주세요'; return; }
+      answer(g, x); return; }
+    if (d.pkqb) { var id = st.hist.pop(); delete st.asked[id]; draw(g); return; }
+    if (d.pkqend) { list(g).forEach(function (f) { st.asked[f.id] = st.asked[f.id] || 2; }); draw(g); return; }
+    if (d.pkqre) { st.asked = {}; st.hist = []; st.v = {}; draw(g); return; }
+  });
+  document.addEventListener('keydown', function (e) { var t = e.target; if (e.key !== 'Enter' || !t || !t.dataset || t.dataset.pkqi === undefined) return; e.preventDefault(); var g = t.closest('.pk-spg'), b = g && g.querySelector('[data-pkqn]'); if (b) b.click(); }, true);
+  
+  document.addEventListener('input', function (e) { var t = e.target; if (!t || !t.dataset || t.dataset.pkqi === undefined) return; e.stopPropagation(); var g = t.closest('.pk-spg'); if (!g || !g._qa || !g._qa.cur) return; var p = g.querySelector('[data-pkqe]'); if (p) p.textContent = prev(t.value.trim(), unitOf(g, g._qa.cur)); }, true);
+  document.addEventListener('change', function (e) { var t = e.target; if (t && t.dataset && t.dataset.pkqi !== undefined) e.stopPropagation(); }, true);
+  window.SPXQA = {
+    
+    mount: function (g, opt) {
+      if (!g._qa) {
+        var raw = document.createElement('div'); raw.className = 'pk-spraw'; raw.setAttribute('aria-hidden', 'true');
+        [].slice.call(g.childNodes).forEach(function (n) { if (!(n.classList && n.classList.contains('pk-spgh'))) raw.appendChild(n); });
+        var q = document.createElement('div'); q.className = 'pk-spq'; g.appendChild(q); g.appendChild(raw);
+        g._qa = { raw: raw, q: q, opt: opt || {}, asked: {}, hist: [], v: {}, cur: null };
+      } else if (opt) g._qa.opt = opt;
+      draw(g); return g._qa; },
+    redraw: function (g) { if (g && g._qa) draw(g); },
+    
+    cur: function (g) { var st = g && g._qa, f = st && st.cur; if (!f) return null; if (f.virt) return { id: f.id, q: f.virt.q, t: 'b', o: f.virt.o.map(function (x) { return x[0]; }) };
+      return { id: f.id, q: qOf(g, f), t: f.type === 'checkbox' ? 'c' : f.tagName === 'SELECT' ? 's' : isDate(f, labOf(f)) ? 'd' : f.type === 'number' ? 'n' : 'x', o: f.tagName === 'SELECT' ? opts(g, f).map(function (x) { return x.value; }) : f.type === 'checkbox' ? ['1', '0'] : [] }; },
+    go: function (g, v) { if (v === null) { var st = g._qa; st.asked[st.cur.id] = 1; st.hist.push(st.cur.id); draw(g); return; } answer(g, v === true ? '1' : v === false ? '0' : String(v)); },
+    list: function (g) { return list(g).map(function (f) { return f.id; }); },
+    clean: clean, labOf: labOf
+  };
+})();
+
+
+
 var PKD = {};
 
 PKD.TERMS = {
@@ -6160,7 +6291,7 @@ PKD.KTERMS = {
     box.innerHTML='<b>'+t+'</b><ul>'+d[0].map(function(x){return '<li>'+x+'</li>';}).join('')+'</ul><span class="pk-lw">근거 : '+d[1]+'</span>'; box.classList.add('show');}
   
   function kindsHtml(sel){return PKD.KINDS.map(function(k){return '<button type="button" class="pk-kd'+(sel===k.k?' on':'')+'" data-pkk="'+k.k+'"><svg viewBox="0 0 48 48">'+KIC[k.k]()+'</svg>'+k.n+'</button>';}).join('');}
-  function draw2(){var d=SH[S.k];
+  function draw2(){ if(!$('pkKinds')) return;    var d=SH[S.k];
     $('pkKinds').innerHTML=kindsHtml(S.k);
     if(!S.c||d.cnt.indexOf(S.c)<0)S.c=d.cnt[0];
     $('pkQ2').textContent=d.q;$('pkQ2s').textContent=d.s;
@@ -6168,7 +6299,7 @@ PKD.KTERMS = {
     termRow(2,PKD.KTERMS[S.k]);
     $('pkShapes').innerHTML=d.list[S.c].map(function(o,i){return '<button type="button" class="pk-shp'+(S.i===i?' on':'')+'" data-pki="'+i+'">'+svg(o.pic())+'<div class="pk-nm"><span class="pk-no">'+(i+1)+'</span> '+o.n+'</div><span class="pk-bd '+o.bd[0]+'">'+o.bd[1]+'</span></button>';}).join('');
     draw3();}
-  function draw3(){var o=curCard(); if(!o){$('pkS3').classList.remove('show');return;}
+  function draw3(){ if(!$('pkS3')) return; var o=curCard(); if(!o){$('pkS3').classList.remove('show');return;}
     $('pkS3').classList.add('show'); $('pkQ3').textContent=(S.i+1)+'. '+o.n; termRow(3,o.terms);
     if(!S.op||S.op.n!==S.k+S.c+o.n){S.op={n:S.k+S.c+o.n,v:(o.opts||[]).map(function(t){return t.d;})};S.side=0;}
     var sd=o.sw?o.sw[S.side]:null, on=S.op.v;
@@ -6199,7 +6330,7 @@ PKD.KTERMS = {
   function LPER(a,k){ var v=a[k]; if(v==='all') return [[a.acqD,a.saleD]]; if(v==='part'&&a[k+'a']&&a[k+'b']) return [[a[k+'a'],a[k+'b']]]; return []; }
   var LAP=[['all','보유 기간 내내'],['part','일부 기간만'],['none','아니요']];
   function lPart(k,on,q1,q2){   
-    return [{id:k+'a', on:function(a){ return on(a)&&a[k]==='part'; }, q:q1+' — 시작한 날은요?', h:'보유 기간(산 날 ~ 판 날) 안 날짜 · 기간이 여럿이면 가장 긴 기간(나머지 = 「특수 사례 더 보기」 → 비사업용 토지 기간 판정)', t:'d', rng:LDR, pre:function(a){ return a.acqD||''; }},
+    return [{id:k+'a', on:function(a){ return on(a)&&a[k]==='part'; }, q:q1+' — 시작한 날은요?', h:'보유 기간(산 날 ~ 판 날) 안 날짜 · 기간이 여럿이면 가장 긴 기간(나머지 = 양도세 탭 「특수 사례 더 보기」 → 비사업용 토지 기간 판정)', t:'d', rng:LDR, pre:function(a){ return a.acqD||''; }},
             {id:k+'b', on:function(a){ return on(a)&&a[k]==='part'; }, q:q1+' — 끝난 날은요?', h:'지금도 그렇다면 판 날 · '+q2, t:'d', rng:function(a){ return [a[k+'a']||a.acqD||'',a.saleD||'']; }, pre:function(a){ return a.saleD||''; }}]; }
   function LQS(){
     var U_O=function(a){ var o=[['none','해당 없어요'],['3나','공익사업으로 협의매수·수용 — 사업인정고시일부터 5년 전에 취득']];
@@ -6241,17 +6372,17 @@ PKD.KTERMS = {
       
       {id:'lnOR', on:function(a){ return LJ(a,'forest'); }, q:'보유하는 동안 임야 가까이 살았어요(재촌)?', h:'재촌 = 임야가 있는 시·군·구, 연접 시·군·구, 또는 임야에서 직선거리 30km 안에 주민등록 + 실제 거주(소득세법 시행령 §168의9②)', t:'b', o:LAP}
     ],lPart('lnOR',function(a){ return LJ(a,'forest'); },'가까이 산(재촌) 기간','이사 나간 날'),[
-      {id:'lnOP', on:function(a){ return LJ(a,'forest'); }, q:'공익, 보호 목적으로 지정된 임야예요?', h:'지정 기간 = 사업용(소득세법 §104의3①2호가, 시행령 §168의9①) · 그 밖 지정(공원, 문화유산 보호구역 등) = 「특수 사례 더 보기」 → 비사업용 토지 기간 판정', t:'b',
+      {id:'lnOP', on:function(a){ return LJ(a,'forest'); }, q:'공익, 보호 목적으로 지정된 임야예요?', h:'지정 기간 = 사업용(소득세법 §104의3①2호가, 시행령 §168의9①) · 그 밖 지정(공원, 문화유산 보호구역 등) = 양도세 탭 「특수 사례 더 보기」 → 비사업용 토지 기간 판정', t:'b',
        o:[['none','아니요'],['1','산림보호구역, 채종림, 시험림'],['8','개발제한구역 안 임야'],['13','상수원보호구역 안 임야'],['2','산림경영계획 인가 시업 중, 특수산림사업지구']]},
       {id:'lnOB', on:function(a){ return LJ(a,'forest'); }, q:'임업, 휴양 등에 쓰거나 상속받은 임야예요?', h:'거주, 사업과 관련된 임야(소득세법 시행령 §168의9③)', t:'b',
        o:[['none','아니요'],['1','임업후계자가 임산물 생산에 씀'],['3','자연휴양림'],['7','상속받은 임야 — 상속개시일부터 3년'],['8','종중 임야(2005.12.31. 이전 취득)']]},
       
-      {id:'lnRD', on:function(a){ return LJ(a,'ranch'); }, q:'그 땅에서 직접 축산업을 했어요?', h:'목장용지 = 축산업 하는 사람이 가축별 기준면적 안에서 쓰는 땅(소득세법 §104의3①3호, 시행령 §168의10 · 별표 1의3) · 기준면적 넘는 부분 = 「특수 사례 더 보기」 → 비사업용 토지 기간 판정', t:'b', o:LAP}
+      {id:'lnRD', on:function(a){ return LJ(a,'ranch'); }, q:'그 땅에서 직접 축산업을 했어요?', h:'목장용지 = 축산업 하는 사람이 가축별 기준면적 안에서 쓰는 땅(소득세법 §104의3①3호, 시행령 §168의10 · 별표 1의3) · 기준면적 넘는 부분 = 양도세 탭 「특수 사례 더 보기」 → 비사업용 토지 기간 판정', t:'b', o:LAP}
     ],lPart('lnRD',function(a){ return LJ(a,'ranch'); },'축산업 한 기간','축산업을 그만둔 날'),[
       
       {id:'lnBT', on:function(a){ return LJ(a,'bare'); }, q:'재산세가 「별도합산」 또는 「분리과세」였던 기간이 있어요?', h:'재산세 고지서, 과세대장의 토지 구분 · 빈 땅 = 보통 「종합합산」 = 비사업용 기간 · 별도합산, 분리과세, 비과세, 면제 기간 = 사업용 기간(소득세법 §104의3①4호가, 나)', t:'b', o:[['none','없어요(종합합산)'],['all','보유 기간 내내'],['part','일부 기간만']]}
     ],lPart('lnBT',function(a){ return LJ(a,'bare'); },'별도합산, 분리과세 기간','종합합산으로 바뀐 날'),[
-      {id:'lnBE', on:function(a){ return LJ(a,'bare'); }, q:'그 땅을 사업에 쓴 적이 있어요?', h:'거주, 사업과 관련된 토지 = 사업용(소득세법 시행령 §168의11①) · 그 밖(체육시설, 하치장 등) = 아래 「특수 사례 더 보기」 → 비사업용 토지 기간 판정', t:'b',
+      {id:'lnBE', on:function(a){ return LJ(a,'bare'); }, q:'그 땅을 사업에 쓴 적이 있어요?', h:'거주, 사업과 관련된 토지 = 사업용(소득세법 시행령 §168의11①) · 그 밖(체육시설, 하치장 등) = 아래 양도세 탭 「특수 사례 더 보기」 → 비사업용 토지 기간 판정', t:'b',
        o:[['none','없어요'],['park','주차장 운영업(노외주차장)'],['spa','광천지(온천, 약수 용출구)'],['fish','양어장, 지소(허가, 신고 없이 운영)'],['ind','블록·석물 제조, 조경작물, 화훼 판매, 정비·운전 학원 등'],['home','집 없는 세대의 집 지을 땅(1필지 660㎡ 안)']]},   
       {id:'lnBI', on:function(a){ return LJ(a,'bare')&&a.lnBE==='ind'; }, q:'어떤 사업이에요?', h:'업종마다 수입금액 비율 기준이 달라요(소득세법 시행규칙 §83의4⑮)', t:'b', o:[['block','블록, 석물, 토관 제조(20%)'],['garden','조경작물 식재, 화훼 판매시설(7%)'],['acad','자동차·중장비 정비, 중장비 운전 학원(10%)'],['acadF','농업 학원(7%)'],['retail','블록, 조경작물, 농수축산물 등 도매·소매(10%)']]},
       {id:'lnBP', on:REVK, q:function(a){ return '1년 '+REVN(a)+' 수입금액이 땅값의 '+REVS(a)+'% 이상이었어요?'; }, h:function(a){ return '수입금액 비율 = 1년 수입금액 ÷ 토지가액, 그 해 비율과 직전 해와 합친 비율 중 큰 쪽(소득세법 시행령 §168의11①'+REVL1(a)+', ②) · 기준 '+REVS(a)+'%(시행규칙 §83의4'+({park:'⑥',spa:'⑬',fish:'⑬',ind:'⑮'}[a.lnBE]||'')+')'; }, t:'b',
@@ -6272,7 +6403,7 @@ PKD.KTERMS = {
       {id:'lnHF', on:function(a){ return LJ(a,'houseLand'); }, q:'주택 정착면적(바닥면적)은요?', h:'기준면적 = 정착면적 × 배율 · 넘는 부분 = 비사업용(소득세법 §104의3①5호, 시행령 §168의12)', t:'w', u:'㎡', werr:'주택 정착면적(㎡)을 넣어 주세요'},
       {id:'lnHZ', on:function(a){ return LJ(a,'houseLand'); }, q:'어느 지역이에요?', h:'괄호 = 정착면적에 곱하는 배율(시행령 §168의12 · 2021.12.31. 이전 양도 수도권 주거·상업·공업 5배)', t:'b', o:[['capRes','수도권 도시지역 주거, 상업, 공업(3배)'],['capGreen','수도권 도시지역 녹지(5배)'],['outCap','수도권 밖 도시지역(5배)'],['nonUrban','도시지역 밖(10배)']]},
       
-      {id:'lnHd', on:LNX, q:'땅을 쓰지 못한 부득이한 사유가 있었어요?', h:'부득이한 사유 기간 = 사업용으로 봄(소득세법 시행령 §168의14①, 시행규칙 §83의5①) · 그 밖 사유 = 「특수 사례 더 보기」 → 비사업용 토지 기간 판정', t:'b',
+      {id:'lnHd', on:LNX, q:'땅을 쓰지 못한 부득이한 사유가 있었어요?', h:'부득이한 사유 기간 = 사업용으로 봄(소득세법 시행령 §168의14①, 시행규칙 §83의5①) · 그 밖 사유 = 양도세 탭 「특수 사례 더 보기」 → 비사업용 토지 기간 판정', t:'b',
        o:[['none','없어요'],['r1','법령으로 사용이 금지, 제한된 기간'],['k7','소유권 소송 중인 기간'],['k9','건물이 멸실, 철거된 뒤(그날부터 5년)'],['k5','빈 땅을 사서 건물을 짓는 중(산 날부터 2년 + 공사 기간)']]},
       {id:'lnHda', on:function(a){ return LNX(a)&&!!a.lnHd&&a.lnHd!=='none'; }, q:function(a){ return a.lnHd==='k9'?'건물이 멸실, 철거된 날은요?':a.lnHd==='k5'?'공사를 시작한(착공) 날은요?':'그 사유가 시작된 날은요?'; }, h:'보유 기간 안 날짜', t:'d', rng:LDR},
       {id:'lnHdb', on:function(a){ return LNX(a)&&(a.lnHd==='r1'||a.lnHd==='k7'||a.lnHd==='k5'); }, q:function(a){ return a.lnHd==='k5'?'공사가 끝난(준공) 날은요?':'그 사유가 끝난 날은요?'; }, h:'지금도 계속이면 판 날', t:'d', rng:function(a){ return [a.lnHda||a.acqD||'',a.saleD||'']; }, pre:function(a){ return a.saleD||''; }},
@@ -6338,12 +6469,12 @@ PKD.KTERMS = {
     if(j==='forest'){ lnPP(set,lnF('forest.res'),P('lnOR')); var pb=a.lnOP&&a.lnOP!=='none'?a.lnOP:'', bz=a.lnOB&&a.lnOB!=='none'?a.lnOB:''; set(lnF('forest.pub'),pb); set(lnF('forest.biz'),bz);
       set(lnF('forest.pubP')+'_a',''); set(lnF('forest.pubP')+'_b',''); set(lnF('forest.bizP')+'_a',bz==='7'?(a.acqD||''):''); set(lnF('forest.bizP')+'_b','');
       if(pb) D.push('공익, 보호 임야 지정 기간 = 보유 기간 전체'); if(bz&&bz!=='7'&&bz!=='8') D.push('임업, 휴양 등에 쓴 기간 = 보유 기간 전체'); if(bz==='7') D.push('상속개시일 = 「언제 샀어요?」 답(상속받은 날)'); }
-    if(j==='ranch'){ lnPP(set,lnF('ranch.direct'),P('lnRD')); set(lnF('ranch.deem'),''); set(lnF('ranch.heads'),''); K.push('목장 가축별 기준면적(별표 1의3) 넘는 부분 = 판정 안 함 → 「특수 사례 더 보기」 → 비사업용 토지 기간 판정 「가축 종류, 두수, 면적」 [확인 필요]'); }
+    if(j==='ranch'){ lnPP(set,lnF('ranch.direct'),P('lnRD')); set(lnF('ranch.deem'),''); set(lnF('ranch.heads'),''); K.push('목장 가축별 기준면적(별표 1의3) 넘는 부분 = 판정 안 함 → 양도세 탭 「특수 사례 더 보기」 → 비사업용 토지 기간 판정 「가축 종류, 두수, 면적」 [확인 필요]'); }
     if(j==='bare'||j==='bld'){
       var tx=j==='bld'?P('lnGW'):(a.lnBT==='none'?[]:P('lnBT')); lnPP(set,lnF('bare.tax'),tx);
       var etc='', ep=[], RC={park:'2다',spa:'10',fish:'11다',ind:'12'}[a.lnBE], RN={park:'주차장',spa:'광천지',fish:'양어장',ind:'그 사업'}[a.lnBE], RS=a.lnBE==='park'?3:a.lnBE==='ind'?({block:20,garden:7,acad:10,acadF:7,retail:10}[a.lnBI||'block']||20):4;   
       set(lnF('bare.ind'),a.lnBE==='ind'?(a.lnBI||'block'):'block');
-      if(j==='bare'&&RC&&a.lnBP==='y'){ etc=RC; ep=P('lnBEp'); K.push(RN+' 수입금액 비율 '+RS+'% = '+'답(예)'+' 그대로 · 다른 해도 같았다고 봄 — 해마다 다르면 「특수 사례 더 보기」 → 비사업용 토지 기간 판정 「연도별 수입금액」 칸에 넣으면 엔진이 해마다 판정 [확인 필요]'); }
+      if(j==='bare'&&RC&&a.lnBP==='y'){ etc=RC; ep=P('lnBEp'); K.push(RN+' 수입금액 비율 '+RS+'% = '+'답(예)'+' 그대로 · 다른 해도 같았다고 봄 — 해마다 다르면 양도세 탭 「특수 사례 더 보기」 → 비사업용 토지 기간 판정 「연도별 수입금액」 칸에 넣으면 엔진이 해마다 판정 [확인 필요]'); }
       if(j==='bare'&&RC&&a.lnBP==='n') D.push(RN+' 수입금액 '+RS+'% 미만 → 그 기간도 사업용 아님(소득세법 시행령 §168의11①'+{park:'2호다',spa:'10호',fish:'11호다',ind:'12호'}[a.lnBE]+')');
       if(j==='bare'&&a.lnBE==='home'){ etc='13'; ep=P('lnBEp'); }
       set(lnF('bare.etc'),etc); set(lnF('bare.etcP')+'_a',ep[0]?ep[0][0]:''); set(lnF('bare.etcP')+'_b',ep[0]?ep[0][1]:'');
@@ -6736,7 +6867,7 @@ PKD.KTERMS = {
       CO.unshift({i:0, nm:'본인', rel:'me', pct:A.coPct[0], hh:{s:'n',why:'본인 세대'}, o:R.o, M:R.M, B:A, D:[], K:[], sig:R.sig});
       W.CO=CO;
     }
-    W.sig=R.sig; W.stale=false; W.o=R.o; W.M=R.M; W.SP=spxActive().map(function(it){ return it.t; });
+    W.sig=R.sig; W.stale=false; W.o=R.o; W.M=R.M; W.SP=spxActive().map(function(it){ return spxT_(it,spxKindNow()); });
   }
   function coTot(o){ return o&&!o.err&&o.res?(+o.res.total||0):0; }
   function coAns(A,i,sep){
@@ -6945,13 +7076,13 @@ PKD.KTERMS = {
   
   var KA=['house','bunyang','ipju','land','nonbiz'];
   var SPX=[
-    {id:'gift', t:'증여받은 자산(이월과세 · 주택, 분양권, 토지·건물)', k:['house','bunyang','land','nonbiz'], el:['giftOn','giftBox','b3Box_gx'], on:'giftOn'},
+    {id:'gift', t:'배우자, 부모·자녀에게 증여받은 자산(이월과세)', k:['house','bunyang','land','nonbiz'], el:['giftOn','giftBox','b3Box_gx'], on:'giftOn'},
     {id:'oth', t:'같은 해 다른 양도(합산 비교과세)', k:KA, el:['othOn','othBox'], on:'othOn'},
-    {id:'relief', t:'조특법 감면(8년 자경농지, 공익사업 등)', k:['house','land','nonbiz'], el:['ysRelBox']},
+    {id:'relief', t:{H:'조특법 감면(장기임대주택, 미분양·신축주택, 농어촌주택, 공익사업 수용 등)', L:'조특법 감면(8년 자경농지, 농지대토, 공익사업 수용, 공장 이전 등)'}, k:['house','land','nonbiz'], el:['ysRelBox']},   
     {id:'ss', t:'상생임대주택', k:['house'], el:['ssOn','b3Box_ss'], on:'ssOn'},
     {id:'rent', t:'장기임대 거주주택, 그 밖의 1세대1주택 특례(농어촌, 부득이 사유 등)', k:['house'], el:['t2Box','ysSpBox','b3Box_sp3']},
     {id:'nr', t:'비거주자, 해외이주', k:['house','ipju'], el:['nrOn','emOn','b3Box_nrWh'], on:'nrOn'},
-    {id:'unreg', t:'미등기 양도', k:KA, el:['unreg'], on:'unreg'},
+    {id:'unreg', t:'미등기 양도', k:['house','land','nonbiz'], el:['unreg'], on:'unreg'},   
     {id:'fake', t:'업계약, 다운계약(계약서 가액 다름)', k:['house'], el:['fakeOn','fakeBox'], on:'fakeOn'},
     {id:'uf', t:'부당행위계산, 고가양도(특수관계인 거래)', k:KA, el:['b3Box_uf']},
     {id:'dt', t:'증여 후 우회양도(§101②)', k:['house','bunyang','land','nonbiz'], el:['b3Box_dt']},
@@ -6965,7 +7096,7 @@ PKD.KTERMS = {
     {id:'acq3', t:'취득가액 특례(상속, 증여 평가액, 일괄 취득 안분)', k:KA, el:['b3Box_acq3']},
     {id:'nb', t:'비사업용 토지 기간 판정', k:['land','nonbiz'], el:['ysNbBox']},
     {id:'tm', t:'취득, 양도시기 특례(§162)', k:KA, el:['b3Box_tm']},
-    {id:'ntx', t:'비과세, 양도 아님(농지 교환, 환지 등)', k:KA, el:['b3Box_ntx']},
+    {id:'ntx', t:{H:'양도로 보지 않는 경우, 비과세(파산 처분, 신탁 설정)', L:'비과세, 양도 아님(농지 교환, 환지 등)'}, k:KA, el:['b3Box_ntx']},
     {id:'hh', t:'1세대 판정(30세 미만 단독세대 등)', k:['house','ipju'], el:['b3Box_hh']},
     {id:'share', t:'공동소유 지분', k:['house','bunyang','land','nonbiz'], el:['b3Box_share']},
     {id:'lossIn', t:'양도차손 통산', k:KA, el:['b3Box_lossIn']},
@@ -6977,6 +7108,49 @@ PKD.KTERMS = {
     {id:'pen', t:'가산세(신고, 납부 지연)', k:KA, el:['ysPenBox']},
     {id:'fd', t:'신고, 납부 기한, 분할납부', k:KA, el:['b3Box_fd']}
   ];
+  
+  var SPXK={
+    rl:{H:'77 77의2 97 97의2 97의3 97의4 97의5 98 98의2 98의3 98의4 98의5 98의6 98의7 98의8 98의9 99 99의2 99의3 99의4 71의2 71의3 97의11 exH 121의28'.split(' '),
+        L:'69 69의2 69의3 69의4 70 70의2 77 77의2 77의3 83 85의7 85의8 85의9 85의10 66 67 68 31 32 97의9 97의10 121의28 121의34 30의8 k89'.split(' ')},
+    
+    onlyL:/^(b3ntx_(farmKind|valA|valB|splitPct|cult3y|urban3y|hwanji3y)|b3tm_(aOrig|sHwanjiD)|b3exp3_(eLtg|eLtgD|eDemolish)|r77F|r4D|rYA|r4A|rYX|r69.*|rl_(69|70|77의3|85).*)$/,
+    onlyH:/^(b3exp3_eRebuild|rNc)$/,
+    none:/^(b3uf_listed|b3tm_s50D)$/,
+    noBun:/^coNb/,   
+    opt:{ b3ntx_type:{H:['','bankrupt','trust']}, b3tm_acqKind:{Hx:['hwanji','cadastral']}, b3tm_saleKind:{Hx:['hwanjiInc','spc'], Lx:['spc']} }
+  };
+  function spxG(k){ return k==='land'||k==='nonbiz'?'L':'H'; }
+  function spxT_(it,k){ return typeof it.t==='string'?it.t:it.t[spxG(k)]; }
+  function spxQO(it,k){ var G=spxG(k);
+    return {
+      pre: it.on?[it.on]:[],   
+      skip:function(f,st){ var id=f.id||''; if(SPXK.none.test(id)) return true;
+        var om=/^o([NDIK])(\d)$/.exec(id); if(om&&st){ var i=+om[2], bl=99; for(var j=0;j<3;j++){ var nm=$('oN'+j); if(nm&&st.asked[nm.id]&&!nm.value.trim()){ bl=j; break; } } if(om[1]==='N'?bl<i:bl<=i) return true; }    if(G==='H'&&SPXK.onlyL.test(id)) return true; if(G==='L'&&SPXK.onlyH.test(id)) return true; if(k==='bunyang'&&SPXK.noBun.test(id)) return true; return false; },
+      optOk:function(f,v){ var id=f.id;
+        if(id==='rlC1'||id==='rlC2') return v===''||SPXK.rl[G].indexOf(v)>=0;
+        var o=SPXK.opt[id]; if(!o) return true; if(o[G]) return o[G].indexOf(v)>=0; if(o[G+'x']) return o[G+'x'].indexOf(v)<0; return true; },
+      unit:function(f){ return f.type==='number'&&spxMan(f.id)?'만원':''; },
+      q:{   
+        rYA:'같은 해 이미 받은 감면액 — 자경농지, 농지대토 등', rYB:'같은 해 이미 받은 감면액 — 공익사업 수용 등', r4A:'앞 4년 동안 받은 감면액 — 자경농지, 농지대토 등', r4B:'앞 4년 동안 받은 감면액 — 공익사업 수용 등', rYX:'같은 해 받은 그 밖의 감면액',
+        r4D:'그중 농지대토 감면액(같은 해 + 앞 4년)', rFk:'계약서를 실제와 다르게 썼다면 계약서에 적은 금액', rlC1:'받으려는 조특법 감면', rlC2:'같이 받는 감면(남은 부분에만)',
+        s1W1:'종전 집이 건설임대 5년 거주, 수용, 부득이한 사유(취학, 근무, 질병)라 「산 지 1년 뒤 새 집」 요건이 없어요?', spW1:'종전 집이 건설임대 5년 거주, 수용, 부득이한 사유(취학, 근무, 질병)라 「산 지 1년 뒤」 요건이 없어요?',
+        s1L3:'기간 안에 못 판 사유가 있어요(매각 의뢰, 경매, 공매, 현금청산, 매도청구 소송)?', hxSelf12:'이 집이 소형 신축, 준공 후 미분양, 인구감소지역 주택이에요?', rdNa:'다른 집 산 날부터 3년이 넘었지만 기간 안에 못 판 사유가 있어요?'
+      },
+      help:{
+        r69Y:'농지 있는 곳에 살면서 직접 농사지은 햇수 · 사업소득금액(농업, 임업, 부동산임대, 농가부업 소득 빼고) + 총급여가 3,700만원 이상인 해, 사업 수입금액이 복식부기 기준 이상인 해는 빼고 셈(조특령 §66⑭) · 8년 이상이어야 감면 · 상속받은 농지를 1년 이상 이어 지으면 돌아가신 분 경작 기간도 셈(조특령 §66⑪)',
+        r69R:'재촌 = 농지가 있는 시·군·구, 붙은 시·군·구, 농지에서 직선 30km 안 중 한 곳에 살면서 경작(조특령 §66①)',
+        rlC1:'고른 감면 요건 칸을 이어서 물어요 · 없으면 「안 함」',
+        rlC2:'두 감면이 겹치면 남은 부분에만(조특법 §127⑦ 단서) · 없으면 「안 함」'
+      },
+      virt: G==='L'?[
+        {id:'f69d', before:'r69Y', on:function(){ return $('rlC1')&&($('rlC1').value==='69'||$('rlC2').value==='69'); }, q:'그 농지에서 직접 농사지었어요?', h:'직접 경작 = 늘 농사일을 했거나 농작업의 절반 이상을 본인 힘으로 함(조특령 §66⑬) · 남에게 맡기거나 빌려줬으면 「아니요」',
+          o:[['y','예, 직접 지었어요'],['n','아니요(남에게 맡김, 빌려줌)']], apply:function(v,set){ if(v==='n') set('r69Y',0); }},
+        {id:'f69r', before:'r69Y', on:function(){ return $('rlC1')&&($('rlC1').value==='69'||$('rlC2').value==='69'); }, q:'판 날 한국 거주자예요?', h:'외국으로 나가 비거주자가 된 지 2년 안이면 「예」(조특령 §66①)',
+          o:[['y','예'],['n','아니요(비거주자 된 지 2년 넘음)']], apply:function(v,set){ if(v==='n') set('r69Y',0); }}
+      ]:[]
+    }; }
+  var SPXM=null;
+  function spxMan(id){ if(!SPXM){ SPXM={}; try{ var src=String(window.YSUI&&YSUI.input||''); src.replace(/\bM\('([A-Za-z0-9_]+)'\)/g,function(m,x){ SPXM[x]=1; }); }catch(e){} } return !!SPXM[id]; }   
   var SPXS={}, XP=false, spxT=null;
   function spxNodes(x){
     if(x.charAt(0)==='@'){ var sec=$(x.slice(1)); if(!sec) return []; if(sec._pkKids) return sec._pkKids;
@@ -7004,11 +7178,11 @@ PKD.KTERMS = {
     box.classList.remove('pk-hide');
     var L=SPX.filter(function(it){ return spxAvail(it,k); });
     $('pkSpxN').textContent=act.length?' '+act.length+'개 고름':'';
-    $('pkSpxL').innerHTML=L.map(function(it){ return '<button type="button" class="pk-spi'+(A[it.id]?' on':'')+'" data-pkspx="'+it.id+'" aria-pressed="'+(A[it.id]?'true':'false')+'"><i></i><span>'+it.t+'</span></button>'; }).join('');
+    $('pkSpxL').innerHTML=L.map(function(it){ return '<button type="button" class="pk-spi'+(A[it.id]?' on':'')+'" data-pkspx="'+it.id+'" aria-pressed="'+(A[it.id]?'true':'false')+'"><i></i><span>'+spxT_(it,k)+'</span></button>'; }).join('');
     var B=$('pkSpxB');
     act.forEach(function(it){ var g=$('pkSpg_'+it.id);
-      if(!g){ g=document.createElement('div'); g.className='pk-spg'; g.id='pkSpg_'+it.id; g.innerHTML='<div class="pk-spgh">'+it.t+'</div>'; it.el.forEach(function(x){ spxNodes(x).forEach(function(n){ spxPut(n,g); }); }); }
-      B.appendChild(g); });
+      if(!g){ g=document.createElement('div'); g.className='pk-spg'; g.id='pkSpg_'+it.id; g.innerHTML='<div class="pk-spgh">'+spxT_(it,k)+'</div>'; it.el.forEach(function(x){ spxNodes(x).forEach(function(n){ spxPut(n,g); }); }); }
+      B.appendChild(g); if(window.SPXQA){ var qf=document.activeElement; if(!(g._qa&&qf&&g._qa.q.contains(qf)&&qf.tagName==='INPUT')) SPXQA.mount(g, spxQO(it,k)); } });   
     B.classList.toggle('pk-hide',!act.length);
   }
   function spxSet(id,on){
@@ -7023,7 +7197,7 @@ PKD.KTERMS = {
   }
   function spxClear(){ SPXS={}; spxDraw(); }
   function spxRe(){ clearTimeout(spxT); spxT=setTimeout(function(){ if(W.done&&!XP){ wCalc(); drawQ(); } },250); }
-  function spxMark(e){ if(e.target&&e.target.closest&&e.target.closest('#pkSpxB')){ if(e.target.id) W.U[e.target.id]=1; spxRe(); } }
+  function spxMark(e){ if(e.target&&e.target.closest&&e.target.closest('#pkSpxB')&&!e.target.closest('.pk-spq')){ if(e.target.id) W.U[e.target.id]=1; spxRe(); } }
   document.addEventListener('change',spxMark);
   document.addEventListener('input',spxMark);
   
@@ -7045,9 +7219,8 @@ PKD.KTERMS = {
     window.PKXL.save(xlCtx()).then(function(n){ if(m) m.textContent='받음 : '+n; },function(e){ if(m) m.textContent='엑셀 못 만듦 : '+(e&&e.message||e); }).then(function(){ btn.disabled=false; });
   }
   
-  function mode(m){ if(m==='pick'&&QA) m='quick'; if(m==='pick'&&!XP) xpView(true); S.mode=m; ['quick','pick','off'].forEach(function(x){ var b=document.querySelector('[data-pkm="'+x+'"]'); if(b) b.classList.toggle('on',x===m); });
-    $('pkQuick').classList.toggle('pk-hide',m!=='quick'); $('pkPick').classList.toggle('pk-hide',m!=='pick');
-    if(m==='quick') drawQ(); if(m==='pick') draw2(); }
+  function mode(m){ m='quick'; S.mode=m;   
+    $('pkQuick').classList.remove('pk-hide'); drawQ(); }
   function setKindFromIcon(k){ S.k=k; S.c=null; S.i=null; S.need=[]; clearNeed();
     if(SIM()&&$('kind').value!==k){ window.YSUI.setKind(k); refresh(); } }
   document.addEventListener('click',function(e){
@@ -7087,9 +7260,9 @@ PKD.KTERMS = {
       wSnap(); if(SIM()) S.k=$('kind').value;
       var q=new URLSearchParams(location.search);
       QA=!(q.get('xp')||q.get('pk')||q.get('pktest'));   
-      xpView(!!(q.get('xp')||q.get('pk')==='pick'||!SIM()));
+      xpView(!!(q.get('xp')||!SIM()));
       if(q.get('pk')) S.mode=q.get('pk'); if(q.get('k')) setKindFromIcon(q.get('k')); if(q.get('c')) S.c=q.get('c'); if(q.get('i')) S.i=+q.get('i');
-      mode(SIM()?S.mode:'pick');
+      mode('quick');
       if(q.get('sd')&&S.mode==='pick'&&curCard()){ S.side=+q.get('sd'); draw3(); }
     }, S:S, apply:apply, eng:eng, curCard:curCard, draw2:draw2, draw3:draw3, drawQ:drawQ, W:W, SPX:SPX, spxSet:spxSet, spxActive:spxActive, spxKeep:spxKeep, xpView:xpView, isXP:function(){return XP;}, wCalc:wCalc, wWhy:wWhy, wGo:wGo, wBack:wBack, wRestart:wRestart, wMap:wMap, wRun:wRun, cHH:cHH, xlCtx:xlCtx, mode:mode, setKindFromIcon:setKindFromIcon };
 })();
