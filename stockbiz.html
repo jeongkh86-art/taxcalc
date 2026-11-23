@@ -9451,6 +9451,39 @@ var SEV = (function () {
     var ratio = splitRatio(eq0, D2.map(function (x) { var m = {}; Object.keys(x.years || {}).forEach(function (e) { if (has(x.years[e].totalEquity)) m[e] = x.years[e].totalEquity; }); return m; }), so.date || '');
     return { kind: so.kind || '', child: so.child || '', date: so.date || '', file: top.file, off: off, ratio: ratio, eqSrc: eqSrc };
   }
+  
+  function dartHolderTable(pages, meKeys) {
+    var NUMC = /^\(?-?[\d,]+(?:\.\d+)?\)?(?:%|주|원|천원|백만원)?$/;
+    var isMe = function (nm) { var k = corpKey(nm); return /^(?:자기주식|자사주|자기주식\(.*\))$/.test(nm) || (k.length >= 2 && (meKeys || []).indexOf(k) >= 0); };
+    for (var pi = 0; pi < (pages || []).length; pi++) {
+      var R = pages[pi].rows || [];
+      for (var i = 0; i < R.length; i++) {
+        var cs0 = (R[i].cells || []).map(function (c) { return String(c.str == null ? '' : c.str).replace(/[\u0000-\u001f]/g, '').trim(); }).filter(Boolean), ht = cs0.join('').replace(/\s/g, '');
+        if (ht.length > 70 || !/^(?:주주명|주주|성명|주주의성명|주주성명|구분|주주구분)/.test(ht) || !/주식수|주식의수|보유주식|소유주식/.test(ht)) continue;
+        if (cs0.some(function (c) { return NUMC.test(c.replace(/\s/g, '')); })) continue;
+        var L = [], tot = null, tre = 0, treNm = '';
+        for (var j = i + 1; j < Math.min(R.length, i + 60); j++) {
+          var cs = (R[j].cells || []).map(function (c) { return String(c.str == null ? '' : c.str).replace(/[\s\u0000-\u001f]/g, ''); }).filter(Boolean);
+          var k = -1; for (var q = 0; q < cs.length; q++) if (NUMC.test(cs[q]) && /\d/.test(cs[q])) { k = q; break; }
+          if (k <= 0) break;
+          var nm = cs.slice(0, k).join('').replace(/(?:보통주식?|우선주식?)$/, '').replace(/^[^가-힣A-Za-z㈜(]+/, '');
+          var nums = cs.slice(k).filter(function (c) { return NUMC.test(c); });
+          var ints = nums.filter(function (c) { return !/[.%원]/.test(c); }), sh = ints.length ? +ints[0].replace(/[(),주]/g, '') : NaN;
+          var rt = nums.filter(function (c) { return /\.\d|%$/.test(c); }).map(function (c) { return +c.replace(/[%,()]/g, ''); }).filter(function (v) { return v >= 0 && v <= 100; })[0];
+          if (/^(?:합계|합|계|총계|주식수합계)$/.test(nm)) { tot = sh; break; }
+          if (!nm || !(sh >= 0) || isNaN(sh)) break;
+          if (isMe(nm)) { tre += sh; treNm = treNm || nm; continue; }
+          L.push({ name: nm, shares: sh, ratio: rt === undefined ? null : rt });
+        }
+        if (!L.length) continue;
+        var sum = L.reduce(function (a, x) { return a + x.shares; }, 0) + tre;
+        var rsum = L.reduce(function (a, x) { return a + (+x.ratio || 0); }, 0);
+        if (tot !== null ? sum === tot : (L.every(function (x) { return x.ratio !== null; }) && Math.abs(rsum - 100) < 0.15 && !tre))
+          return { holders: L, total: tot !== null ? tot : sum, treasury: tre, treasuryName: treNm, page: pages[pi].page, noTotal: tot === null };
+      }
+    }
+    return null;
+  }
   function dartRead(pages, file) {
     var T = pagesText(pages);
     var at = T.search(/1\.회사의개요|1\.일반사항|회사의개요/);
@@ -9507,6 +9540,27 @@ var SEV = (function () {
         while ((mq = rq.exec(B))) { sq[0] += Math.abs(toN(mq[1])); sq[1] += Math.abs(toN(mq[2])); nq++; }
         if (nq) put(q[0], sq);
       });
+      
+      var BZ = { cash: '(?:현금및현금성자산|현금및예금|현금과예금)', shortTermInv: '(?:단기금융상품|단기매매증권|단기투자자산|단기투자증권|단기예금|정기예금|정기적금|당기손익-?공정가치측정금융자산)',
+        shortTermLoan: '(?:단기대여금|주임종단기대여금|임직원단기대여금|종업원단기대여금)', longTermLoan: '(?:장기대여금|주임종장기대여금|임직원장기대여금|종업원장기대여금)',
+        relatedPartyLoan: '(?:특수관계자(?:단기|장기)?대여금|관계회사(?:단기|장기)?대여금)', provisionalPay: '(?:가지급금|업무무관가지급금)',
+        longTermFin: '(?:장기금융상품|장기성예금|장기예금)', otherSecurities: '(?:장기투자증권|매도가능증권|장기매도가능증권|기타포괄손익-?공정가치측정금융자산)',
+        debtSecurities: '(?:만기보유증권)', equityMethodInv: '(?:지분법적용투자주식|관계기업투자주식|종속기업투자주식|관계회사주식)',
+        investRealEstate: '(?:투자부동산)', membership: '(?:회원권|골프회원권|콘도회원권)', investAssets: '(?:투자자산)' };
+      var al = [0, 0], alN = 0, bsSeen = {};
+      Object.keys(BZ).forEach(function (k) {
+        if (o.years[o.ends[0]] && o.years[o.ends[0]][k] !== undefined) return;
+        var rz = new RegExp('(?<![가-힣])' + BZ[k] + '(?:\\(주[\\d,.\\-]*\\))?' + NN, 'g'), mz, sz = [0, 0], nz = 0;   
+        while ((mz = rz.exec(B))) {
+          if (bsSeen[mz.index]) continue; bsSeen[mz.index] = 1;
+          var a = [toN(mz[1]), toN(mz[2])];
+          if (/Loan$/.test(k)) { var ra = new RegExp('^대손충당금(?:\\(주[\\d,.\\-]*\\))?' + NN).exec(B.slice(mz.index + mz[0].length));
+            if (ra) { var b0 = Math.abs(toN(ra[1])), b1 = Math.abs(toN(ra[2])); a[0] -= b0; a[1] -= b1; al[0] += b0; al[1] += b1; alN++; } }
+          sz[0] += a[0]; sz[1] += a[1]; nz++;
+        }
+        if (nz) put(k, sz);
+      });
+      if (alN) put('allowanceLoan', al);
     })();
     
     (function () {
@@ -9537,24 +9591,39 @@ var SEV = (function () {
     })();
     var nt = at > 0 ? T.slice(at) : '', m;
     
-    if ((m = /발행(?:한|된)주식(?:의)?(?:총수|수)(?:는|은)?(?:보통주식?)?([\d,]+)주/.exec(nt))) o.shares = +m[1].replace(/,/g, '');
+    
+    if ((m = /1주(?:당|의)(?:금액|액면(?:가액|금액|가)?)및발행(?:한|된)(?:보통)?주식(?:의)?수는각각([\d,]+)원과([\d,]+)주/.exec(nt))) { o.par = +m[1].replace(/,/g, ''); o.shares = +m[2].replace(/,/g, ''); o.sharesSrc = '주석 문장(1주당 금액 및 발행한 주식수)'; }
+    else if ((m = /발행할주식(?:의)?총수,?발행(?:한|된)주식(?:의)?수및1주(?:당|의)(?:금액|액면(?:가액|금액|가)?)은각각([\d,]+)주,([\d,]+)주및([\d,]+)원/.exec(nt))) { o.shares = +m[2].replace(/,/g, ''); o.par = +m[3].replace(/,/g, ''); o.sharesSrc = '주석 문장(발행할 주식의 총수, 발행한 주식의 수 및 1주당 금액)'; }
+    else if ((m = /발행(?:한|된)(?:보통)?주식(?:의)?수및1주(?:당|의)(?:금액|액면(?:가액|금액|가)?)은(?:각각)?([\d,]+)주및([\d,]+)원/.exec(nt))) { o.shares = +m[1].replace(/,/g, ''); o.par = +m[2].replace(/,/g, ''); o.sharesSrc = '주석 문장(발행한 주식의 수 및 1주당 금액)'; }
+    else if ((m = /발행(?:한|된)주식(?:의)?(?:총수|수)(?:는|은)?(?:보통주식?)?([\d,]+)주/.exec(nt))) o.shares = +m[1].replace(/,/g, '');
     
     else if ((m = /발행주식(?:의)?(?:총수|수)(?:\(\*\d+\))?(?:보통주)([\d,]+)주/.exec(nt))) o.shares = +m[1].replace(/,/g, '');
-    if ((m = /1주(?:의|당)(?:금액|액면(?:가액|금액|가)?)(?:은|는)?([\d,]+)원/.exec(nt))) o.par = +m[1].replace(/,/g, '');
+    if (!o.par && (m = /1주(?:의|당)(?:금액|액면(?:가액|금액|가)?)(?:은|는)?([\d,]+)원/.exec(nt))) o.par = +m[1].replace(/,/g, '');
     
     if (!o.shares) (function () {
       for (var pi = 0; pi < (pages || []).length; pi++) {
         var R = pages[pi].rows || [];
         for (var i = 0; i < R.length; i++) {
-          var ht = (R[i].cells || []).map(function (c) { return String(c.str || ''); }).join('').replace(/\s/g, '');
+          var ht = (R[i].cells || []).map(function (c) { return String(c.str || ''); }).join('').replace(/[\s\u0000-\u001f]/g, '');   
           if (!/발행(?:한)?주식(?:의)?(?:총)?수/.test(ht) || !/주당금액|액면/.test(ht) || !/자본금/.test(ht)) continue;
           var up = R.slice(Math.max(0, i - 5), i + 1).map(function (r) { return (r.cells || []).map(function (c) { return String(c.str || ''); }).join(''); }).join('').replace(/\s/g, '');
           var unit = /단위:?백만원/.test(up) ? 1e6 : /단위:?천원/.test(up) ? 1000 : 1;
           for (var j = i + 1; j < Math.min(R.length, i + 4); j++) {
-            var cs = (R[j].cells || []).map(function (c) { return String(c.str || '').trim(); }).filter(Boolean);
-            if (!cs.length || !/^당기말?$|^당기말현재$|^\(?당\)?기/.test(cs[0].replace(/\s/g, ''))) continue;
+            var cs = (R[j].cells || []).map(function (c) { return String(c.str || '').replace(/[\u0000-\u001f]/g, '').trim(); }).filter(Boolean);
+            var lead = ''; for (var li = 0; li < cs.length && !/^[\d,]+(?:주|원)?$/.test(cs[li]); li++) lead += cs[li]; lead = lead.replace(/\s/g, '');
+            if (!cs.length || !(/^당기말?$|^당기말현재$|^\(?당\)?기/.test(cs[0].replace(/\s/g, '')) || /^보통주식?$/.test(lead))) continue;
             var nn = cs.slice(1).filter(function (c) { return /^[\d,]+(?:주|원)?$/.test(c); }).map(function (c) { return +c.replace(/[,주원]/g, ''); });
             if (nn.length >= 3 && nn[0] > 0 && nn[1] > 0 && nn[0] * nn[1] === nn[2] * unit) { o.shares = nn[0]; if (!o.par) o.par = nn[1]; o.sharesSrc = 'p.' + pages[pi].page + ' 자본금 주석 표'; return; }
+            
+            if (nn.length >= 4) {
+              
+              var HP = [/발행할주식/, /1?주당금액|액면/, /발행(?:한)?주식(?:의)?수|발행주식수/, /자본금/].map(function (r, x) { var q = ht.search(r); return { x: x, q: q }; }).filter(function (z) { return z.q >= 0; }).sort(function (a, b) { return a.q - b.q; });
+              var pIx = -1; if (HP.length === nn.length) HP.forEach(function (z, x) { if (z.x === 1) pIx = x; });
+              var cap = nn[nn.length - 1], cand = (pIx >= 0 && pIx < nn.length - 1 ? [pIx] : []).concat(nn.slice(0, -1).map(function (v, x) { return x; }).filter(function (x) { return x !== pIx; }));
+              for (var ci = 0; ci < cand.length; ci++) { var pv = nn[cand[ci]];
+                var hit = nn.slice(0, -1).filter(function (v, x) { return x !== cand[ci] && v > 0 && v * pv === cap * unit; });
+                if (pv > 0 && hit.length === 1) { o.shares = hit[0]; if (!o.par) o.par = pv; o.sharesSrc = 'p.' + pages[pi].page + ' 자본금 주석 표(보통주 줄)'; return; } }
+            }
           }
         }
       }
@@ -9563,17 +9632,29 @@ var SEV = (function () {
     (function () { var si = splitInfo(T); if (si.newCo) o.corp.split = si.newCo; if (si.out) o.splitOut = si.out; if (si.found) o.found = si.found; })();   
     if ((m = /회사명:(?:주식회사)?([^\d(:]{2,30}?)(?:\(|제\d|과목|자산|\d)/.exec(T))) o.corp.name = m[1].replace(/주식회사$/, '');
     var hi = nt.search(/주주현황|주주구성|주주의구성/);
-    if (hi >= 0) {
+    
+    var meK = [corpKey(o.corp.name || '')], fnm = String(o.file || '').normalize('NFC').split('/').pop().replace(/_(?:감사|검토)보고서.*$/, '');
+    if (fnm && !/^\d+$/.test(fnm)) meK.push(corpKey(fnm));
+    var HT = dartHolderTable(pages, meK);
+    if (HT) {
+      o.holders = HT.holders; o.holdersSrc = 'p.' + HT.page + ' 주주표' + (HT.noTotal ? '(합계 줄 없음 · 지분율 합 100%)' : '');
+      if (HT.treasury > 0) { o.treasury = HT.treasury; o.treasuryName = HT.treasuryName; o.treasurySrc = 'p.' + HT.page + ' 주주표 「' + HT.treasuryName + '」'; }
+      if (!o.shares) { o.shares = HT.total; o.sharesSrc = o.sharesSrc || 'p.' + HT.page + ' 주주표 합계'; }
+      else if (HT.total !== o.shares) o.sharesNote = '주주표 합계 ' + HT.total.toLocaleString() + '주 ≠ 발행주식 ' + o.shares.toLocaleString() + '주(' + (o.sharesSrc || '주석') + ') [확인 필요]';
+    }
+    if (!HT && hi >= 0) {
       var seg = nt.slice(hi, hi + 900), re = /([가-힣A-Za-z㈜()]{2,25}?)([\d,]{1,12})주([\d,]*?)(\d{1,3}\.\d{1,2})?(?=[가-힣A-Z㈜(]|$)/g, h;
       while ((h = re.exec(seg))) {
         var nm = h[1].replace(/^(?:\(단위:[^)]*\))?(?:성명|주주명|주주|주식수|금액|지분율|\(%\))+/, '').replace(/^[^가-힣A-Za-z㈜]+/, '');
         if (/합계|^계$|총계/.test(nm)) break;
         if (!nm || /소계/.test(nm)) continue;
+        
+        if (/총수|이며|원과|각각|입니다|발행|주당|금액|액면|자본금|현재|당기|전기/.test(nm) || nm.length < 2) continue;
         o.holders.push({ name: nm, shares: +h[2].replace(/,/g, ''), ratio: h[4] ? +h[4] : null });
       }
     }
     
-    if (!o.holders.length && hi >= 0) (function () {
+    if (!HT && !o.holders.length && hi >= 0) (function () {
       var seg = nt.slice(hi, hi + 900), tm = /합계(\d{1,3}(?:,\d{3})*)(\d{1,3}\.\d{1,2})/.exec(seg); if (!tm) return;
       var body = seg.slice(0, tm.index).replace(/^.*?지분율(?:\(%\))?/, ''), re2 = /([가-힣A-Za-z㈜()]{2,25}?)(\d{1,3}(?:,\d{3})*)(\d{1,3}\.\d{1,2})(?=[가-힣A-Za-z㈜(]|$)/g, h2, L = [];
       while ((h2 = re2.exec(body))) L.push({ name: h2[1], shares: +h2[2].replace(/,/g, ''), ratio: +h2[3] });
@@ -9583,6 +9664,12 @@ var SEV = (function () {
     if (!o.shares && o.holders.length) o.shares = o.holders.reduce(function (s, x) { return s + x.shares; }, 0);
     var y0 = o.ends[0] && o.years[o.ends[0]];
     if (!o.shares && y0 && y0.capitalStock && o.par) o.shares = Math.round(y0.capitalStock / o.par);
+    
+    if (!o.par && o.shares && y0 && y0.capitalStock && (m = /1주(?:당|의)(?:액면)?(?:금액|가액)(?:\(원\))?(\d{1,3}(?:,\d{3})*)원?\1/.exec(nt)) && +m[1].replace(/,/g, '') * o.shares === num(y0.capitalStock)) o.par = +m[1].replace(/,/g, '');
+    
+    if (!o.treasury && y0 && Math.abs(num(y0.treasuryStock)) >= 1 && (m = /자기주식\((?:주식수|보통주)?:?([\d,]+)주/.exec(nt))) { o.treasury = +m[1].replace(/,/g, ''); o.treasuryName = '자기주식'; o.treasurySrc = '주석 문장 「자기주식(주식수 ' + o.treasury.toLocaleString() + '주)」'; }
+    if (o.treasury > 0) { var tq = nt.search(/\d+\.자기주식(?!처분)/), tseg = tq >= 0 ? nt.slice(tq, tq + 300) : '';
+      var tm2 = /[^.]{0,60}소각(?:목적|할계획|예정|하기위)[^.]{0,60}\./.exec(tseg); if (tm2) o.treasuryCancel = '주석 「' + tm2[0].replace(/^\d+\.자기주식/, '') + '」'; }
     o.ok = !!(y0 && y0.totalAssets);
     
     try { if (typeof FSExtract !== 'undefined' && FSExtract.dartCapEvents) { o.capEv = FSExtract.dartCapEvents(pages, { end: o.ends[0] }); o.capEv.file = o.file; } } catch (e) { o.capEv = null; }
@@ -10424,6 +10511,18 @@ var SEV = (function () {
       if (cre.treasuryEst) chk.push('크레탑 주요주주현황 「' + cre.treasuryName + '」 줄에 주식수가 없어 ' + cre.treasuryEst + ' = ' + n.toLocaleString() + '주로 둠 [확인 필요]');   
       chk.push('크레탑 주요주주현황의 「' + cre.treasuryName + '」 ' + n.toLocaleString() + '주 = 회사 자신 → 자기주식으로 처리' + (cre.holdersDate ? '(기준일 ' + cre.holdersDate + ')' : '') + ' · 보유 목적 = 일시보유·처분(상증법 평가액 자산 산입)으로 둠 — 소각 결의·계획이 있으면 「소각 목적」으로 바꿈 · 평가기준일 현재 수는 주식 등 변동상황명세서 확인');
     })();
+    
+    (function () {
+      var dx = darts.filter(function (x) { return num(x.treasury) > 0; })[0]; if (!dx) return;
+      var T = inp.shares.treasury = inp.shares.treasury || { mode: 'cancel' }, n = num(dx.treasury);
+      if (num(T.shares) > 0) { if (Math.abs(num(T.shares) - n) > 0.5) chk.push('DART ' + dx.file + ' 자기주식 ' + n.toLocaleString() + '주 ≠ 자기주식 ' + num(T.shares).toLocaleString() + '주(' + ((inp.src || {})['shares.treasury.shares'] || '입력') + ') — 기준일 차이인지 주식 등 변동상황명세서 확인 [확인 필요]');
+        else if (dx.treasuryCancel && T.mode === 'hold') chk.push('자기주식 ' + n.toLocaleString() + '주 — DART ' + dx.file + ' ' + dx.treasuryCancel + ' · 보유 목적은 일시보유·처분 기본 그대로 · 소각 결의가 확정됐으면 「소각 목적」으로 바꿈(자산에서 빼고 주식수에서 뺌) [확인 필요]');
+        return; }
+      T.shares = n; T.mode = 'hold';
+      inp.src['shares.treasury.shares'] = 'DART ' + dx.file + ' ' + (dx.treasurySrc || '주주표') + ' = 회사 자신 → 자기주식' + (dx.ends && dx.ends[0] ? ' (기준일 ' + dx.ends[0] + ')' : '');
+      if (dx.treasuryCancel) chk.push('DART ' + dx.file + ' 자기주식 ' + n.toLocaleString() + '주 = 자기주식으로 처리(주주에서 뺌) · 보유 목적 = 일시보유·처분(상증법 평가액 자산 산입) 기본으로 둠 — 주석 ' + dx.treasuryCancel.replace(/^주석 /, '') + ' · 소각 결의가 확정됐으면 「소각 목적」으로 바꿈(자산에서 빼고 주식수에서 뺌) · 의사록 정본 필요 [확인 필요]');
+      else chk.push('DART ' + dx.file + ' 자기주식 ' + n.toLocaleString() + '주 = 자기주식으로 처리(주주에서 뺌) · 보유 목적 = 일시보유·처분(상증법 평가액 자산 산입)으로 둠 — 소각 결의·계획이 있으면 「소각 목적」으로 바꿈 · 평가기준일 현재 수는 주식 등 변동상황명세서 확인');
+    })();
     var cur = num(inp.shares.current), tsh = num(inp.shares.treasury && inp.shares.treasury.shares);
     var txOk = inp.holders.length && Math.abs(sum(inp.holders) - (cur - tsh)) < 0.5;
     var cands = [];
@@ -10630,6 +10729,8 @@ var SEVG = (function () {
         }
         var KW = [['shares', /주식수|보유주식/], ['pct', /지분율|지분비율/], ['cost', /취득원가|취득가액/], ['book', /장부가액|장부금액/], ['fair', /공정가|순자산/]];
         KW.forEach(function (kw) { hdr.some(function (r) { return cellsOf(r).some(function (c) { if (kw[1].test(c.s.replace(/\s/g, ''))) { cols.push({ k: kw[0], cx: c.x + c.w / 2 }); return true; } return false; }); }); });
+        
+        if (cols.length >= 3) R.slice(Math.max(0, i - 1), Math.min(R.length, i + 2)).some(function (r) { return cellsOf(r).some(function (c) { if (/미상각|투자제거차액|투자차액|영업권상당/.test(c.s.replace(/\s/g, ''))) { cols.push({ k: 'skip', cx: c.x + c.w / 2 }); return true; } return false; }); });
         if (cols.length < 3) continue;
         cols.sort(function (a, b) { return a.cx - b.cx; });
         var unit = 1, up = R.slice(Math.max(0, i - 6), i + 1).map(rowT).join('');
@@ -10644,6 +10745,7 @@ var SEVG = (function () {
           var o = { name: nmC.s.replace(/\s/g, '').replace(/\(\*[\d,]*\)$/, ''), page: p.page, unit: unit };
           if (nums.length === cols.length) nums.forEach(function (c, q) { o[cols[q].k] = toNum(c.s); });
           else nums.forEach(function (c) { var cx = c.x + c.w / 2, best = null; cols.forEach(function (h) { if (!best || Math.abs(h.cx - cx) < Math.abs(best.cx - cx)) best = h; }); if (best && o[best.k] === undefined) o[best.k] = toNum(c.s); });
+          delete o.skip;
           ['cost', 'book', 'fair'].forEach(function (k) { if (has(o[k])) o[k] = o[k] * unit; });
           var kk = key(o.name); if (!kk || seen[kk]) continue;
           
@@ -10917,7 +11019,7 @@ var SEVG = (function () {
     var issued = function (id) { var r = R0[id] && R0[id].result; if (!r) return 0; return num(r.shares) - (r.treasuryMode === 'cancel' ? num(r.treasuryShares) : 0); };
     var L = links.filter(function (e) { return byId[e.from] && byId[e.to] && num(e.shares) > 0; }).map(function (e) {
       var den = issued(e.to), pct = den > 0 ? num(e.shares) / den : (has(e.pct) ? num(e.pct) / 100 : 0);
-      return { from: e.from, to: e.to, shares: num(e.shares), book: has(e.book) ? num(e.book) : 0, cost: has(e.cost) ? num(e.cost) : null, pct: pct, useCost: x10 === 1 && pct <= 0.1 + 1e-12 };
+      return { from: e.from, to: e.to, shares: num(e.shares), book: has(e.book) ? num(e.book) : 0, cost: has(e.cost) ? num(e.cost) : null, pct: pct, useCost: x10 === 1 && pct <= 0.1 + 1e-12, equity: !!e.equity };
     });
     links.filter(function (e) { return byId[e.from] && byId[e.to] && !(num(e.shares) > 0); }).forEach(function (e) { chk.push(byId[e.from].name + ' → ' + byId[e.to].name + ' : 보유 주식 수 없음 → 묶어 계산에서 뺌 [확인 필요]'); });
     var v = {}, R = {}, lines = {}, it = 0, conv = false, last = null, nwt = 0, sing = false;   
@@ -10941,8 +11043,12 @@ var SEVG = (function () {
         else { val = e.shares * v[e.to]; how = to.name + ' 1주 ' + Math.floor(v[e.to]).toLocaleString() + '원(할증 전 · 상증령 §53⑧4호 · 계산은 원 미만 포함) × ' + e.shares.toLocaleString() + '주'; }   
         var ln = { side: 'asset', label: '보유 주식 ' + to.name + ' ' + e.shares.toLocaleString() + '주 (여러 회사 평가)', book: e.book, value: val, group: true, groupTo: e.to };
         if ((e.useCost && e.cost !== null) || opt.noFloor) ln.justLower = true;   
+        
+        var hasTx = inp.bsYears && Object.keys(inp.bsYears).length;
+        if (e.equity && e.cost !== null && e.cost > 0 && !hasTx && !ln.justLower) { ln.yubo = e.cost - e.book; ln.note = '지분법 → 장부가 하한 = 취득원가 ' + Math.round(e.cost).toLocaleString() + '원(상증령 §55① · 사전-2019-법령해석재산-0276)'; }
+        var flo = e.book + (has(ln.yubo) ? num(ln.yubo) : 0);
         inp.asset.gapLines.push(ln);
-        my.push({ to: e.to, toName: to.name, reOther: reR[e.to], shares: e.shares, pct: e.pct, book: e.book, value: val, adopted: (e.useCost && e.cost !== null) || opt.noFloor ? val : Math.max(val, e.book), floor: !(e.useCost && e.cost !== null) && !opt.noFloor && val < e.book, how: how, useCost: e.useCost && e.cost !== null });
+        my.push({ to: e.to, toName: to.name, reOther: reR[e.to], shares: e.shares, pct: e.pct, book: e.book, value: val, adopted: (e.useCost && e.cost !== null) || opt.noFloor ? val : Math.max(val, flo), floor: !(e.useCost && e.cost !== null) && !opt.noFloor && val < flo, how: how, useCost: e.useCost && e.cost !== null, floorBase: flo });
       });
       var r = SEV.compute(inp, TE); return { r: r, my: my, inp: inp };
     };
@@ -13062,7 +13168,7 @@ window.__FSPDF={M:"AAEAAAAMAIAAAwBARFNJRwAAAAEACfTYAAAACEdQT1MBV/JlAAnmoAAADjZPU
   function deco(o) { if (!o || o.none) return o; o.txadj = txInfo(S.grp ? S.plan : (S.cos.filter(function (c) { return c.inp; })[0] || {}).id); o.group = S.grp ? grpInfo() : null;
     if (o.txadj && o.txadj.scans.length) o.flags.push('스캔본(글자층 없음) ' + o.txadj.scans.join(', ') + ' — 계산에서 뺌 · ' + SCAN_TIP);
     if (o.txadj && o.txadj.mixed.length) o.flags.push('세무조정계산서 안 스캔 쪽 ' + o.txadj.mixed.join(', ') + ' — 글자 쪽만 읽음 · ' + SCAN_TIP);
-    ready().forEach(function (c) { if ((!S.grp || c.id === S.plan) && c.files && c.files.dart.length && !c.files.cretop.length && !(c.tx && c.tx.years.length)) o.flags.push('감사보고서만 넣음 — 재무상태표 계정(현금, 대여금, 금융상품)과 업종을 가르지 못해 사업용자산비율이 높게 나올 수 있음(시험 사례 감사보고서만 100% / 크레탑 52.52%) · 크레탑이나 세무조정계산서를 같이 넣어 주세요'); });
+    ready().forEach(function (c) { if ((!S.grp || c.id === S.plan) && c.files && c.files.dart.length && !c.files.cretop.length && !(c.tx && c.tx.years.length)) o.flags.push('감사보고서만 넣음 — 사업용자산비율 = 감사보고서 재무상태표 계정(현금, 대여금, 금융상품, 투자증권)으로 계산 · 업종(건설업 공제조합 출자금 등)과 세무상 유보는 반영 못 함 · 세무조정계산서를 같이 넣으면 더 정확 [확인 필요]');    });
     ready().forEach(function (c) { initRows(c); if (c.rowsWarn && (!S.grp || c.id === S.plan)) o.flags.push(c.rowsWarn); if (c.autoFill && (c.rows || []).some(function (r) { return r.auto; }) && (!S.grp || c.id === S.plan)) o.flags.push(c.autoFill); if (c.otherCo && (!S.grp || c.id === S.plan)) o.flags.push(c.otherCo); });
     if (o.group) o.group.chk.forEach(function (t) { o.flags.push('여러 회사 : ' + String(t).replace(/\s*\[확인 필요\]\s*/g, ' ').trim()); });
     return o; }
