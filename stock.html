@@ -1685,8 +1685,8 @@ summary:hover{background:var(--pd-acc-soft)}
         <button type="button" class="ghost v8-x" id="v8Pdf" title="양식 1 — 브랜드 그림 전면 · 10.833×7.5in">PDF 1</button>
         <button type="button" class="ghost v8-x" id="docxGroup" title="관계사 포트폴리오에 등록된 법인 기준 통합보고서">워드로 출력</button>
         <button type="button" class="v8-x" id="v8Pptx2" title="양식 2 — 참조 덱 규격 · A4 가로 11.69×8.27in · 도형 전용">PPT 2</button>
-        <button type="button" class="ghost" id="v8Pdf2" title="FO센터양식 — 참조 덱 규격 · 가로 · 도형 전용">FO센터양식</button>
-        <button type="button" class="ghost" id="v8PdfSL" title="삼성생명양식 — 같은 계산 값 · 파란 테마(옛 PDF1)">삼성생명양식</button>
+        <button type="button" class="ghost" id="v8Pdf2" title="골드 — 참조 덱 규격 · 가로 · 도형 전용">골드</button>
+        <button type="button" class="ghost" id="v8PdfSL" title="블루 — 골드와 같은 틀, 색만 파랑 · 같은 계산 값">블루</button>
         <button type="button" class="ghost v8-x" id="v8Xlsx">엑셀 (수식 포함)</button>
         <button type="button" class="ghost v8-x" onclick="document.getElementById('v8review').open=true;document.getElementById('s5').scrollIntoView({behavior:'smooth'})">상세 브리핑·PPT (검토 영역)</button>
         <button type="button" class="ghost v8-x" id="saveJsonTop" title="입력값·불러온 법인 전체를 파일(.json)로 저장">작업 저장</button>
@@ -6747,11 +6747,12 @@ if (__SEV_NODE) {
     
     var scanRows = function (p, sum) {
       p.rows.forEach(function (r) {
-        var t = r.cells.map(function (c) { return c.str; }).join(' '), re = /(?:감가상각누계액|손상차손누계액|정부보조금등?차감액)\)?\s*(11[5-79]|12[01])[\s:;∶]+(\d{1,3}(?:[:;∶,.]\d{3})+|\d{4,})/g, m;
+        
+        var t = r.cells.map(function (c) { return c.str; }).join(' '), re = /(?:감가상각누계액|손상차손누계액)\)?\s*(11[5-79]|12[01])[\s:;∶]+(\d{1,3}(?:[:;∶,.]\d{3})+|\d{4,})/g, m;
         while ((m = re.exec(t))) { if (seen[m[1]]) continue; seen[m[1]] = 1; var v = +m[2].replace(/[:;∶,.]/g, ''); contra[+m[1] <= 117 ? 'building' : 'structure'] += v; if (sum) fromSum.push({ code: +m[1], v: v, page: p.page }); }
         
         var rg = /정부보조금등?(?:차감액)?\)?\s*(\d{3})[\s:;∶]+(\d{1,3}(?:[:;∶,.]\d{3})+|\d{4,})/g, mg;
-        while ((mg = rg.exec(t))) { var cd = +mg[1]; if (cd >= 115 && cd <= 121) continue; if (seenG[cd]) continue; seenG[cd] = 1; grantSum += +mg[2].replace(/[:;∶,.]/g, ''); }
+        while ((mg = rg.exec(t))) { var cd = +mg[1]; if (seenG[cd] || seen[mg[1]]) continue; seenG[cd] = 1; grantSum += +mg[2].replace(/[:;∶,.]/g, ''); }
       });
     };
     (pages || []).forEach(function (p) {
@@ -8222,15 +8223,17 @@ if (__SEV_NODE) {
         if (def.contra) {
           var sig = String(lastTarget) + '|' + vals.join(',');
           if (def.key === 'govGrant') gOwner = lastTarget || contraOwner;
-          var noNet = def.key === 'govGrant' && GRANT_NONET.test(normLabel(cells[labelIdx].str));
-          if (lastTarget && found[lastTarget] && !contraSeen[sig] && !noNet) {
+          
+          
+          var cTgt = def.key === 'govGrant' ? null : lastTarget;
+          if (cTgt && found[cTgt] && !contraSeen[sig]) {
             contraSeen[sig] = 1;
-            var tv = found[lastTarget].values;
+            var tv = found[cTgt].values;
             vals.forEach(function (v, i) {
               if (v === undefined) return;
               tv[i] = (tv[i] === undefined ? 0 : tv[i]) - Math.abs(v);
             });
-            found[lastTarget].contraApplied = true;
+            found[cTgt].contraApplied = true;
             
             if (/^(shortTermLoan|longTermLoan|relatedPartyLoan)$/.test(lastTarget)) {
               var faL = found.allowanceLoan || (found.allowanceLoan = { label: '대여금 대손충당금', group: 'bs', values: [],
@@ -8238,8 +8241,7 @@ if (__SEV_NODE) {
               vals.forEach(function (v, i) { if (v === undefined) return; faL.values[i] = (faL.values[i] || 0) + Math.abs(v); });
             }
           }
-          if (lastTarget) contraOwner = lastTarget;
-          lastTarget = null;
+          if (def.key !== 'govGrant') { if (lastTarget) contraOwner = lastTarget; lastTarget = null; }
         } else {
           contraOwner = null;
           lastTarget = def.contraTarget
@@ -12315,8 +12317,8 @@ var SEV = (function () {
       var v = [toN(m[m.length - 2]), toN(m[m.length - 1])];
       
       if (/^(building|structure)$/.test(k)) {
-        var rest = S.slice(m.index + m[0].length), c, cre = new RegExp('^(?:감가상각누계액|손상차손누계액|정부보조금|국고보조금)' + NN);
-        while ((c = cre.exec(rest))) { v[0] -= Math.abs(toN(c[1])); v[1] -= Math.abs(toN(c[2])); rest = rest.slice(c[0].length); }
+        var rest = S.slice(m.index + m[0].length), c, cre = new RegExp('^(감가상각누계액|손상차손누계액|정부보조금|국고보조금)(?:등)?' + NN);
+        while ((c = cre.exec(rest))) { if (!/보조금/.test(c[1])) { v[0] -= Math.abs(toN(c[2])); v[1] -= Math.abs(toN(c[3])); } rest = rest.slice(c[0].length); }
       }
       [0, 1].forEach(function (i) { var e = o.ends[i]; if (e) (o.years[e] = o.years[e] || {})[k] = v[i]; });
     });
@@ -13306,7 +13308,7 @@ var SEV = (function () {
         inp.asset.add.yubo = g5; inp.asset.yuboAuto = g5;
         inp.src['asset.add.yubo'] = s5 + ' — 재무상태표 정부보조금(자산 차감 표시) 가산 · 결산서 기준';
         chk.push('정부보조금 ' + g5.toLocaleString() + '원 — 자산에서 차감 표시 → 순자산 가산(' + s5 + ' · 「2026 비상장주식평가실무」 p.342 · 서면4팀-3315) · 결산서 기준 [확인 필요] 반환 조건(상환의무 있으면 부채)' +
-          (gr5 > 0 ? ' · 그중 토지·건물·구축물분 ' + gr5.toLocaleString() + '원 = 그 부동산을 시가·기준시가로 바꾸면 시가에 들어가 빼야 함' : ''));
+          (gr5 > 0 ? ' · 그중 토지·건물·구축물분 ' + gr5.toLocaleString() + '원(부동산 장부가는 보조금 안 뺀 값 · 시가로 바꿔도 이 가산은 그대로)' : ''));
       }
     }
     
@@ -14069,10 +14071,9 @@ var BIZA = (function () {
     var reBookBasis = (+o.reBookIn > 0) ? +o.reBookIn : reBook;
     var reVal = (+o.reNavIn > 0) ? Math.max(+o.reNavIn, reBookBasis) : reBook;
     var reUp = Math.max(0, reVal - reBookBasis);
+    
     var grantRE = 0, grantAll = grant;
-    if (o.grantOn && reUp > 0 && +o.grantRE > 0) grantRE = Math.min(grant, +o.grantRE);
-    grant = grant - grantRE;
-    var grantREWarn = !!(o.grantOn && reUp > 0 && grantAll > 0 && !(+o.grantRE > 0));
+    var grantREWarn = false;
     try {
       var _gapNAV = Math.max(0, (+o.evalGap || 0));
       if (reUp > _gapNAV + 1) DIAG(new Error('부동산 평가차액 불변식 위반 — 비율용 ' + Math.round(reUp) + '원 > 순자산용 ' + Math.round(_gapNAV) + '원'), 'baRatio.reUp');
@@ -17610,7 +17611,9 @@ function autoFill(){
   var reInv=pick('inventoryRE',c)||0;
   var incInv=$('reIncInv').checked;
   var re=land+bld+str+(incInv?reInv:0);
-  S.reBookRaw={land:land,bld:bld,str:str,inv:reInv,ta:ta};
+  
+  var grR=Math.abs(pick('govGrant',c)||0);
+  S.reBookRaw={land:land,bld:bld,str:str,inv:reInv,ta:ta,gr:grR};
 
   
   
@@ -17734,11 +17737,11 @@ function autoFill(){
       if(!td){ S.sevYuboOnly=null; S.txUnpaidTax=null; S.txRefund=null; S.txYuboMemo=''; S.txYuboSkip=[]; S.txYuboFloor=[]; S.txYuboCheck=[]; S.txYuboAdd=[]; S.txYuboNone=[];
         
         S.txGrantAdd=null;
-        var gAll0=Math.abs(pick('govGrant',c)||0)*u, gRE0=Math.abs(pick('govGrantRE',c)||0)*u, gAdd0=Math.max(0,gAll0-(S.grantRE||0));
+        var gAll0=Math.abs(pick('govGrant',c)||0)*u, gRE0=Math.abs(pick('govGrantRE',c)||0)*u, gAdd0=gAll0;   
         if(gAdd0>0){
-          S.txGrantAdd={amt:gAdd0,all:gAll0,re:S.grantRE||0,reLine:gRE0,noTx:true};
+          S.txGrantAdd={amt:gAdd0,all:gAll0,re:0,reLine:gRE0,noTx:true};
           setWon('apEtc',gAdd0,true); any=true;
-          S.txYuboMemo='＋정부보조금(재무상태표 차감 표시 · 결산서 기준) '+fmt(gAdd0)+(gRE0>0&&!(S.grantRE>0)?' · 그중 토지·건물·구축물분 '+fmt(gRE0)+'(그 부동산을 시가로 바꾸면 빼기)':'')+' [확인 필요]';
+          S.txYuboMemo='＋정부보조금(재무상태표 차감 표시 · 결산서 기준) '+fmt(gAdd0)+(gRE0>0?' · 그중 토지·건물·구축물분 '+fmt(gRE0)+'(부동산 장부가는 보조금 안 뺀 값 · 시가로 바꿔도 가산 그대로)':'')+' [확인 필요]';
         }
         return; }
       S.txYuboMemo='';   
@@ -17788,8 +17791,8 @@ function autoFill(){
       var rfAdd=(S.txRefund&&S.txRefund.add)||0;   
       
       var gHas=!!(td.f50b&&(td.f50b.items||[]).some(function(it){ return /국고보조금|공사부담금|정부보조금/.test(it.label||''); }));
-      var gAll=Math.abs(pick('govGrant',c)||0)*u||((td.fs&&td.fs.govGrant&&td.fs.govGrant.cur)||0), gAdd=gHas?0:Math.max(0,gAll-(S.grantRE||0));
-      S.txGrantAdd=gAdd>0?{amt:gAdd,all:gAll,re:S.grantRE||0}:null;
+      var gAll=Math.abs(pick('govGrant',c)||0)*u||((td.fs&&td.fs.govGrant&&td.fs.govGrant.cur)||0), gAdd=gHas?0:gAll;   
+      S.txGrantAdd=gAdd>0?{amt:gAdd,all:gAll,re:0}:null;
       if(td.f50b&&td.f50b.items.length){
         var ya=yuboApply(td);
         if(ya.plus||rfAdd||gAdd) { setWon('apEtc',(ya.plus||0)+rfAdd+gAdd,true); any=true; }
@@ -18432,7 +18435,7 @@ function recalcRealEstate(){
   var incInv=$('reIncInv').checked;
 
   var reBook=((b.land||0)+(b.bld||0)+(b.str||0)+(incInv?(b.inv||0):0))*u;  
-  var taBook=(b.ta||0)*u;                                   
+  var taBook=(b.ta>0?(b.ta+(b.gr||0)):0)*u;                
   if(taBook>0){ var PCr=postCapInfo(); if(PCr.amt>0) taBook=Math.max(0,taBook-PCr.amt); }   
   var reAppr=wonOf('reAppraised');                          
   var reMkt =wonOf('reMarket');                             
@@ -18538,7 +18541,8 @@ function recalcRealEstate(){
   var adjA=(function(){ try{ var w=function(id){ return $(id)?wonOf(id):0; };
     return w('apEtc')-w('amEtc')-stMove+w('apGapAR')+w('apGapInv')+w('apGapRERight')+w('apGapForeign')+w('apGapEtc')-w('amPrepaid')-w('amDeferred')-w('amDefTaxAsset')-w('amBadReceiv'); }catch(e){ return 0; } })();
   var pvA=(function(){ try{ var P=pvCalc(); return (P&&P.side==='asset'&&P.gap)?P.gap:0; }catch(e){ return 0; } })();
-  taRatioST=taBook+reGapNAV+(st5Val-stockBook)+adjA+tHold+pvA; S.baTAST=taRatioST;
+  
+  taRatioST=(taBook-(taBook>0?(b.gr||0)*u:0))+reGapNAV+(st5Val-stockBook)+adjA+tHold+pvA; S.baTAST=taRatioST;
   var stPct=taRatioST>0?Math.min(100,st5Val/taRatioST*100):0;   
   S.st5Note=(stockBook>0&&!st5Given)?'주식 등 비율(5호) — 보유 주식 상증법 평가액 미입력 → 세무상 장부가 '+fmt(st5Val)+'원으로 판정(기재부 재산세제과-943 = 평가액) · 「보유 주식등 평가액」을 넣으면 다시 판정 [확인 필요]':'';
   
@@ -21384,7 +21388,7 @@ function pvNextYearVal(r,fyInc,fyDiv){
   try{ return TE.valuateShare(q); }catch(e){ return null; }
 }
 
-function pvValSeries(fyInc,fyDiv,years,baseVP,baseSlot){
+function pvValSeries(fyInc,fyDiv,years,baseVP,baseSlot,ownFNA){   
   
   var base=baseVP||pvVP();
   if(!base||typeof TE!=='object') return null;
@@ -21430,7 +21434,7 @@ function pvValSeries(fyInc,fyDiv,years,baseVP,baseSlot){
         }
       }
     })();
-    q.forceNetAssetOnly=pvAssetOnlyAt(k);   
+    q.forceNetAssetOnly=ownFNA?!!base.forceNetAssetOnly:pvAssetOnlyAt(k);   
     var v=null; try{ v=TE.valuateShare(q); }catch(e){ v=null; }
     out.push({y:k,v:v,netAsset:naK,inc:cur});
   }
@@ -23402,6 +23406,9 @@ var parBasis=PV.CHILD.par;
 
 
 
+
+var SEC2_KEYS=/^(spousePct|spOther|spCash|sec2Gap)$/;
+function ckSec2Mark(k){ try{ if(SEC2_KEYS.test(k)&&typeof CK==='object'&&CK.p) CK.p.sec2Ask=1; }catch(e){} }
 var CK={
   sel:{},
   p:{kids:2,pct:'',rel:'lineal_adult',prior:0,gaji:0,cash:0,heirs:'',baPct:'',
@@ -26423,6 +26430,7 @@ function ckRender(r){
         var v=String(el.value).trim();
         CK.p[k]=(v==='')?0:Math.round(parseFloat(v)*100000000);
       } else CK.p[k]=el.value;
+      ckSec2Mark(k);   
       
       if(k==='who'&&el.value){
         var hit=SHL.filter(function(x){return x.name===el.value;})[0];
@@ -27777,7 +27785,7 @@ var DECK_ITEMS_ALL=[
   
   
   {id:'sec2',name:'배우자 2차 상속',   ord:2.5, on:true, sec:'sec2',
-   note:'1차 유고 → 배우자 대납 → 2차 상속 합산 · 배분 최적화 · §30 단기 재상속 공제 — spousePct 를 넣어야 생성됨'},
+   note:'1차 유고 → 배우자 대납 → 2차 상속 합산 · 배분 최적화 · §30 단기 재상속 공제 — 배우자 지분율이나 배우자 개인재산을 넣으면 생성됨(지분 0 가능)'},
   {id:'cash',name:'법인자금 인출 비교', ord:4.5, on:false, sec:'cash',
    note:'가수금·퇴직급여·이익소각·양도·급여·배당 6가지를 같은 기준으로 비교 · 지분 유지 여부 포함'},
   {id:'aftc',name:'가업승계 사후관리',  ord:5.5, on:false, sec:'aftc',
@@ -30118,11 +30126,14 @@ function rdChrome(K,title,pageNo,total){
   K.t(t,0.95,0.22+(22-fs)*0.5/72,fs,true,RDC.w);
 }
 
+
+var RD_FOOT_BRAND_GOLD='Samsung Family Office', RD_FOOT_BRAND_BLUE='Samsung Life Insurance';
 function rdFoot(K,pageNo,total){
   K.rect(0,7.00,D2.W,D2.H-7.00,RDC.w);
   var fy=7.08;
   K.runs([{t:'본 자료 = ',col:RDC.foot},{t:'일반적 정보 제공 목적',b:true,col:RDC.ink},{t:', 실제 적용 시 개별 사안별 법률적 검토 및 ',col:RDC.foot},{t:'전문가 자문 필수',b:true,col:RDC.ink}],RD_X,fy,12);
-  K.t((rdAuth()?'작성 : '+rdAuth()+'   ':'')+(rdBlue()?'Samsung Life Insurance   ':'')+pageNo+' / '+total,RD_X+RD_W,fy,12,false,RDC.foot,'right');
+  
+  K.t([rdBlue()?RD_FOOT_BRAND_BLUE:RD_FOOT_BRAND_GOLD,rdAuth(),pageNo+' / '+total].filter(function(x){ return !!String(x||'').trim(); }).join('   '),RD_X+RD_W,fy,12,false,RDC.foot,'right');
 }
 
 function rdLay(top,items,gap){
@@ -30462,7 +30473,7 @@ function d2RdRender(model){
     rdFoot(K,pi+1,TOTAL);   
   });
   D2RD.log=ctx.log;
-  doc.save((meta.cover||meta.name||'브리핑')+'_가치평가브리핑_'+(rdBlue()?'삼성생명양식':'양식2')+'_'+(meta.today||'')+'.pdf');
+  doc.save((meta.cover||meta.name||'브리핑')+'_가치평가브리핑_'+(rdBlue()?'블루':'골드')+'_'+(meta.today||'')+'.pdf');
 }
 
 function RdPptDoc(real,pres){ this.real=real; this.pres=pres; this.sl=null; this.fill='FFFFFF'; this.draw='000000'; this.lw=0.75; this.dash=false;
@@ -30850,9 +30861,11 @@ function rdExecPage(ctx,u){
   
   if(window.__reqIn&&window.__reqIn.reformNow&&tot&&c1>0&&SPs.st!=='blocked') runs=[{t:'2027. 7. 1. 개정 전 증여특례 실행 검토 — 지금 '+tot[c1]},{t:' / 개정 후 가업상속공제 사후관리 연장, 업종, 전문기술 요건, 사전심사로 활용 어려움',b:true,col:RDC.gold}];
   
+  var trimP=function(t){ return String(t||'').replace(/\s*\(([^()]*)\)/g,function(m,x){ return (x.length>=12||/선고|원심|이후|시행|원칙/.test(x))?'':m; }).replace(/\s{2,}/g,' ').replace(/\s+,/g,',').trim(); };
+  
   var rows=[];
   D.ex.slice(1).forEach(function(r){
-    var g=String(r[1]).replace(/\s*\n\s*/g,' ').trim(); if(/^(현황|상속세|증여특례)$/.test(g)) return;
+    var g=String(r[1]).replace(/\s*\n\s*/g,' ').trim(); if(/^(현황|상속세|증여특례)(\s*\(.*\))?$/.test(g)) return;   
     var bl=rdBul(r[2]), key='', body='';
     var joinB=function(a){ return a.filter(Boolean).join(' / '); };
     if(/급여/.test(g)){ var b1=bl[0]||'', b2=bl[1]||'';
@@ -30876,14 +30889,25 @@ function rdExecPage(ctx,u){
       body=joinB([rdM(bl[0],/(경영기간 [^—]+사후관리 \d+년)/), rdM(bl[2],/— (.+)$/)?rdM(bl[2],/— (.+)$/):'']); }
     else { key=rdM(bl.join(' '),/([\d.,]+(?:억원|만원|원|%))/); body=joinB(bl.slice(0,2)); }
     if(!body) body=joinB(bl.slice(0,2));
-    rows.push([g.replace(/ · /g,', '),key,body]);
+    rows.push([g.replace(/ · /g,', '),key,trimP(body)]);
   });
   
   if(!hasFb&&exInh){ var fbl=rdBul(exInh[2]).filter(function(x){ return /가업상속공제/.test(x); });
     if(fbl.length) rows.unshift(['가업상속공제',rdM(fbl[0],/(적용 시 [\d.,]+(?:억원|원))/)||'',fbl.join(' / ')]); }
   rows.sort(function(a,b){ return (/개정/.test(a[0])?1:0)-(/개정/.test(b[0])?1:0); });
   
-  var MX=(ctx.meta||{}).multiEx; if(MX&&MX.lines&&MX.lines.length) rows.unshift(['현황',MX.key,MX.lines.join('\n')]);
+  
+  var top3=[], MX=(ctx.meta||{}).multiEx;
+  if(MX&&MX.lines&&MX.lines.length) top3.push(['현황',MX.key.replace(/^고객 /,''),MX.lines.map(function(l){ return String(l).replace(/\s*\((?:순손익가치|순자산가치)[^()]*(?:\([^()]*\)[^()]*)*\)\s*$/,''); }).join('\n')]);
+  else if(tval) top3.push(['현황','대표 지분 '+tval,[kid?rdTx(kid.nm)+' 지분 '+stake+(kr(/^1주 평가액/)?', 1주 '+kr(/^1주 평가액/):''):'', kr(/^순손익가치/)?'순손익가치 '+kr(/^순손익가치/)+', 순자산가치 '+kr(/^순자산가치/)+(ratio?' ('+ratio+')':''):''].filter(Boolean).join(' / ')]);
+  if(inhR&&cN>0){ var fbOk=hasFb&&!(GT.fb.on&&!GT.fb.ok);
+    top3.push(['상속세',(fbOk?inhR[cN]+' → '+fbR[fN]:inhR[cN]),[fbOk?'가업상속공제 요건 충족 시'+(D.privV===0&&rdV(fbR[fN])===0?' (주식만 상속 시)':''):(hasFb&&GT.fb.on?'가업상속공제 요건 '+(/미확인/.test(GT.fb.why)?'확인 필요':'미충족'):'현행 유지 시'),
+      c20>0?'20년 후 '+inhR[c20]+(fbOk&&f20>0?' → '+fbR[f20]:'')+(grow?' ('+rdTx(grow)+')':''):''].filter(Boolean).join(' / ')]); }
+  if(tot&&c1>0){
+    if(SPs.st==='blocked') top3.push(['증여특례','올해 적용 불가',[gen1?'일반 증여세 '+gen1:'',SPs.why||'',SPs.after||''].filter(Boolean).join(' / ')]);
+    else if(SPs.st==='pending') top3.push(['증여특례',tot[c1]+' (충족 시)',[SPs.why?'요건 확인 필요 — '+SPs.why:'요건 확인 필요',gen1?'미충족 시 일반 증여세 '+gen1:''].filter(Boolean).join(' / ')]);
+    else top3.push(['증여특례',tot[c1]+' (올해)',[c2>0?'내년 '+tot[c2]:'',fix?'결산일 전 정비 : '+fix:''].filter(Boolean).join(' / ')]); }
+  rows=top3.concat(rows);
   
   var RQx=window.__reqIn||{}, gen=rdRowOf(D.tm,/^일반 증여 시 증여세/), svT=rdRowOf(D.tm,/^특례 절감액/), c3=rdColOf(D.tm,/③/);
   if(RQx.execMap&&tot&&c1>0&&gen&&svT){
@@ -30915,30 +30939,150 @@ function rdExecPage(ctx,u){
       return [rdRow(K,W,[{f:1,mk:L},{f:1.15,mk:R}],0.3),rdFlow(K,W,stp)];
     }}];
   }
-  return [{title:'핵심 요약',conclRuns:runs,lite:2,build:function(K,top,opt){
-    var W=RD_W;
-    
-    var tbL=function(){ return rdTable(K,W,{head:['구분','핵심 수치','내용'],rows:rows,cols:[{f:1.95,al:'left',b:true},{f:2.05,al:'left',b:true},{f:6.0,al:'left'}],fs:opt.fs}); };
-    if(opt.lite===2) return [tbL()];
-    if(opt.lite===1){ var cards=[];
-      if(tval) cards.push({f:1,mk:function(w2){ return rdKpi(K,w2,{t:'대표 지분 평가총액 ('+stake+', '+rdDate(ctx.meta.baseYear)+' 결산)',v:tval,sm:kr(/^1주 평가액/)?'1주 '+kr(/^1주 평가액/):'',s:(kr(/^순손익가치/)?'순손익가치 '+kr(/^순손익가치/)+', 순자산가치 '+kr(/^순자산가치/):'')+(ratio?' ('+ratio+')':'')}); }});
-      if(tot&&c1>0) cards.push({f:1,mk:function(w2){ return spCard(K,w2); }});
-      return cards.length?[rdRow(K,W,cards,0.25),tbL()]:[tbL()]; }
-    var bars=rdRow(K,W,[{f:1.45,mk:function(w){
-        var gs=[[cN,'현재',fN],[c10,rdTx(D.tr[0][c10]),f10],[c20,rdTx(D.tr[0][c20]),f20]].filter(function(x){ return x[0]>0; }).map(function(x){
-          var bars=[{v:rdV(inhR[x[0]]),t:inhR[x[0]],c:RDC.bar2}];
-          if(hasFb&&x[2]>0){ var lab=fbR[x[2]]; if(x[0]===c20&&svR&&x[2]>0) lab+=' ('+svR[x[2]]+' 절감)'; bars.push({v:rdV(fbR[x[2]]),t:lab,c:RDC.mid,g:true}); }
-          return {l:x[1],bars:bars}; });
-        return rdBars(K,w,{cap:hasFb?'상속세 추이 — 공제 미반영 vs 가업상속공제 반영':'상속세 추이',capSub:grow?rdTx(grow)+' 가정':'',groups:gs,lw:0.95,
-          legend:hasFb?[{t:'공제 미반영',c:RDC.bar2},{t:'가업상속공제 반영 (현재 = 현행법, 2027. 7. 1. 뒤 상속 = 개정안 · 심사위원회 통과 전제)',c:RDC.mid}]:null}); }},
-      {f:1,mk:function(w){ return rdStack(K,w,[
-        function(w2){ return tval?rdKpi(K,w2,{t:'대표 지분 평가총액 ('+stake+', '+rdDate(ctx.meta.baseYear)+' 결산)',v:tval,sm:kr(/^1주 평가액/)?'1주 '+kr(/^1주 평가액/):'',
-          s:(kr(/^순손익가치/)?'순손익가치 '+kr(/^순손익가치/)+', 순자산가치 '+kr(/^순자산가치/):'')+(ratio?' ('+ratio+')':'')}):null; },
-        function(w2){ return spCard(K,w2); }],0.10); }}],0.25);
-    var tb=rdTable(K,W,{head:['구분','핵심 수치','내용'],rows:rows,cols:[{f:1.95,al:'left',b:true},{f:2.05,al:'left',b:true},{f:6.0,al:'left'}],fs:opt.fs});
-    return [bars,tb];
+  
+  var SR=rdExStoryRows(ctx,{D:D,inhR:inhR,fbR:fbR,tot:tot,c1:c1,c2:c2,cN:cN,c20:c20,fN:fN,hasFb:hasFb,GT:GT,SPs:SPs,gen1:gen1,grow:grow,fix:fix,exInh:exInh,old:rows});
+  if(!(window.__reqIn&&window.__reqIn.reformNow&&tot&&c1>0&&SPs.st!=='blocked')) runs=SR.runs;
+  return [{title:'핵심 요약',conclRuns:runs,lite:1,noAir:1,build:function(K,top,opt){
+    var W=RD_W, et=SR.etc?rdExEtc(K,W,SR.etc):null, av=RD_BOT-top-0.12-(et?et.h+0.12:0);
+    var st=rdExStory(K,W,SR.rows,{lite:opt.lite,avail:av});
+    return et?[st,et]:[st];
   }}];
 }
+
+function rdExStoryRows(ctx,A){
+  var D=A.D, U=ctx.units, inhR=A.inhR, fbR=A.fbR, tot=A.tot, c1=A.c1, c2=A.c2, cN=A.cN, c20=A.c20, fN=A.fN, GT=A.GT, SPs=A.SPs, X=rdF2X();
+  var ok=function(t){ t=String(t==null?'':t).trim(); if(!t||t==='—'||t==='-') return false; var v=rdV(t); return isFinite(v)&&v!==0; };   
+  var L=function(a){ return a.filter(function(x){ return x&&String(x).trim(); }).map(function(x){ return rdTx(x); }); };
+  var out=[];
+  var cL=c20>0?c20:(D.tr?D.tr[0].length-1:-1);
+  
+  var PW=rdRows(rdFind(U,/^가업승계 — 세 경로 총세금 비교/)), pwC=PW?rdRowOf(PW,/^결론/):null, best={};
+  if(pwC) pwC.slice(1).forEach(function(c,i){ var m=/^(.+?)\s*최저\s*([ⒶⒷⒸ])\s*([\d.,]+(?:억원|만원|원))/.exec(rdTx(c)); if(m){ var h=m[1].trim(), hh=/^현재/.test(h)?'지금':h; (best[m[2]]=best[m[2]]||[]).push({h:hh,v:m[3]}); } });
+  var bestTx=function(k){ var b=best[k]||[]; return b.length?b.map(function(x){ return x.h; }).join(', ')+(b.length>1?' 모두':'')+' 최저 경로':''; };
+  
+  var est=rdRowOf(D.tr,/^상속재산가액/), stk=rdRowOf(D.tr,/^비상장주식 지분가치/), effR=rdRowOf(D.inh,/^실효세율/), eff=effR?effR[1]:'';
+  if(!eff){ var effT=rdRowOf(D.tr,/^실효세율/); eff=effT&&cN>0?effT[cN]:''; }
+  var inhN=inhR&&cN>0?inhR[cN]:'';
+  if(ok(inhN)){
+    var heavy=est&&stk&&rdV(stk[cN])>=rdV(est[cN])*0.5;
+    out.push({tag:'문제',tc:'r',kw:heavy?'주식 쏠림':'지금 상속 시',num:'상속세 '+inhN,nc:'r',tx:L([(est&&stk&&ok(est[cN])&&ok(stk[cN]))?'상속재산 '+est[cN]+' 중 비상장주식 '+stk[cN]:'',(eff?'실효세율 '+eff+', ':'')+'지금 상속 시 기본 세액'])});
+  }
+  
+  var inhL=inhR&&cL>0?inhR[cL]:'', hL=cL>0?rdTx(D.tr[0][cL]).replace(/\n/g,' '):'';
+  if(ok(inhL)&&cL!==cN){
+    var YU=rdFind(U,/^가치평가 — /), YR=YU?rdRows(YU,0):null, ps=YR?rdRowOf(YR,/^1주당 평가액/):null, psTx='';
+    if(ps&&ps.length>2&&ok(ps[1])&&ok(ps[ps.length-1])){ var yE=rdM(YR[0][ps.length-1],/\((\d{4}년 초)/); psTx='1주 '+ps[1]+' → '+ps[ps.length-1]+(yE?'('+yE+')':''); }
+    var up=rdV(inhL)>rdV(inhN);
+    out.push({tag:'시간',tc:'r',kw:up?'기다릴수록 증가':'시간 경과',num:hL+' '+inhL,nc:'r',tx:L([psTx,A.grow?'가정 : '+A.grow:''])});
+  }
+  
+  var ap=rdRowOf(D.fbt,/^적용 공제액/);
+  if(A.hasFb&&GT.fb.on&&!GT.fb.ok){
+    out.push({tag:'해법 ①',tc:'g',kw:'가업상속공제',num:/미확인/.test(GT.fb.why)?'요건 확인 필요':'요건 미충족',nc:'g',tx:L([GT.fb.why?'사유 : '+GT.fb.why:'',ok(inhN)?'현행 상속세 '+inhN+' 그대로':''])});
+  } else if(A.hasFb&&fbR&&fN>0&&fbR[fN]){
+    var fv=fbR[fN], z=rdV(fv)===0;
+    out.push({tag:'해법 ①',tc:'g',kw:'가업상속공제',num:z?inhN+' → '+fv:fv,nc:'g',tx:L([[ap&&ok(ap[fN])?'공제 '+ap[fN]:'',bestTx('Ⓑ')].filter(Boolean).join(', '),'전제 : 경영기간, 사후관리 요건 충족'+(D.privV===0&&z?' (주식만 상속 시)':'')])});
+  } else if(A.exInh){
+    var fbl=rdBul(A.exInh[2]).filter(function(x){ return /가업상속공제/.test(x); }), fk=fbl.length?rdM(fbl[0],/적용 시 ([\d.,]+(?:억원|원))/):'';
+    if(ok(fk)) out.push({tag:'해법 ①',tc:'g',kw:'가업상속공제',num:fk,nc:'g',tx:L([fbl[0],'전제 : 경영기간, 사후관리 요건 충족'])});
+  }
+  
+  var svT=rdRowOf(D.tm,/^특례 절감액/), gen=rdRowOf(D.tm,/^일반 증여 시 증여세/);
+  if(tot&&c1>0){
+    if(SPs.st==='blocked') out.push({tag:'해법 ②',tc:'g',kw:'증여특례',num:'올해 적용 불가',nc:'g',tx:L([[SPs.why?'사유 : '+SPs.why:'',SPs.after||''].filter(Boolean).join(', '),A.gen1?'지금 일반 증여 시 증여세 '+A.gen1:''])});
+    else if(SPs.st==='pending'&&ok(tot[c1])) out.push({tag:'해법 ②',tc:'g',kw:'증여특례',num:tot[c1]+' (충족 시)',nc:'g',tx:L([SPs.why?'요건 확인 필요 — '+SPs.why:'요건 확인 필요',A.gen1?'미충족 시 일반 증여세 '+A.gen1:''])});
+    else if(ok(tot[c1])){
+      var nx=c2>0&&ok(tot[c2])?tot[c2]:'', d2=nx?rdV(nx)-rdV(tot[c1]):0;
+      var bc=(best['Ⓒ']||[])[0];
+      out.push({tag:'해법 ②',tc:'g',kw:'증여특례 올해',num:tot[c1],nc:'g',tx:L([nx?'내년 '+nx+(d2>0?' → 올해 실행이 유리':(d2<0?' → 내년 실행 검토':'')):'',
+        bc?bc.h.replace(/후$/,'뒤')+' 기준 최저 경로(총 '+bc.v+')':((gen&&svT&&ok(gen[c1])&&ok(svT[c1]))?'일반 증여 '+gen[c1]+' 대비 '+svT[c1]+' 절감':'')])});
+    }
+  }
+  
+  var baS=rdRowOf(D.ba,/^사업무관자산 계/), rqR=rdRowOf(D.rq,/^사업용자산비율/), rat=rqR&&D.cRQ>0?rqR[D.cRQ]:'';
+  if(!rat&&D.tm&&c1>0) rat=rdM(D.tm[0][c1],/비율 ([\d.]+%)/);
+  var useFb=(A.hasFb&&!(GT.fb.on&&!GT.fb.ok))||(tot&&c1>0&&SPs.st!=='blocked');
+  if(baS&&ok(baS[1])&&useFb){
+    var acts=[], seen={};
+    (D.ba||[]).slice(1).forEach(function(r){ var n=String(r[0]); if(/^사업무관자산 계|^\s*[-└]/.test(n)||!ok(r[1])) return;
+      var a=/비사업용 토지|임대 부동산|가, ?나목/.test(n)?'비업무용 부동산 정리':(/대여금|가지급금/.test(n)?'대여금 회수':(/과다보유현금|과다보유 현금/.test(n)?'과다현금 정리':(/금융상품|주식, 채권/.test(n)?'영업무관 금융상품 정리':'')));
+      if(a&&!seen[a]){ seen[a]=1; acts.push(a); } });
+    out.push({tag:'공제 키우기',tc:'g',kw:'사업무관자산',num:baS[1],nc:'g',tx:L([(rat?'사업용자산비율 '+rat+' → ':'')+'공제 대상에서 빠지는 몫',acts.length?'결산일 전 '+acts.join(', '):(A.fix?'결산일 전 '+A.fix+' 정리':'')])});
+  }
+  
+  var yrR=rdRowOf(D.rf,/^피상속인 경영기간/), pmR=rdRowOf(D.rf,/^사후관리/);
+  if(yrR){
+    var y0=rdM(yrR[1],/(\d+년)/), y1=rdM(yrR[2],/^(\d+년)/), cur=rdTx(yrR[3]||''), yN=parseInt(rdM(cur,/(\d+)년/),10), n30=parseInt(y1,10)||30, nMin=parseInt(rdM(yrR[2],/\((\d+)년 이상/),10)||20;
+    var jd=isFinite(yN)?(yN>=n30?' 충족':(yN>=nMin?' — '+n30+'년 미달분 사후관리 연장':' — 개정 후 가업상속공제 배제')):'';
+    var pmT=pmR?rdTx(pmR[1])+' → '+rdM(pmR[2],/^(\d+년)/):'';
+    var chk=[rdRowOf(D.rf,/^가업의 정의/)?'전문기술 보유':'',rdRowOf(D.rf,/^대상 업종/)?'업종 세세분류':''].filter(Boolean);
+    if(y0&&y1) out.push({tag:'위험',tc:'r',kw:'2027. 7. 1. 개정',num:'경영 '+y0+' → '+y1,nc:'r',tx:L([[cur?cur+jd:'',pmT?'사후관리 '+pmT:''].filter(Boolean).join(', '),chk.length?chk.join(', ')+' 확인 필요':''])});
+  }
+  
+  var TR=X.tr||[], t0=TR[0], tL=TR.length?TR[TR.length-1]:null, FU=rdFind(U,/^마무리 — 납세재원/);
+  if(t0&&ok(t0.sTot)&&D.tr&&TR.length===D.tr[0].length-1) out.push({tag:'준비',tc:'k',kw:'납세재원',num:t0.sTot,nc:'g',tx:L(['연부연납 이자 포함 납부 총액'+(tL&&ok(tL.sTot)&&tL!==t0?'('+hL+' '+tL.sTot+')':''),FU?'비상장주식 물납 = 다른 재산 다 낸 뒤 마지막 순서':''])});
+  else if(ok(inhN)&&FU) out.push({tag:'준비',tc:'k',kw:'납세재원',num:inhN,nc:'g',tx:L(['상속세 기준'+(ok(inhL)?', '+hL+' '+inhL:''),'비상장주식 물납 = 다른 재산 다 낸 뒤 마지막 순서'])});
+  
+  var secOf={}, no='';
+  U.forEach(function(u){ if(u.type==='divider') no=String((u.sl&&u.sl.no)||no); else if(u.type==='content') secOf[u.title]=no; });
+  var chOf=function(re){ for(var i=0;i<U.length;i++){ var u=U[i]; if(u.type==='content'&&re.test(u.title)&&secOf[u.title]) return secOf[u.title]; } return ''; };
+  var oldKey=function(re){ var r=(A.old||[]).filter(function(x){ return re.test(x[0]); })[0]; return r?String(r[1]||''):''; };
+  var etc=[], chs=[];
+  var add=function(re,lab){ var c=chOf(re); if(!c) return; etc.push(lab); chs.push(c); };
+  var rk=oldKey(/급여/); add(/^임원 퇴직급여|^급여 — /,/퇴직급여 한도/.test(rk)?'임원 '+rk:'임원 퇴직급여');
+  var sk=oldKey(/특정법인/); add(/^특정법인|^법인 증여 — |^1안 가수금|^2안 지분 양도|^법인 초과배당/,/무상제공/.test(sk)?'특정법인 '+sk:'특정법인');
+  add(/^일감몰아주기/,'일감몰아주기');
+  add(/^자기주식 소각/,'자기주식 소각');
+  add(/^배우자증여 후 이익소각/,'배우자증여 후 이익소각');
+  var chTx='';
+  if(chs.length){ var ns=chs.map(function(c){ return parseInt(c,10); }).filter(isFinite).sort(function(a,b){ return a-b; }), grp=[], pad=function(n){ return (n<10?'0':'')+n; };
+    ns.forEach(function(n){ var g=grp[grp.length-1]; if(g&&n<=g[1]+1) g[1]=Math.max(g[1],n); else grp.push([n,n]); });
+    chTx=grp.map(function(g){ return g[0]===g[1]?pad(g[0]):pad(g[0])+'~'+pad(g[1]); }).join(', ')+'장'; }
+  
+  var fbOk=A.hasFb&&!(GT.fb.on&&!GT.fb.ok)&&fbR&&fN>0&&fbR[fN];
+  var tail=[yrR?'2027. 7. 1. 개정 전 요건 점검':'',(t0||FU)?'납세재원 준비':''].filter(Boolean).join(' + ');
+  var runs;
+  if(fbOk) runs=[{t:'상속세 '+inhN+' → 가업상속공제로 '+fbR[fN]+(D.privV===0&&rdV(fbR[fN])===0?' (주식만 상속 시)':'')}];
+  else if(A.hasFb&&GT.fb.on&&!GT.fb.ok) runs=[{t:'가업상속공제 요건 '+(/미확인/.test(GT.fb.why)?'확인 필요':'미충족')+(GT.fb.why?'('+GT.fb.why+')':'')+' → 현행 상속세 '+inhN}];
+  else runs=[{t:'현행 유지 시 상속세 '+inhN+(ok(inhL)?', '+hL+' '+inhL:'')}];
+  var tail2=fbOk?tail:[(tot&&c1>0&&SPs.st==='ok'&&ok(tot[c1]))?'증여특례 올해 '+tot[c1]:(SPs.st==='blocked'&&SPs.after?SPs.after:''),t0||FU?'납세재원 준비':''].filter(Boolean).join(' + ');
+  if(tail2) runs.push({t:' / '+tail2,b:true,col:RDC.gold});
+  return {rows:out,runs:runs,etc:etc.length?'추가 수단 : '+etc.join(', ')+(chTx?' → '+chTx:''):''};
+}
+
+function rdExStory(K,W,rows,o){
+  o=o||{}; var tagW=1.0, pl=0.17, kwW=1.72, nmW=2.25, txW=W-tagW-pl-kwW-nmW-0.05, fsK=15, fsT=12, lh=fsT*1.42/72, py=o.lite?0.07:0.10, minH=o.lite?0.52:0.61;
+  var colOf=function(c){ return c==='r'?RDC.red:(c==='k'?RDC.ink:RDC.gold); };
+  var R=rows.map(function(r){
+    var kf=K.fit(r.kw,kwW-0.08,fsK,true), kL=kf<=12&&K.w(r.kw,12,true)>kwW-0.08?K.wrap(r.kw,12,true,kwW-0.08):[r.kw];
+    var nf=K.fit(r.num,nmW-0.1,fsK,true), nL=(nf<=12&&K.w(r.num,12,true)>nmW-0.1)?K.wrap(r.num,12,true,nmW-0.1):[r.num];
+    var tL=[]; (r.tx||[]).forEach(function(t){ K.wrap(t,fsT,false,txW).forEach(function(l){ tL.push(l); }); });
+    var tf=K.fit(r.tag,tagW-0.1,12,true);
+    var h=Math.max(minH,tL.length*lh+2*py,kL.length*kf*1.25/72+2*py,nL.length*nf*1.25/72+2*py);
+    return {r:r,kf:kf,kL:kL,nf:nf,nL:nL,tL:tL,tf:tf,h:h};
+  });
+  var H=R.reduce(function(a,x){ return a+x.h; },0);
+  if(o.avail&&H<o.avail&&R.length){ var add=Math.min(o.avail-H,H*0.5)/R.length; R.forEach(function(x){ x.h+=add; }); H=R.reduce(function(a,x){ return a+x.h; },0); }
+  return {h:H, draw:function(x,y){
+    var yy=y;
+    R.forEach(function(x2,i){
+      var h=x2.h, r=x2.r;
+      K.rect(x,yy,tagW,h-(i<R.length-1?0.02:0),colOf(r.tc));
+      K.t(r.tag,x+tagW/2,yy+h/2-x2.tf*0.62/72,x2.tf,true,RDC.w,'center');
+      var cx=x+tagW+pl;
+      var kh=x2.kL.length*x2.kf*1.25/72; K.tl(x2.kL,cx,yy+(h-kh)/2,x2.kf,true,RDC.ink,'left',x2.kf*1.25/72);
+      cx+=kwW;
+      var nh=x2.nL.length*x2.nf*1.25/72; K.tl(x2.nL,cx,yy+(h-nh)/2,x2.nf,true,r.nc==='r'?RDC.red:RDC.gold,'left',x2.nf*1.25/72);
+      cx+=nmW;
+      var th=x2.tL.length*lh; K.tl(x2.tL,cx,yy+(h-th)/2,fsT,false,RDC.body,'left',lh);
+      K.line(x+tagW,yy+h,x+W,yy+h,RDC.line,0.75);
+      yy+=h;
+    });
+  }};
+}
+
+function rdExEtc(K,W,t){ t=rdTx(t); var L=K.wrap(t,12,false,W), lh=12*1.3/72;
+  return {h:L.length*lh, draw:function(x,y){ K.tl(L,x,y,12,false,RDC.sub,'left',lh); }}; }
 
 function rdGovFig(ctx,W,b,opt){
   var K=ctx.K, kids=b.kids||[]; opt=opt||{};
@@ -30977,84 +31121,91 @@ function rdGovFig(ctx,W,b,opt){
 
 function rdMGovEl(K,s,w,fs,b){ s=String(s==null?'':s); if(K.w(s,fs,b)<=w) return s; while(s.length>1&&K.w(s+'…',fs,b)>w) s=s.slice(0,-1); return s+'…'; }
 function rdMGovNm(s){ return String(s||'').replace(/\(주\)|㈜|주식회사/g,'').trim(); }
-function rdMGovFig(ctx,W,b,Hmax){
-  var K=ctx.K, cos=(b.cos||[]).slice(), lh=12*1.22/72, notes=[];
+function rdMGovFig(ctx,W,b,Hmax,z,sp){
+  
+  z=z>0?z:1; sp=sp>0?sp:1;   
+  var K=ctx.K, cos=(b.cos||[]).slice(), F=12*z, lh=F*1.22*sp/72, notes=[], HG=0.15, bad=0;
   var nL=cos.reduce(function(a,c){ return Math.max(a,c.lv||1); },1), LV=[];
   for(var l=1;l<=nL;l++) LV.push(cos.filter(function(c){ return (c.lv||1)===l; }));
   for(var l2=1;l2<LV.length;l2++){ var prev=LV[l2-1].map(function(c){ return c.id; }); LV[l2].sort(function(a,c){ var ia=prev.indexOf(a.par), ic=prev.indexOf(c.par); return (ia<0?99:ia)-(ic<0?99:ic); }); }
   var xl=(b.xl||[]).slice(), drawnX={};
+  var bxW=function(q){ return Math.max(K.w(q.a,F,true),K.w(q.b,F,true))+0.16*z; };
   
   var lay=LV.map(function(L){ var n=L.length, adj=[];
     for(var i=0;i+1<n;i++){ var A=L[i].id, B=L[i+1].id; var e=xl.filter(function(x){ return (x.from===A&&x.to===B)||(x.from===B&&x.to===A); }); adj.push(e); }
-    var gp=adj.map(function(e){ var ok=e.length&&e.every(function(x){ return Math.max(K.w(x.a,12,true),K.w(x.b,12,true))+0.24<=1.55; }); return ok?1.65:0.3; });
-    var sumG=gp.reduce(function(a,x){ return a+x; },0), cw=Math.min(n===1?6.6:4.9,(W-sumG)/n);
-    if(cw<2.0&&gp.some(function(g){ return g>0.3; })){ gp=gp.map(function(){ return 0.3; }); sumG=0.3*(n-1); cw=Math.min(4.9,(W-sumG)/n); adj=adj.map(function(){ return []; }); }
+    var gp=adj.map(function(e){ if(!e.length) return 0.3; var bw=Math.max.apply(null,e.map(bxW)); return bw+0.22<=2.1?bw+0.22:0.3; });
+    adj=adj.map(function(e,i){ return gp[i]>0.3?e:[]; });
+    var sumG=gp.reduce(function(a,x){ return a+x; },0), cw=Math.min(n===1?Math.min(W,6.6*z):4.9*z,(W-sumG)/n);
+    if(cw<2.0&&gp.some(function(g){ return g>0.3; })){ gp=gp.map(function(){ return 0.3; }); sumG=0.3*(n-1); cw=Math.min(4.9*z,(W-sumG)/n); adj=adj.map(function(){ return []; }); }
     adj.forEach(function(e){ e.forEach(function(x){ drawnX[x.from+'>'+x.to]=1; }); });
     var tw=cw*n+sumG, x0=(W-tw)/2, xs=[], xx=x0; L.forEach(function(c,i){ xs.push(xx); xx+=cw+(gp[i]||0); });
-    return {L:L, n:n, cw:cw, two:cw>=4.1, gp:gp, xs:xs, adj:adj}; });
+    var pars=[]; L.forEach(function(c){ if(c.par&&pars.indexOf(c.par)<0) pars.push(c.par); });
+    return {L:L, n:n, cw:cw, two:cw>=4.0, gp:gp, xs:xs, adj:adj, pars:pars}; });
   
-  var pillL=function(t,w){ if(K.w(t,12,true)+0.26<=w) return [t]; var i=t.lastIndexOf(' ('); return i>0?[t.slice(0,i),t.slice(i+1)]:[rdMGovEl(K,t,w-0.26,12,true)]; };
-  lay.forEach(function(Y){ Y.pl=Y.L.map(function(c){ return c.pin?pillL(c.pin,Math.min(Y.cw,3.6)):[]; }); Y.band=Y.pl.some(function(p){ return p.length>1; })?0.82:0.56; });
+  var pillL=function(t,w){ if(K.w(t,F,true)+0.26*z<=w) return [t]; var i=t.lastIndexOf(' ('); return i>0?[t.slice(0,i),t.slice(i+1)]:[rdMGovEl(K,t,w-0.26*z,F,true)]; };
+  var phOf=function(pl){ return pl.length?(pl.length*0.19*z+0.10*z)*sp:0; };
+  lay.forEach(function(Y){ Y.pl=Y.L.map(function(c){ return c.pin?pillL(c.pin,Math.min(Y.cw,3.6*z)):[]; });
+    var ph=Math.max(0.29*z*sp,Math.max.apply(null,Y.pl.map(phOf)));
+    Y.band=0.10*z+0.07*Math.max(0,Y.pars.length-1)+0.05+ph+HG; });
   
-  var rootH=0.44, hdH=0.42, pad=0.08;
+  var rootH=0.44*z*sp, hdH=0.42*z*sp, pad=0.08*z*sp, dy=(hdH-0.42*z)/2;   
   var lines=function(Y,np,ne){ return Y.two?np+ne:Math.min(8,np*2)+ne; };
   var cardH=function(Y,np,ne){ return hdH+lines(Y,np,ne)*lh+pad; };
   var tot=function(np,ne){ return rootH+lay.reduce(function(a,Y){ return a+Y.band+cardH(Y,np,ne); },0); };
-  var np=4, ne=2; if(!(Hmax>0)) Hmax=4.8;
+  var np=b.np||4, ne=b.ne||2; if(!(Hmax>0)) Hmax=4.8;   
   while(tot(np,ne)>Hmax&&(ne>0||np>2)){ if(ne>0) ne--; else np--; }
-  ctx.log.push('여러 회사 구조도 : 층 '+nL+', 카드 줄 '+np+' + '+ne+', 높이 '+tot(np,ne).toFixed(2)+' / '+Hmax.toFixed(2));
-  if(tot(np,ne)>Hmax){ lay.forEach(function(Y){ Y.band=Math.max(0.5,Y.band-0.12); }); rootH=0.42; }
+  if(tot(np,ne)>Hmax) rootH=0.42*z*sp;
   if(ne<1) cos.forEach(function(c){ var p=(c.ext||[]).filter(function(r){ return /취급품목/.test(r[0]); })[0]; if(p&&!/정본 필요/.test(p[1])) notes.push(rdMGovNm(c.name)+' 취급품목 : '+p[1]); });
   var H=tot(np,ne);
   
-  var othT=function(c,full){ var o=c.oth||[]; if(!o.length) return ''; var f=o[0], t=f.name+' '+f.pct+(full&&f.val?', '+f.val:''); return o.length>1?t+' 외 '+(o.length-1)+'명':t; };
-  var chip={};
-  lay.forEach(function(Y){ Y.L.forEach(function(c,i){ var pl=Y.pl[i], pw=pl.length?Math.max.apply(null,pl.map(function(t){ return K.w(t,12,true); }))+0.26:0, room=Y.cw/2-pw/2-0.18;
-    var ot=othT(c,true); if(ot&&K.w(ot,12,false)+0.22>room) ot=othT(c,false);
-    if(ot&&K.w(ot,12,false)+0.22<=room) chip[c.id]={t:ot,pw:pw};
-    else { chip[c.id]={t:'',pw:pw}; if((c.oth||[]).length) notes.push(rdMGovNm(c.name)+' 다른 주주 : '+c.oth.map(function(o){ return o.name+' '+(o.shares?o.shares.toLocaleString('ko-KR')+'주 ':'')+'('+o.pct+')'+(o.val?' '+o.val:''); }).join(', ')); } }); });
-  return {h:H, draw:function(x,y){
-    var pos={}, cx0=x+W/2, rw=Math.min(3.2,Math.max(2.0,K.w(b.root||'',16,true)+0.8));
+  var cutE={};
+  lay.forEach(function(Y){ Y.L.forEach(function(c){ var w=Y.cw, cut=function(r,cwid){ if(r&&K.w(r[0],F,false)+0.12+K.w(r[1],F,true)>cwid+1e-6){ bad++; cutE[c.id+':'+r[0]]=1; } };
+    var A=(c.rows||[]).slice(0,np), B=(c.rows2||[]).slice(0,np), E=(c.ext||[]).slice(0,ne);
+    if(Y.two){ A.forEach(function(r){ cut(r,(w-0.24)*0.56-0.10); }); B.forEach(function(r){ cut(r,(w-0.24)*0.44-0.10); }); }
+    else { A.concat(B).forEach(function(r){ cut(r,w-0.24); }); }
+    E.forEach(function(r,k){ if(K.w(r[1],F,false)>w-0.36-K.w(r[0],F,false)) cutE[c.id+':e'+k]=1; });
+    var tg=c.tag?(c.plan?'플랜 회사, ':'')+c.tag:(c.plan?'플랜 회사':''); if(tg&&K.w(tg,F,true)+0.22*z>w*0.55) bad++; }); });
+  var und=xl.filter(function(q){ return !drawnX[q.from+'>'+q.to]; }).length;   
+  var mode=lay.map(function(Y){ return Y.two?2:1; }).join('');   
+  return {h:H, z:z, np:np, ne:ne, bad:bad, und:und, mode:mode, cutE:cutE, draw:function(x,y){
+    var pos={}, cx0=x+W/2, rw=Math.min(3.2*z,Math.max(2.0*z,K.w(b.root||'',16*z,true)+0.8*z));
     
-    K.rect(cx0-rw/2,y,rw,rootH,RDC.ink); K.t(rdMGovEl(K,b.root||'',rw-0.2,16,true),cx0,y+(rootH-16/72)/2-0.02,16,true,RDC.w,'center');
+    K.rect(cx0-rw/2,y,rw,rootH,RDC.ink); K.t(rdMGovEl(K,b.root||'',rw-0.2,16*z,true),cx0,y+(rootH-16*z/72)/2-0.02,16*z,true,RDC.w,'center');
     pos.root={cx:cx0,bot:y+rootH};
     var yy=y+rootH;
     lay.forEach(function(Y,li){
-      var top=yy+Y.band, ch=cardH(Y,np,ne);
+      var top=yy+Y.band, ch=cardH(Y,np,ne), pars=Y.pars;
       Y.L.forEach(function(c,i){ pos[c.id]={x:x+Y.xs[i],y:top,w:Y.cw,h:ch,cx:x+Y.xs[i]+Y.cw/2,bot:top+ch}; });
       
-      var pars=[]; Y.L.forEach(function(c){ if(c.par&&pars.indexOf(c.par)<0) pars.push(c.par); });
-      Y.L.forEach(function(c){ var P=c.par?pos[c.par]:null, me=pos[c.id]; if(!P) return; var by=yy+0.10+0.07*Math.max(0,pars.indexOf(c.par));
+      Y.L.forEach(function(c){ var P=c.par?pos[c.par]:null, me=pos[c.id]; if(!P) return; var by=yy+0.10*z+0.07*Math.max(0,pars.indexOf(c.par));
         K.line(P.cx,P.bot,P.cx,by,RDC.mid,1.3); K.line(P.cx,by,me.cx,by,RDC.mid,1.3); K.arrow([[me.cx,by],[me.cx,top]],RDC.mid,1.3); });
       
-      Y.L.forEach(function(c,i){ var me=pos[c.id], pl=Y.pl[i], by=yy+0.10+0.07*Math.max(0,pars.indexOf(c.par)), mid=(by+top)/2;
-        if(!c.par){ K.t('고객 직접 보유 없음',me.cx,top-0.30,12,false,RDC.sub,'center'); }
-        var pw=chip[c.id].pw; if(pl.length){ var ph=pl.length*0.19+0.10;
-          K.rrect(me.cx-pw/2,mid-ph/2,pw,ph,0.05,RDC.w,RDC.mid,1.0); K.tl(pl,me.cx,mid-ph/2+0.05,12,true,RDC.gold,'center',0.19); }
-        var ot=chip[c.id].t; if(ot){ var ow=K.w(ot,12,false)+0.22, ox=me.x+me.w-ow, oy=mid-0.15;
-          K.line(ox+ow/2,oy+0.30,ox+ow/2,top,RDC.bar2,1.0,true); K.rect(ox,oy,ow,0.30,RDC.w,RDC.bar2,0.9,true); K.t(ot,ox+ow/2,oy+0.06,12,false,RDC.body,'center'); }
+      Y.L.forEach(function(c,i){ var me=pos[c.id], pl=Y.pl[i], by=yy+0.10*z+0.07*Math.max(0,pars.indexOf(c.par)), mid=(by+0.05+top-HG)/2;
+        if(!c.par){ K.t('고객 직접 보유 없음',me.cx,top-0.30*z,F,false,RDC.sub,'center'); }
+        if(pl.length){ var ph=phOf(pl), pw=Math.max.apply(null,pl.map(function(t){ return K.w(t,F,true); }))+0.26*z;
+          K.rrect(me.cx-pw/2,mid-ph/2,pw,ph,0.05,RDC.w,RDC.mid,1.0); K.tl(pl,me.cx,mid-0.095*z*pl.length,F,true,RDC.gold,'center',0.19*z); }
       });
       
       Y.L.forEach(function(c){ var P=pos[c.id], cx=P.x, cy=P.y, w=P.w;
         K.rect(cx,cy,w,P.h,RDC.panel,c.plan?RDC.mid:RDC.line,c.plan?1.6:0.9);
-        var tg=c.tag?(c.plan?'플랜 회사, ':'')+c.tag:(c.plan?'플랜 회사':''), tgw=tg?K.w(tg,12,true)+0.22:0, nm=rdMGovNm(c.name);
-        if(tgw>w*0.55){ tg=c.tag||''; tgw=tg?K.w(tg,12,true)+0.22:0; } if(tgw>w*0.55){ tg=''; tgw=0; }
-        if(tg){ K.rect(cx+w-tgw-0.10,cy+0.09,tgw,0.27,RDC.mid); K.t(tg,cx+w-tgw/2-0.10,cy+0.13,12,true,RDC.w,'center'); }
-        var nmW=w-0.24-(tg?tgw+0.12:0), nmT=rdMGovEl(K,nm,nmW,14,true); K.t(nmT,cx+0.12,cy+0.11,14,true,RDC.ink);
-        var used=K.w(nmT,14,true), ind=c.ind?'('+c.ind+')':''; if(ind&&nmW-used-0.1>0.6) K.t(rdMGovEl(K,ind,nmW-used-0.1,12,false),cx+0.12+used+0.1,cy+0.14,12,false,RDC.sub);
+        var tg=c.tag?(c.plan?'플랜 회사, ':'')+c.tag:(c.plan?'플랜 회사':''), tgw=tg?K.w(tg,F,true)+0.22*z:0, nm=rdMGovNm(c.name);
+        if(tgw>w*0.55){ tg=c.tag||''; tgw=tg?K.w(tg,F,true)+0.22*z:0; } if(tgw>w*0.55){ tg=''; tgw=0; }
+        if(tg){ K.rect(cx+w-tgw-0.10,cy+dy+0.09*z,tgw,0.27*z,RDC.mid); K.t(tg,cx+w-tgw/2-0.10,cy+dy+0.13*z,F,true,RDC.w,'center'); }
+        var nmW=w-0.24-(tg?tgw+0.12:0), nmT=rdMGovEl(K,nm,nmW,14*z,true); K.t(nmT,cx+0.12,cy+dy+0.11*z,14*z,true,RDC.ink);
+        var used=K.w(nmT,14*z,true), ind=c.ind?'('+c.ind+')':''; if(ind&&nmW-used-0.1>0.6) K.t(rdMGovEl(K,ind,nmW-used-0.1,F,false),cx+0.12+used+0.1,cy+dy+0.14*z,F,false,RDC.sub);
         K.line(cx+0.10,cy+hdH-0.02,cx+w-0.10,cy+hdH-0.02,RDC.line,0.75);
-        var ly=cy+hdH+0.03, rw2=function(r,x1,x2){ var lw=K.w(r[0],12,false); K.t(r[0],x1,ly,12,false,RDC.sub); var vw=x2-x1-lw-0.12; K.t(rdMGovEl(K,r[1],vw,12,true),x2,ly,12,true,RDC.ink,'right'); };
+        var ly=cy+hdH+0.03*z+(lh-F*1.22/72)/2, rw2=function(r,x1,x2){ var lw=K.w(r[0],F,false); K.t(r[0],x1,ly,F,false,RDC.sub); var vw=x2-x1-lw-0.12; K.t(rdMGovEl(K,r[1],vw,F,true),x2,ly,F,true,RDC.ink,'right'); };
         var A=(c.rows||[]).slice(0,np), B=(c.rows2||[]).slice(0,np), E=(c.ext||[]).slice(0,ne);
         if(Y.two){ var mx=cx+0.12+(w-0.24)*0.56;
           for(var k=0;k<np;k++){ if(A[k]) rw2(A[k],cx+0.12,mx-0.10); if(B[k]) rw2(B[k],mx+0.10,cx+w-0.12); ly+=lh; }
-          K.line(mx,cy+hdH+0.04,mx,cy+hdH+np*lh,RDC.line,0.6); }
+          K.line(mx,cy+hdH+0.04*z,mx,cy+hdH+np*lh,RDC.line,0.6); }
         else { var one=[]; for(var k2=0;k2<np;k2++){ if(A[k2]) one.push(A[k2]); if(B[k2]) one.push(B[k2]); } one.slice(0,8).forEach(function(r){ rw2(r,cx+0.12,cx+w-0.12); ly+=lh; }); }
-        E.forEach(function(r){ var lw=K.w(r[0],12,false); K.t(r[0],cx+0.12,ly,12,false,RDC.sub); K.t(rdMGovEl(K,r[1],w-0.36-lw,12,false),cx+0.24+lw,ly,12,false,RDC.body); ly+=lh; });
+        E.forEach(function(r){ var lw=K.w(r[0],F,false); K.t(r[0],cx+0.12,ly,F,false,RDC.sub); K.t(rdMGovEl(K,r[1],w-0.36-lw,F,false),cx+0.24+lw,ly,F,false,RDC.body); ly+=lh; });
       });
       
-      Y.adj.forEach(function(e,i){ if(!e.length) return; var A=pos[Y.L[i].id], B=pos[Y.L[i+1].id], gx=A.x+A.w, gw=B.x-gx, my=A.y+hdH+0.35;
-        e.forEach(function(q,j){ var yq=my+j*0.62, toR=q.from===Y.L[i].id; K.arrow(toR?[[gx,yq],[B.x,yq]]:[[B.x,yq],[gx,yq]],RDC.mid,1.2);
-          var bw=Math.max(K.w(q.a,12,true),K.w(q.b,12,true))+0.24; K.rrect(gx+(gw-bw)/2,yq-0.21,bw,0.42,0.05,RDC.w,RDC.mid,1.0); K.tl([q.a,q.b],gx+gw/2,yq-0.17,12,true,RDC.gold,'center',0.19); }); });
+      Y.adj.forEach(function(e,i){ if(!e.length) return; var A=pos[Y.L[i].id], B=pos[Y.L[i+1].id], gx=A.x+A.w, gw=B.x-gx, my=A.y+hdH+0.35*z;
+        e.forEach(function(q,j){ var yq=my+j*0.62*z, toR=q.from===Y.L[i].id; K.arrow(toR?[[gx,yq],[B.x,yq]]:[[B.x,yq],[gx,yq]],RDC.mid,1.2);
+          var bw=bxW(q), bx=toR?gx+0.04:B.x-0.04-bw; K.rrect(bx,yq-0.21*z,bw,0.42*z,0.05,RDC.w,RDC.mid,1.0); K.tl([q.a,q.b],bx+bw/2,yq-0.17*z,F,true,RDC.gold,'center',0.19*z); }); });
       yy=top+ch;
     });
   }, notes:function(){ var o=notes.slice(); (b.xl||[]).forEach(function(q){ if(!drawnX[q.from+'>'+q.to]) o.push('회사끼리 지분 : '+q.txt); }); (b.cos||[]).forEach(function(c){ if(c.via) o.push(c.via); }); return o.concat(b.notes||[]); }};
@@ -31063,18 +31214,51 @@ function rdMGovPage(ctx,u,b){
   var runs=(u.sl&&u.sl.concl)?[].concat(u.sl.concl):[{t:'고객 '+(b.root||'')+' 지분가치 총액 '+(b.total||'')}];
   return [{title:u.title,conclRuns:runs,noDrop:1,build:function(K,top,opt){
     
-    var gap=opt&&opt.tight?0.12:0.17, avail=RD_BOT-top-0.04, f=rdMGovFig(ctx,RD_W,b,avail), nt=null;
-    for(var i=0;i<3;i++){ var L=f.notes(); nt=L.length?rdNote(K,RD_W,L.join('\n')):null; var h2=avail-(nt?nt.h+gap:0); if(f.h<=h2+1e-6&&i>0) break; f=rdMGovFig(ctx,RD_W,b,h2); }
-    var L2=f.notes(); nt=L2.length?rdNote(K,RD_W,L2.join('\n')):null;
-    return nt?[f,nt]:[f];
+    var gap=opt&&opt.tight?0.12:0.17, avail=RD_BOT-top-0.04;
+    var fit=function(z){ var f=rdMGovFig(ctx,RD_W,b,avail,z), nt=null;
+      for(var i=0;i<3;i++){ var L=f.notes(); nt=L.length?rdNote(K,RD_W,L.join('\n')):null; var h2=avail-(nt?nt.h+gap:0); if(f.h<=h2+1e-6&&i>0) break; f=rdMGovFig(ctx,RD_W,b,h2,z); }
+      var L2=f.notes(); nt=L2.length?rdNote(K,RD_W,L2.join('\n')):null; f.L2=L2.length; return {f:f, nt:nt, ok:f.h<=avail-(nt?nt.h+gap:0)+1e-6}; };
+    
+    var best=fit(1), z1=best.f;
+    for(var z=1.40;z>1.001;z=Math.round((z-0.02)*100)/100){ var r=fit(z); if(r.ok&&r.f.np===z1.np&&r.f.ne===z1.ne&&r.f.und<=z1.und&&(r.f.mode===z1.mode||r.f.mode.replace(/2/g,'1')===r.f.mode)&&Object.keys(r.f.cutE).every(function(k){ return z1.cutE[k]; })&&r.f.bad<=z1.bad&&r.f.L2===z1.L2){ best=r; break; } }
+    
+    var zz=best.f.z, fit2=function(v){ var f=rdMGovFig(ctx,RD_W,b,avail,zz,v), nt=null;
+      for(var i=0;i<3;i++){ var L=f.notes(); nt=L.length?rdNote(K,RD_W,L.join('\n')):null; var h2=avail-(nt?nt.h+gap:0); if(f.h<=h2+1e-6&&i>0) break; f=rdMGovFig(ctx,RD_W,b,h2,zz,v); }
+      var L2=f.notes(); nt=L2.length?rdNote(K,RD_W,L2.join('\n')):null; f.L2=L2.length; f.sp=v; return {f:f, nt:nt, ok:f.h<=avail-(nt?nt.h+gap:0)+1e-6}; };
+    for(var v=1.40;v>1.001;v=Math.round((v-0.02)*100)/100){ var r2=fit2(v), b0=best.f; if(r2.ok&&r2.f.np===b0.np&&r2.f.ne===b0.ne&&r2.f.und<=b0.und&&r2.f.mode===b0.mode&&r2.f.L2===b0.L2){ best=r2; break; } }
+    ctx.log.push('여러 회사 구조도 : 키움 '+best.f.z.toFixed(2)+'배, 세로 '+(best.f.sp||1).toFixed(2)+'배, 카드 줄 '+best.f.np+' + '+best.f.ne+', 높이 '+best.f.h.toFixed(2)+' / '+avail.toFixed(2));
+    return best.nt?[best.f,best.nt]:[best.f];
   }}];
+}
+
+function rdGov1On(){ try{ if(window.RD_GOV1_OFF) return false; if(window.__reqIn&&window.__reqIn.govGroup) return false; }catch(e){} return true; }
+function rdGov1Block(ctx,b){
+  var k=(b.kids||[])[0]; if(!k) return null;
+  var kv={}; (k.rows||[]).forEach(function(r){ kv[r[0]]=rdTx(r[1]); });
+  var root=rdTx(b.root).split(/\s*,\s*/)[0].trim();
+  var C1={}; try{ C1=(window.MULTI&&MULTI.card1)?(MULTI.card1()||{}):{}; }catch(e){}
+  var sh=[]; try{ var su=rdFind(ctx.units,/^자산가치평가 — .* — 주주 현황$/), R=rdRows(su,0);
+    if(R){ var cP=rdColOf(R,/지분율/), cN=rdColOf(R,/주식 ?수/), cV=rdColOf(R,/할증평가 미적용/);
+      R.slice(1).forEach(function(r){ if(/합 *계/.test(r[0])) return; sh.push({name:String(r[0]||'').replace(/\s*\(법인\)\s*$/,'').trim(), shares:cN>=0?(rdV(r[cN])||0):0, pct:cP>=0?String(r[cP]||''):'', val:cV>=0?rdV(r[cV]):null, ts:/자기주식/.test(String(r[0]||''))}); }); } }catch(e){}
+  var me=function(n){ return String(n||'').replace(/\s*\(.*\)\s*$/,'').trim()===root; };
+  var top=sh.filter(function(x){ return !x.ts; }).sort(function(a,c){ return c.shares-a.shares; })[0];
+  var oth=sh.filter(function(x){ return !me(x.name)&&x.shares>0; }).map(function(x){ return {name:x.ts?'자기주식':x.name, shares:x.shares, pct:x.pct, val:(x.ts||!(x.val>0))?'':rdEk(x.val)}; });
+  var hv=k.head?rdM(k.head,/지분가치 ([\d.,]+억원)/):'', pm=/([\d.]+%)\s*$/.exec(rdTx(k.tg||'')), pin=hv?'지분가치 '+hv+(pm?' ('+pm[1]+')':''):'';
+  var mth=kv['평가방식']||'', tag=/80% 하한/.test(mth)?'80% 하한':(C1.tag||'');
+  var nz=function(L){ return L.filter(function(r){ return r[1]!=null&&String(r[1]).trim()!==''; }); }, won=function(t){ return /억$/.test(String(t||''))?t+'원':t; };   
+  var rows=nz([['1주 평가액',kv['1주 평가액']],['최대주주',top?top.name+' '+top.pct:'정본 필요'],['법인 평가총액',won(C1.total)||''],['사업용자산비율',kv['사업용자산비율']||C1.ba||'-'],['순손익가치',kv['순손익가치']],['순자산가치',kv['순자산가치']],['사업무관자산',kv['사업무관자산']]]);
+  var rows2=nz([['대표이사',C1.ceo||'정본 필요'],['대표이사 나이',C1.age||'정본 필요'],['3년평균매출액',won(C1.rev3)||'정본 필요'],['업력',C1.yrs||'정본 필요'],['순자산가액',kv['순자산가액']],['이익잉여금',kv['이익잉여금']],['가업승계 경영기간',kv['가업승계 경영기간']]]);
+  var ext=nz([['취급품목',C1.prod||'정본 필요'],['평가방식',C1.mth||mth],['최근 3년 순손익',kv['최근 3년 순손익']]]);
+  return {t:'mgov', root:root, total:hv, np:Math.max(rows.length,rows2.length), ne:ext.length, cos:[{id:'c1', name:k.nm, ind:C1.ind||'', tag:tag, plan:false, lv:1, par:'root', rows:rows, rows2:rows2, ext:ext, oth:oth, pin:pin}], xl:[], notes:[]};   
 }
 function rdGovPage(ctx,u){
   var mg=(u.blocks||[]).filter(function(x){ return x&&x.t==='mgov'; })[0]; if(mg) return rdMGovPage(ctx,u,mg);   
   var b=(u.blocks||[]).filter(function(x){ return x&&x.t==='tree'; })[0]; if(!b) return null;
+  var g1=null; if((b.kids||[]).length===1&&rdGov1On()){ try{ g1=rdGov1Block(ctx,b); }catch(e){ g1=null; ctx.log.push('법인 1개 구조도 실패 — 종전 그림 : '+e.message); } }
   var k=(b.kids||[])[0]; var r1=k?(k.rows||[]).filter(function(r){ return /^1주 평가액/.test(r[0]); })[0]:null;
   var runs=[{t:rdTx(b.root).replace(/^([^,]+), /,'$1 ')},r1?{t:' / 1주 평가액 '+r1[1],b:true,col:RDC.gold}:null].filter(Boolean);
   if(k&&k.head){ var hm=rdM(k.head,/지분가치 ([\d.,]+억원)/); if(hm) runs=[{t:rdTx(k.tg)+' (주)'.replace(' (주)','')+' 지분가치 '+hm},r1?{t:' / 1주 평가액 '+r1[1],b:true,col:RDC.gold}:null].filter(Boolean); }
+  if(g1){ var P1=rdMGovPage(ctx,u,g1); if(P1&&P1[0]) P1[0].conclRuns=runs; ctx.log.push('법인 1개 구조도 : '+g1.cos[0].name); return P1; }
   return [{title:u.title,conclRuns:runs,build:function(K,top,opt){ return [rdGovFig(ctx,RD_W,b,opt)]; }}];
 }
 
@@ -31213,7 +31397,7 @@ function rdShPage(ctx,u){
 }
 
 function rdYearPage(ctx,u){
-  var tb=rdTab(u,0), cap=(u.blocks||[]).filter(function(b){ return b&&b.t==='caption'; })[0], note=(u.blocks||[]).filter(function(b){ return b&&b.t==='note'; })[0];
+  var tb=rdTab(u,0), cap=(u.blocks||[]).filter(function(b){ return b&&b.t==='caption'; })[0], notes=(u.blocks||[]).filter(function(b){ return b&&b.t==='note'; }), note=notes[0];   
   if(!tb) return null;
   var R=tb.rows.map(function(r){ return r.map(rdRaw); }), ps=rdRowOf(R,/^1주당 평가액/), tv=rdRowOf(R,/^평가 총액/);
   if(!ps) return null;
@@ -31232,6 +31416,7 @@ function rdYearPage(ctx,u){
     var it=[]; if(capT) it.push(rdCap(K,W,capT));
     it.push(row);
     if(note) it.push(rdNote(K,W,rdTx(note.text).replace(/ — 다른 조건은 그대로 두고 순손익 변동 효과만 격리해 보여줌/,'').replace(/ — 실제 예상 미래가치/,' / 실제 예상 미래가치'),opt.tight?2:3));
+    notes.slice(1).forEach(function(nb){ it.push(rdNote(K,W,rdTx(nb.text),opt.tight?2:3)); });   
     return it;
   }}];
 }
@@ -37058,7 +37243,7 @@ function selGet(m){ if(MOD_ALWAYS[m.id]) return false;
   }
   function setCfg(k,v,defer){
     if(typeof CK!=='object'||!CK.p) return;
-    CK.p[k]=v;
+    CK.p[k]=v; ckSec2Mark(k);
     try{ if(CK.coSave) CK.coSave(); }catch(e){DIAG(e)}
     if(defer){ st.dirty=true; cfgMark(); return; }
     cfgApply();
@@ -37148,8 +37333,8 @@ function selGet(m){ if(MOD_ALWAYS[m.id]) return false;
      h:'「검토 중」으로 두면 소득세법 §118의9 국외전출세(출국일 의제양도)를 산정함'},
     {g:'가족·상속',k:'spousePct',l:'배우자 보유 지분율(%)',t:'num',mn:0,mx:100,st:0.01,
      
-     ph:function(){ return (window.__stratSpSet&&typeof window.__userSpousePct==='number')?(window.__userSpousePct+' (자동, 주주 현황 배우자 · 직접 입력하면 우선)'):'공란 = 2차 상속 계산 생략'; },
-     h:'배우자가 따로 보유한 지분율. 넣으면 <b>Ⅲ+ 배우자 2차 상속</b> 절(1차 남편 유고 → 배우자 대납 → 2차 배우자 유고)이 생성됨'},
+     ph:function(){ return (window.__stratSpSet&&typeof window.__userSpousePct==='number')?(window.__userSpousePct+' (자동, 주주 현황 배우자 · 직접 입력하면 우선)'):'공란 = 지분 없음'; },
+     h:'배우자가 따로 보유한 지분율. 이 칸이나 배우자 개인재산 칸을 넣으면 <b>Ⅲ+ 배우자 2차 상속</b> 절(1차 남편 유고 → 배우자 대납 → 2차 배우자 유고)이 생성됨 · 지분이 없으면 0(개인재산과 1차 상속분으로 계산)'},
     
     {g:'가족·상속',k:'spOther',l:'배우자 개인재산 — 기타(억)',t:'eok',
      h:'배우자 <b>본인 명의</b> 부동산 등 주식 외 재산. 2차 상속재산에 합산됨 · 1차 상속재산에는 포함되지 않는다'},
@@ -37353,8 +37538,8 @@ function selGet(m){ if(MOD_ALWAYS[m.id]) return false;
   }
   function setCo(id,k,v,defer){
     if(typeof CK!=='object') return;
-    if(id){ CK.pc[id]=CK.pc[id]||{}; CK.pc[id][k]=v; }
-    if(!id||id===cfgCurCo()) CK.p[k]=v;
+    if(id){ CK.pc[id]=CK.pc[id]||{}; CK.pc[id][k]=v; if(SEC2_KEYS.test(k)) CK.pc[id].sec2Ask=1; }
+    if(!id||id===cfgCurCo()){ CK.p[k]=v; ckSec2Mark(k); }
     if(defer){ st.dirty=true; cfgMark(); return; }
     cfgApply();
   }
@@ -37724,7 +37909,7 @@ function selGet(m){ if(MOD_ALWAYS[m.id]) return false;
           ' · 지분가치 <b>'+ek(h.value)+'</b>'],
         ['주주 구성', ((c.slot.sh||[]).filter(function(y){ return !y.unknown&&(y.ratio||0)>0; })
             .sort(function(a,b){ return (b.ratio||0)-(a.ratio||0); })
-            .map(function(y){ return esc(y.name||'미상')+(y.treasury?'(자기주식)':'')+' '+pc(y.ratio); }).join(' · ')||'미등록')],
+            .map(function(y){ return (y.treasury?'자기주식':esc(y.name||'미상'))+' '+pc(y.ratio); }).join(' · ')||'미등록')],
         ['사업용자산 비율', (c.ba===null||c.ba===undefined)?'미산출':pc(c.ba,0)+
           ' <span class="mu">가업상속공제 대상액 = 지분가치 × 이 비율</span>'],
         ['경영기간 · 업종', ((c.yrs===null||c.yrs===undefined)?'미상':c.yrs+'년')+' · '+
@@ -38732,7 +38917,7 @@ function selGet(m){ if(MOD_ALWAYS[m.id]) return false;
               if(window.MULTI&&MULTI.on&&sc>0&&vc.tot>0) pct=sc/vc.tot*100;   
               var pv=sc*parV, vv=sc*base1;
               sS+=sc; sP+=pv; sV+=vv;
-              B.push([CH.rh(plain(y.name||'미상')+(y.treasury?' (자기주식)':'')+((y.isCorp&&window.MULTI&&MULTI.on&&!/\(법인\)/.test(String(y.name||'')))?' (법인)':''),{align:'left'}),   
+              B.push([CH.rh(y.treasury?'자기주식':(plain(y.name||'미상')+((y.isCorp&&window.MULTI&&MULTI.on&&!/\(법인\)/.test(String(y.name||'')))?' (법인)':'')),{align:'left'}),   
                       CH.n(fmt(sc)+' 주'),CH.c(pct.toFixed(2)+'%'),
                       CH.n(parV?fmt(pv):'—'),CH.n(fmt(vv)),
                       CH.n(vr2.premiumApplied?fmt(sc*Math.round(vr2.finalValue)):'해당없음')]);
@@ -38747,7 +38932,7 @@ function selGet(m){ if(MOD_ALWAYS[m.id]) return false;
             var nameW0=1.889, restW0=1.444+1.111+1.889+1.833+1.833;
             var maxNameW=0;
             SH2.forEach(function(y){
-              var nmW=txtW(plain(y.name||'미상')+(y.treasury?' (자기주식)':''),12)+0.22;
+              var nmW=txtW(y.treasury?'자기주식':plain(y.name||'미상'),12)+0.22;
               if(nmW>maxNameW) maxNameW=nmW;
             });
             var nameW=Math.max(nameW0,Math.min(3.2,maxNameW));
@@ -38940,8 +39125,9 @@ function selGet(m){ if(MOD_ALWAYS[m.id]) return false;
       try{
         var P2=(typeof CK==='object'&&CK.p)?CK.p:{};
         if(P2.spouse!=='yes') return;                       
-        var spPct=(typeof window.__userSpousePct==='number')?window.__userSpousePct:CK.n(P2.spousePct);
-        if(!(spPct>0)) return; 
+        var spPct=(typeof window.__userSpousePct==='number')?window.__userSpousePct:Math.max(0,CK.n(P2.spousePct)||0);
+        
+        if(!(spPct>0)&&!P2.sec2Ask) return;
         var r2=S.result; if(!r2||!(r2.finalValue>0)) return;
         var ownPct2=(typeof window.__userStakePct==='number')?window.__userStakePct:0;
         if(!(ownPct2>0)){ var e2=document.getElementById('ckcfg-pct'); if(e2) ownPct2=TE.num(e2.value); }
@@ -38990,7 +39176,7 @@ function selGet(m){ if(MOD_ALWAYS[m.id]) return false;
         var L=function(lab,a,b,em){ return [em?CH.em(lab,{align:'left'}):CH.rh(lab,{align:'left'})]
           .concat([em?CH.emn(a):CH.n(a), em?CH.emn(b):CH.n(b)]); };
         var rows2=[H,
-          L('비상장주식 지분가액',ek(stockH)+' ('+ownPct2.toFixed(2)+'%)',ek(stockW)+' ('+spPct.toFixed(2)+'%)'),
+          L('비상장주식 지분가액',ek(stockH)+' ('+ownPct2.toFixed(2)+'%)',spPct>0?(ek(stockW)+' ('+spPct.toFixed(2)+'%)'):'없음 (지분 0%)'),
           L('개인재산 (기타·금융)',ek(other2+fin2),spOwn>0?(ek(spOwn)+' (배우자 명의)'):'—'),
           L('1차에서 이전받은 재산','—',ek(wNet)),
           L('상속재산가액',ek(E1),ek(E2),true),
@@ -39009,7 +39195,7 @@ function selGet(m){ if(MOD_ALWAYS[m.id]) return false;
         content('Ⅲ. 배우자 2차 상속 — 1차·2차 합산',
           '현 시점 남편 유고 가정 · 배우자 법정상속분('+(1.5/(1.5+kids2)*100).toFixed(1)+'%) 한도 상속 · '+
           '1차 상속세는 배우자가 연대납세의무 한도 내에서 전액 대납 (상증법 §3의2③)'+
-          (spOwn>0?(' · 배우자 개인재산 '+ek(spOwn)+' 반영'):' · 배우자 개인재산 미입력')+
+          (spOwn>0?(' · 배우자 개인재산 '+ek(spOwn)+' 반영'):(P2.sec2Ask?' · 배우자 개인재산 0원':' · 배우자 개인재산 미입력'))+(spPct>0?'':' · 배우자 지분 없음')+
           (srCr>0?(' · §30 공제 '+(srRate(gapY)*100).toFixed(0)+'% 반영(경과 '+gapY+'년)'):''),[
           {t:'table',fs:11.5,dense:true,rows:rows2,colW:[3.4,3.4,3.4]},
           {t:'note',keep:true,text:'1차 상속세 '+ek(T1)+' + 2차 상속세 '+ek(T2)+' = '+
@@ -42565,7 +42751,7 @@ function selGet(m){ if(MOD_ALWAYS[m.id]) return false;
     var lab=btn?btn.textContent:'';
     if(btn){ btn.disabled=true; btn.textContent='PDF 생성 중…'; }
     try{ renderPdf2(deck2Model()); }
-    catch(e){ alert('FO센터양식 생성 실패 — '+e.message); console.error(e); }
+    catch(e){ alert((rdBlue()?'블루':'골드')+' PDF 생성 실패 — '+e.message); console.error(e); }
     if(btn){ btn.disabled=false; btn.textContent=lab; }
   }
   
@@ -43130,7 +43316,7 @@ var MULTI=(function(){
   }
   
   function addTs(c){ var ts=c.inp&&c.inp.shares&&c.inp.shares.treasury?nn(c.inp.shares.treasury.shares):0;
-    if(ts>0&&!(c.rows||[]).some(function(r){ return r.rel==='자기주식'; })) c.rows.push({name:'자기주식(회사 자신)', shares:ts, pct:null, rel:'자기주식', co:'', orig:{name:'자기주식(회사 자신)', shares:ts, co:''}, hand:{}}); }
+    if(ts>0&&!(c.rows||[]).some(function(r){ return r.rel==='자기주식'; })) c.rows.push({name:'자기주식', shares:ts, pct:null, rel:'자기주식', co:'', orig:{name:'자기주식', shares:ts, co:''}, hand:{}}); }   
   
   function many(){ return st.cos.filter(function(c){ return c.inp; }).length>=2; }   
   function autoFill(c){
@@ -43601,6 +43787,11 @@ var MULTI=(function(){
     C.forEach(function(c){ if(lv[c.id]==null){ lv[c.id]=1; par[c.id]=null; } });
     return {lv:lv, par:par, own:own};
   }
+  
+  function card1(){ var K=liveCard(), age=ageOf(K.birth), yrs=K.mgmt||yrsSince(K.founded), r={}; try{ r=(typeof S==='object'&&S&&S.result)||{}; }catch(e){}
+    var u=+r.finalValue||0, eff=+r.effectiveShares||+r.shares||0, wt=mWt(r.method), kind=mKind(r.method);
+    return {ind:String(K.ind||'').replace(/^\s*\([A-Za-z]?\d+\)\s*/,''), ceo:K.ceo||'', age:age!=null?age+'세':'', rev3:K.rev3>0?eok(K.rev3):'', yrs:yrs!=null?yrs+'년':'', prod:K.prod||'',
+      ba:K.ba!=null?(K.ba*100).toFixed(1)+'%':'', total:(u>0&&eff>0)?eok(u*eff):'', tag:r.floorApplied?'80% 하한':(kind||''), mth:kind?kind+(wt?' (순손익 '+wt.replace(' : ',' : 순자산 ')+')':'')+(r.floorApplied?', 순자산가치 80% 하한':''):''}; }
   function govSlide2(){
     var P=byId(st.plan), EP=effPct(), L=coLevels(), C=st.cos.filter(function(c){ return c.inp; });
     C.sort(function(a,b){ return (L.lv[a.id]-L.lv[b.id])||((a===P?0:1)-(b===P?0:1))||(((uShow(b)||0)*L.own[b.id])-((uShow(a)||0)*L.own[a.id])); });
@@ -43621,7 +43812,7 @@ var MULTI=(function(){
     var xl=[]; (st.links||[]).forEach(function(l){ if(L.par[l.to]===l.from) return; var X=byId(l.from), Y=byId(l.to), ln=(st.sol.lines[l.from]||[]).filter(function(q){ return q.to===l.to; })[0]; if(!X||!Y) return;
       xl.push({from:l.from, to:l.to, a:X.name+' 보유', b:(ln?eok(ln.adopted)+' ('+pctS(+ln.pct||0)+')':won(l.shares)+'주'), txt:X.name+' → '+Y.name+' '+won(l.shares)+'주'+(ln?' ('+pctS(+ln.pct||0)+'), '+eok(ln.adopted):'')}); });
     var nt=[]; C.forEach(function(c){ if(afTxt(c)) nt.push(c.name+' '+afTxt(c).replace(/\s*\[확인 필요\]$/,'')); });
-    var alt=[]; C.forEach(function(c){ var iss=issued(c), u=uShow(c); (c.rows||[]).filter(function(r){ return nn(r.shares)>0; }).forEach(function(r){ alt.push([r.co?((byId(r.co)||{}).name||r.name)+' (법인)':r.name, c.name, won(r.shares)+'주', iss>0?pctS(nn(r.shares)/iss):'-', r.rel==='자기주식'?'-':eok(nn(r.shares)*(u||0))]); }); });
+    var alt=[]; C.forEach(function(c){ var iss=issued(c), u=uShow(c); (c.rows||[]).filter(function(r){ return nn(r.shares)>0; }).forEach(function(r){ alt.push([r.co?((byId(r.co)||{}).name||r.name)+' (법인)':(r.rel==='자기주식'?'자기주식':r.name), c.name, won(r.shares)+'주', iss>0?pctS(nn(r.shares)/iss):'-', r.rel==='자기주식'?'-':eok(nn(r.shares)*(u||0))]); }); });
     var at=tbl(['주주','회사','주식 수','지분율','평가액'],alt); at.alt='mgov';
     var S2=slide('Ⅰ. 현황 — 지배구조','고객 '+st.client+' → 보유 회사 지배 관계 · 선 위 = 지분가치 (지분율)',[{t:'mgov', root:st.client, total:eok(tot), cos:cos, xl:xl, notes:nt}, at]);
     var sh=cos.map(function(x){ var c=byId(x.id), eP=EP.E[x.id]||0, dP=EP.d[x.id]||0; return c.name+' '+(eP-dP>1e-9?'실질 '+pctS(eP):(dP>0?pctS(dP):'보유 없음')); });
@@ -43645,7 +43836,7 @@ var MULTI=(function(){
     var prem=!!r.premiumApplied&&+r.premium>0, base=prem?(u||0)-(+r.premium):(u||0);
     var head=['주주명','주식 수','지분율','액면가액','평가금액 (할증평가 미적용)'].concat(prem?['평가금액 (할증평가 적용)']:[]);
     var sS=0, sP=0, sV=0, sX=0, rows=(c.rows||[]).filter(function(x){ return nn(x.shares)>0; }).sort(function(a,b){ return ((a.rel==='자기주식')-(b.rel==='자기주식'))||(nn(b.shares)-nn(a.shares)); }).map(function(x){ var s=nn(x.shares), ts=x.rel==='자기주식'; sS+=s; sP+=s*par; sV+=s*base; sX+=s*(u||0);
-      return [x.co?((byId(x.co)||{}).name||x.name)+' (법인)':(x.name+(ts&&!/자기주식/.test(x.name)?' (자기주식)':'')), won(s)+' 주', iss>0?pctS(s/iss):'-', par?won(s*par):'—', won(s*base)].concat(prem?[won(s*(u||0))]:[]); });
+      return [x.co?((byId(x.co)||{}).name||x.name)+' (법인)':(ts?'자기주식':x.name), won(s)+' 주', iss>0?pctS(s/iss):'-', par?won(s*par):'—', won(s*base)].concat(prem?[won(s*(u||0))]:[]); });
     var sm=['합 계', won(sS)+' 주', iss>0?pctS(sS/iss):'100.00%', par?won(sP):'—', won(sV)].concat(prem?[won(sX)]:[]); sm.__b=1; rows.push(sm);
     var top=(c.rows||[]).filter(function(x){ return nn(x.shares)>0&&x.rel!=='자기주식'; }).sort(function(a,b){ return nn(b.shares)-nn(a.shares); })[0];
     var S3=slide('Ⅱ. 자산가치평가 — '+nm+' — 주주 현황','주주 '+(rows.length-1)+'명 · 지분율, 평가금액 · 단위: 원',[tbl(head,rows),{t:'note', keep:true, text:'법인 주주 = 회사끼리 지분(묶어 계산) / 평가금액 = 1주 평가액 '+won(u)+'원 × 주식 수'+(prem?'':' / 평가금액 (할증평가 적용) : 해당없음 (최대주주 할증평가 미적용 법인)')}].concat((function(){ var t=parNote(c.name); return t?[{t:'note', keep:true, text:t}]:[]; })()));   
@@ -43666,9 +43857,90 @@ var MULTI=(function(){
     
     var arr=function(x){ return Array.isArray(x)?x:[]; }, ni=arr(r.netIncomesAdjusted), ip=arr(r.incomePerShareByYear), ww=arr(r.yearWeightsUsed).length?arr(r.yearWeightsUsed):arr(r.weightWeights), ys=arr(c.inp&&c.inp.income).map(function(x){ return String(x&&x.yearEnd||'').slice(0,4); }), yr=[];
     for(var k=0;k<Math.max(ni.length,ip.length);k++) yr.push([ys[k]||('직전 '+(k+1)), won(ni[k])+'원', won(ip[k])+'원', ww[k]!=null?String(ww[k]):'-']);
+    
+    var FO=null; try{ FO=foSlides(c,R,r); }catch(e){ try{ DIAG(e,'multi.foSlides'); }catch(x){} FO=null; }
+    if(FO) return [FO[0], shSlide(c,c.name), FO[1]];
     return [slide('Ⅱ. 자산가치평가 — '+c.name,'여러 회사 묶어 계산 · 상증법 §63, 상증령 §54 보충적 평가',[tbl(['구분','값'],rows)]),
       shSlide(c,c.name),   
       slide('Ⅱ. 가치평가 — '+c.name,'1주 '+won(fv(c.id))+'원, '+(r.method||''),[tbl(['사업연도','순손익액','1주당 순손익','가중치'],yr.length?yr:[['-','-','-','-']])])];
+  }
+  
+  function foSlides(c,R,r){
+    if(!R||!r||typeof CH!=='object') return null;
+    var f=function(v){ return (v===null||v===undefined||!isFinite(+v))?'—':Math.round(+v).toLocaleString('ko-KR'); };
+    var ek2=function(v){ var x=Math.abs(+v||0); return (v<0?'-':'')+(Math.floor(x/1e6)/100).toLocaleString('ko-KR',{maximumFractionDigits:2})+'억원'; };
+    var u=fv(c.id); if(!(u>0)&&u!==0) return null;
+    var inc=(c.inp&&c.inp.income)||[], ys=inc.map(function(x){ return String(x&&x.yearEnd||''); });
+    var P=R.params||{}, reR=+r.realEstateRatio||0, stR=+r.stockRatio||0, meth=String(r.method||'');
+    var mLab=/단독|순자산가치로만|순자산가치만/.test(meth)?'[3] 순자산가치 단독':(reR>=0.8||stR>=0.8)?'[3] 순자산가액':(reR>=0.5?'[2] 부동산과다법인':'[1] 일반법인');
+    var sme=(P.isSME!=null)?!!P.isSME:/중소기업/.test(String(r.premiumNote||''));
+    var sizeLab=(sme?'중소기업':(/중견/.test(String(r.premiumExempt||r.premiumNote||''))?'중견기업':'일반기업'))+' [할증평가 '+(r.premiumApplied?'○':'×')+']';
+    var tot=issued(c)||+r.shares||0, eff=+r.effectiveShares||tot;
+    var nis=(r.netIncomesAdjusted||[]), ipy=(r.incomePerShareByYear||[]);
+    var A=[[CH.h('법 인 명'),CH.h('법인구분'),CH.h('재무 기준일(결산)'),CH.h('평가방법'),CH.h('부동산등 비율')],
+           [CH.c(c.name),CH.c(sizeLab),CH.c(ys[0]||'—'),CH.c(mLab),CH.c((reR*100).toFixed(1)+'%')],
+           [CH.h('사업연도'),CH.h('순손익액'),CH.h('1주당 순손익액'),CH.h('가중평균 순손익액'),CH.h('1주당 순손익가치')]];
+    for(var yi=0;yi<3;yi++){ var nv=(nis[yi]===undefined||nis[yi]===null)?null:+nis[yi], mid=(yi===1), spo={noBot:(yi===0||yi===1), noTop:(yi===1||yi===2)};
+      A.push([CH.c(ys[yi]||'—'),CH.n(nv===null?'—':f(nv)),CH.n(nv===null?'—':f(ipy[yi]!=null?ipy[yi]:nv/(eff||1))),CH.n(mid?f(r.weightedIncomePerShare||0):'',spo),CH.n(mid?f(r.incomePerShare||0):'',spo)]); }
+    var gw=r.goodwillApplied?(+r.goodwill||0):0, naV=(r.netAsset!=null?+r.netAsset:+R.netAsset)||0, AT=R.assetTotal||{}, LT=R.liabTotal||{}, liaV=+(LT.bs!=null?LT.bs:LT)||0, taV=+(AT.bs!=null?AT.bs:AT)||0;   
+    A.push([CH.h('① 자산 총계'),CH.h('② 부채 총계'),CH.h('③ 영업권'),CH.h('순자산가액 (상증법 §63)'),CH.h('1주당 순자산가치')]);
+    A.push([CH.n(taV?f(naV+liaV):'—'),CH.n(taV?f(liaV):'—'),CH.n(f(gw)),CH.n(f(naV+gw)),CH.n(f(r.netAssetPerShare!=null?r.netAssetPerShare:r.assetPerShare))]);
+    var par=0; try{ par=nn((c.inp.shares||{}).par)||nn((c.inp.corp||{}).par)||nn(r.par); }catch(e){}
+    var prem=!!r.premiumApplied&&+r.premium>0, base1=Math.round(u-(prem?+r.premium:0));
+    var A2=[[CH.h('최종 평가금액'),CH.h('액면가액'),CH.h('평가금액 (할증평가 미적용)'),CH.h('평가금액 (할증평가 적용)')],
+            [CH.rh('1주당 금액',{align:'center'}),CH.n(par?f(par):'—'),CH.n(f(base1)),CH.n(prem?f(u):'해당없음')],
+            [CH.rh('총금액',{align:'center'}),CH.n(par?f(par*tot):'—'),CH.n(f(base1*eff)),CH.n(prem?f(Math.round(u)*eff):'해당없음')]];
+    var blk=[{t:'table',fs:12,dense:true,rows:A,colW:[2,2,2,2,2],vFloor:{on:!!r.floorApplied,w:Math.floor(+r.weightedValue||0),fl:Math.floor(+r.netAssetFloor||0),rate:(+r.floorRate||0.8)}},
+             {t:'table',fs:12,dense:true,rows:A2,colW:[2.5,2.5,2.5,2.5]}];
+    
+    var nt=[], adj=(naV+liaV)-taV;
+    if(taV&&Math.abs(adj)>=1){ var it=[], sg=function(v){ return (v>=0?'+':'−')+f(Math.abs(v))+'원'; }, oth=adj;
+      if(Math.abs(+AT.gap||0)>=1){ it.push('평가차액(보유 주식, 부동산 등) '+sg(+AT.gap)); oth-=+AT.gap; }
+      if(Math.abs(+LT.deferred||0)>=1){ it.push('이연법인세부채 제외 '+sg(+LT.deferred)); oth-=+LT.deferred; }
+      if(Math.abs(+LT.provisions||0)>=1){ it.push('충당금 등 부채 제외 '+sg(+LT.provisions)); oth-=+LT.provisions; }
+      if(Math.abs(oth)>=1) it.push('기타 순자산 가감 '+sg(oth));
+      nt.push('① 자산총계 = 장부가 '+f(taV)+'원 + 조정 '+sg(adj)+(it.length?'('+it.join(', ')+')':'')); }
+    (st.sol.lines[c.id]||[]).forEach(function(l){ var hw=String(l.how||'').replace(/\([^()]*\)/g,'').trim(); if(hw.indexOf(l.toName)===0) hw=hw.slice(String(l.toName).length).trim(); nt.push('보유 주식 — '+l.toName+' '+f(l.adopted)+'원('+hw+')'); });
+    if(nt.length) blk.push({t:'note',keep:true,text:nt.join(' / ')});
+    var pn=parNote(c.name); if(pn) blk.push({t:'note',keep:true,text:pn});
+    var yy=String(st.baseYr||'').slice(0,4)||(ys[0]||'').slice(0,4);
+    var S1=slide('Ⅱ. 자산가치평가 — '+c.name,c.name+' '+yy.slice(2)+'년 초 주식가치평가 · '+mLab+' · 발행주식총수 '+f(tot)+'주 · 단위: 원',blk);
+    
+    var Y0=parseInt(String(st.yrHead||'').slice(0,4),10)||parseInt(yy,10)||new Date().getFullYear();
+    var hdOf=function(k){ return (Y0+k)+'년 손익 반영\n('+(Y0+k+1)+'년 초 주식가치)'; };
+    var SR=null, fyO=null, gI=0, srWhy='';
+    try{
+      var Pp=R.params, li=Pp&&Pp.netIncomes?+Pp.netIncomes[0]:NaN; gI=(pvGrowthRates().i)||0;
+      if(R.adopted&&R.adopted.market) srWhy='시가(매매가) 적용 회사';
+      else if(!Pp||!isFinite(li)) srWhy='직전연도 순손익 없음';
+      else if(typeof pvValSeries!=='function') srWhy='추이 함수 없음';
+      else { fyO=Math.round(li*(1+gI/100)); var Bp=Object.assign({},Pp); delete Bp.keepFraction;
+        var ss=pvValSeries(fyO,0,2,Bp,{ta:+((R.ratio||{}).den)||0,holds:[]},true);
+        if(ss&&ss.length>2&&ss.every(function(x){ return x.v&&isFinite(+x.v.finalValue); })&&Math.abs(+ss[0].v.finalValue-u)<=1.5) SR=ss;
+        else srWhy='연도별 계산 실패'+(ss&&ss[0]&&ss[0].v?' (올해 '+f(ss[0].v.finalValue)+'원 ≠ '+f(u)+'원)':''); }
+    }catch(e){ try{ DIAG(e,'multi.yrSeries'); }catch(x){} SR=null; srWhy='연도별 계산 오류'; }
+    var sh=eff||tot, nc=SR?SR.length:1;
+    var vals=function(f0,fk){ var a=[f0]; if(SR) for(var k=1;k<SR.length;k++) a.push(fk(SR[k],k)); return a; };
+    var rw=function(lab,arr,em){ return [em?CH.em(lab,{align:'left'}):CH.rh(lab,{align:'left'})].concat(arr.map(function(v){ return em?CH.emn(v):CH.n(v); })); };
+    var tvF=function(k){ return k===0?u:+SR[k].v.finalValue; };
+    var hdr=[CH.h('구분')]; for(var hk=0;hk<nc;hk++) hdr.push(CH.h(hk===0?(st.yrHead||hdOf(0)):hdOf(hk)));
+    var tv=[hdr,
+      rw('1주당 순손익가치',vals(f(r.incomePerShare)+'원',function(x){ return f(x.v.incomePerShare)+'원'; })),
+      rw('1주당 순자산가치',vals(f(r.netAssetPerShare!=null?r.netAssetPerShare:r.assetPerShare)+'원',function(x){ return f(x.v.assetPerShare)+'원'; })),
+      rw('순자산가액',vals(ek2(naV+gw),function(x){ return ek2((+x.netAsset||0)+(x.v.goodwillApplied?(+x.v.goodwill||0):0)); })),
+      rw('1주당 평가액',vals(f(u)+'원',function(x){ return f(x.v.finalValue)+'원'; }),true),
+      rw('평가 총액 ('+((+r.treasuryShares>0&&r.treasuryMode==='cancel')||eff<tot?'자기주식 뺀 '+f(sh)+'주':'발행주식 100%')+')',vals(ek2(u*sh),function(x,k){ return ek2(tvF(k)*sh); }),true),
+      rw('직전 대비 증감',vals('—',function(x,k){ var d=(tvF(k)-tvF(k-1))*sh; return (d>=0?'+':'−')+ek2(Math.abs(d)); }))];
+    var S2=slide('Ⅱ. 가치평가 — '+c.name,'1주 '+f(u)+'원 · '+meth,[]);
+    var nt2=SR?('순손익 3개년 가중평균 편입 · 순자산 누적 · 2년차부터 이익증가율 '+gI+'% 적용 · 부동산·주식 재평가(자산상승률) 미반영 — 순손익 변동 효과만 산정 · 올해 칸 = 여러 회사 묶어 계산한 1주 평가액')
+              :('올해 칸 = 여러 회사 묶어 계산한 1주 평가액 · 연도별 추이 못 만듦 — '+srWhy+' [확인 필요]');
+    S2.blocks=[   
+      {t:'caption',text:'손익 반영 연도별 주식가치 — '+c.name+(SR?' · 올해 예상 순손익 '+ek2(fyO)+' (자동, 직전연도 × 이익증가율 '+gI+'%) 기준':', 여러 회사 묶어 계산한 올해 평가액 기준')},
+      {t:'table',fs:13,rows:tv,colW:[2.6].concat(tv[0].slice(1).map(function(){ return 7.64/nc; }))},
+      {t:'note',keep:true,text:nt2}];
+    if(SR) S2.blocks.push({t:'note',keep:true,text:'가정 : 올해 예상 순손익 = 직전연도 순손익 '+ek2(Pp.netIncomes[0])+' × (1 + 이익증가율 '+gI+'%), 배당 0원 — 이 회사 예상 순손익·배당 입력 없음(플랜 회사와 같은 기본값)'});
+    S2.__multiYr=SR?SR.map(function(x,k){ return {y:Y0+k, v:k===0?u:+x.v.finalValue, na:x.netAsset}; }):null;   
+    return [S1,S2];
   }
   function deckPost(deck,meta){
     if(!st.on||!st.sol) return;
@@ -43690,10 +43962,23 @@ var MULTI=(function(){
       var bl=deck[ib].blocks||[]; deck[ib].blocks=bl.filter(function(b){ var r0=b&&b.t==='table'&&b.rows&&b.rows[0]; return !(r0&&/주주명/.test(String((r0[0]&&r0[0].text!=null)?r0[0].text:r0[0]))); });
       deck.splice(ib+1,0,S3); };
     var tsNm=function(c){ var nn0=[key(c.name),key((c.inp.corp||{}).name),key((st.toolSlot||{})[c.id]||'')].filter(Boolean); return deck.some(function(s){ var m=isK(s,/^Ⅱ[.\-]\s*자산가치평가 — /)&&String(s.key).replace(/^Ⅱ[.\-]\s*자산가치평가 — /,'').replace(/ — .*$/,''); return m&&nn0.indexOf(key(m))>=0; }); };
+    try{ st.yrHead=''; st.baseYr=String((meta&&meta.baseYear)||''); var yv=deck.filter(function(s){ return isK(s,/^Ⅱ[.\-]\s*가치평가 — /); })[0], yt=yv&&(yv.blocks||[]).filter(function(b){ return b&&b.t==='table'; })[0], h1=yt&&yt.rows&&yt.rows[0]&&yt.rows[0][1];
+      if(h1) st.yrHead=String(h1.text!=null?h1.text:h1); }catch(e){}   
     var add=[]; st.cos.forEach(function(c){ if(c===plan||!c.inp) return; if(tsNm(c)){ toolSh(c); return; } coSlides(c).forEach(function(s){ add.push(s); }); });
     if(add.length){ var at=lastII>=0?lastII+1:(i1>=0?i1+1:deck.length); Array.prototype.splice.apply(deck,[at,0].concat(add)); }
     var i3=deck.findIndex(function(s){ return isK(s,/^Ⅲ\.\s*상속세/); });
     if(i3>=0) deck.splice(i3,0,assetSlide());
+    try{ holdNote(deck,isK); }catch(e){ try{ DIAG(e,'multi.holdNote'); }catch(x){} }   
+  }
+  
+  function holdNote(deck,isK){
+    st.cos.forEach(function(c){ if(!c.inp) return; var L=(st.sol.lines[c.id]||[]); if(!L.length) return;
+      var nm=[key(c.name),key((c.inp.corp||{}).name),key((st.toolSlot||{})[c.id]||'')].filter(Boolean);
+      deck.forEach(function(s){ if(!isK(s,/^Ⅱ[.\-]\s*가치평가 — /)) return; var m=String(s.key).replace(/^Ⅱ[.\-]\s*가치평가 — /,'').replace(/\s*\(\d+\/\d+\)\s*$/,'').trim(); if(nm.indexOf(key(m))<0) return;
+        var tb=(s.blocks||[]).filter(function(b){ return b&&b.t==='table'; })[0]; if(!tb||!tb.rows||!tb.rows[0]||tb.rows[0].length<3) return;   
+        if((s.blocks||[]).some(function(b){ return b&&b.t==='note'&&/가정 : 보유 주식/.test(String(b.text||'')); })) return;
+        s.blocks.push({t:'note',keep:true,text:'가정 : 보유 주식 '+L.map(function(l){ return l.toName+' '+won(l.shares)+'주 = '+won(Math.round(l.adopted))+'원'; }).join(', ')+' — 올해 여러 회사 묶어 계산한 가액 그대로 고정(해마다 그 회사 1주 값 변동은 미반영)'}); });
+    });
   }
   function dump(){ var T=st.sol?totals():null; return {on:st.on, n:st.cos.length, plan:st.plan, client:st.client, from:st.from, iter:st.sol&&st.sol.iter, ok:st.sol&&st.sol.ok,
     gate:st.sol?gateMsg():'', cos:st.cos.map(function(c){ return {id:c.id, name:c.name, unit:fv(c.id), total:c.inp?totalIss(c):0, autoFill:afTxt(c), maxNote:c.maxNote, unit0:c.R0&&c.R0.finalValue, txNote:c.txNote, rows:(c.rows||[]).length, sum:rowsSum(c), issued:c.inp?issued(c):0, est:(c.rows||[]).filter(function(r){ return r.est; }).length}; }), afterPlan:afterPlan(), impact:impact(),
@@ -43708,7 +43993,7 @@ var MULTI=(function(){
   function parOf(n){ var c=coByName(n); return c?(nn((c.inp.shares||{}).par)||nn((c.inp.corp||{}).par)):0; }
   function parNote(n){ var c=coByName(n), a=c&&(c.inp.shares||{}).assume; if(!a||!(a.parAssumed||a.shares)) return '';
     return '가정 : 발행주식총수를 자료에서 못 읽어 액면가 '+won(a.par)+'원('+(a.parAssumed?'가정':'자료에서 읽은 값')+')으로 자본금 '+won(a.cap)+'원 ÷ 액면 '+won(a.par)+'원 = '+won(a.shares)+'주로 계산 — 법인등기부등본, 주주명부의 실제 주식수 확인 [확인 필요]'; }
-  return {parOf:parOf, parNote:parNote, pctBasis:pctBasis, syncPct:syncPct, liveCard:liveCard, cmetaOf:cmetaOf, govSlide2:function(){ return govSlide2(); }, exMulti:function(){ return exMulti(); }, people:people, redo:redo, feedPlan:feedPlan, bookAsk:bookAsk, setBook:setBook, bookNotes:bookNotes, many:many, rowsOf:rowsOf, gateMsg:gateMsg, gate:gate, get on(){ return st.on; }, st:st, init:init, setN:setN, setPending:setPending, solve:solve, readCo:readCo, applyPlan:applyPlan, consol:consol, deckPost:deckPost, dump:dump, totals:totals, render:render};
+  return {parOf:parOf, parNote:parNote, pctBasis:pctBasis, syncPct:syncPct, liveCard:liveCard, cmetaOf:cmetaOf, govSlide2:function(){ return govSlide2(); }, card1:function(){ return card1(); }, exMulti:function(){ return exMulti(); }, people:people, redo:redo, feedPlan:feedPlan, bookAsk:bookAsk, setBook:setBook, bookNotes:bookNotes, many:many, rowsOf:rowsOf, gateMsg:gateMsg, gate:gate, get on(){ return st.on; }, st:st, init:init, setN:setN, setPending:setPending, solve:solve, readCo:readCo, applyPlan:applyPlan, consol:consol, deckPost:deckPost, dump:dump, totals:totals, render:render};
 })();
 window.MULTI=MULTI;
 
@@ -43731,7 +44016,7 @@ var QFLOW=(function(){
     other:{l:'기타 개인재산 (주택·상가 등)',t:'eok',why:'상속재산'},
     prior:{l:'10년 내 사전증여 합계',t:'eok',why:'상속재산 가산(상증법 §13)'},
     nonRes:{l:'피상속인 비거주자',t:'sel',o:[['no','거주자'],['yes','비거주자']],why:'기초공제·국내 재산만'},
-    spousePct:{l:'배우자 보유 지분율',t:'num',u:'%',why:'넣어야 2차 상속 장이 생김'},
+    spousePct:{l:'배우자 보유 지분율',t:'num',u:'%',why:'없으면 0 · 개인재산으로 2차 상속 계산'},
     spOther:{l:'배우자 개인재산 — 부동산 등',t:'eok',why:'2차 상속재산'},
     spCash:{l:'배우자 개인재산 — 금융',t:'eok',why:'2차 상속재산'},
     sec2Gap:{l:'1차 → 2차 예상 경과연수',t:'num',u:'년',why:'단기 재상속 공제(§30)'},
@@ -43812,7 +44097,7 @@ var QFLOW=(function(){
       else if(d.id==='ts2'){ on=ts>0; why=ts>0?'자기주식 '+won(ts)+'주 있음 → 소각 검토':'자기주식 없음 — 넣어도 장이 안 나옴'; }
       else if(d.id==='jgm'){ on=true; why='자녀 법인주주 구조 = 모든 고객 기본(지침)'; }
       else if(d.id==='succ'){ on=true; why='가업상속공제 · 증여특례'; if(ba!=null&&ba<80) warn='⚠ 사업용자산비율 '+(Math.round(ba*10)/10)+'% — 공제·특례 한도가 이 비율만큼 줄어듦'; }
-      else if(d.id==='sec2'){ on=sp!=='no'; why=sp==='no'?'배우자 없음':'배우자 지분율을 넣어야 장이 생김'; }
+      else if(d.id==='sec2'){ on=sp!=='no'; why=sp==='no'?'배우자 없음':'배우자 지분 없어도 개인재산으로 계산'; }
       else if(d.id==='aftc'){ why='가업상속공제 적용 때 추징 위험(요청 때)'; }
       else if(d.id==='cash'){ why='법인자금 꺼내는 방법 비교(요청 때)'; }
       else if(d.id==='ins'){ why='사망보험금으로 납세재원(요청 때)'; }
@@ -43925,7 +44210,7 @@ var QFLOW=(function(){
   EvB.prototype.holders=function(inp,co){ var self=this;
     try{ if(many()){ var c=MULTI.st.cos.filter(function(x){ return x.inp&&nmK(x.name)===nmK(co||''); })[0]||MULTI.st.cos.filter(function(x){ return x.id===MULTI.st.plan; })[0]; var R=c&&MULTI.rowsOf(c.id);
         if(R) this.add(R.name+' 주주표 (보고서에 쓰는 표)', R.rows.filter(function(r){ return +r[1]>0; }).map(function(r){ return {y:r[0]+(r[3]?' (법인)':''), v:won(r[1])+'주 '+pctS(R.issued>0?+r[1]/R.issued*100:null), s:(r[2]||'')+(r[4]?' 추정':'')}; }), '발행주식 '+won(R.issued)+'주 · '+(R.from||'')); }
-      else if(S.result){ var tot=+S.result.shares||0; this.add('주주 구성 (보고서에 쓰는 표)', shareholderRows(S.result).map(function(x){ return {y:x.name+(x.treasury?' (자기주식)':x.isCorp?' (법인)':''), v:(x.shares>0?won(x.shares)+'주 ':'')+pctS(x.ratio*100), s:x.unknown?'잔여(미상)':relT(x.rel)}; }), '발행주식 '+won(tot)+'주 · '+(S.sharesSource||'')); } }catch(e){}
+      else if(S.result){ var tot=+S.result.shares||0; this.add('주주 구성 (보고서에 쓰는 표)', shareholderRows(S.result).map(function(x){ return {y:x.treasury?'자기주식':x.name+(x.isCorp?' (법인)':''), v:(x.shares>0?won(x.shares)+'주 ':'')+pctS(x.ratio*100), s:x.unknown?'잔여(미상)':relT(x.rel)}; }), '발행주식 '+won(tot)+'주 · '+(S.sharesSource||'')); } }catch(e){}
     var Y=((inp&&inp.signals&&inp.signals.years)||[])[0];
     if(Y&&(Y.holders54||[]).length) this.add(Y.fy+'년 별지54호 주식등변동상황명세서', Y.holders54.map(function(h){ return {y:h.name, v:won(h.shares)+'주 '+pctS(Y.shares54>0?h.shares/Y.shares54*100:null), s:self.f('법인세 신고서',Y.file,'별지54호')}; }), '발행주식 '+won(Y.shares54)+'주');
     else this.add('별지54호 주식등변동상황명세서',[]);
@@ -44129,7 +44414,7 @@ var QFLOW=(function(){
       
       h.push('<label class="qauth"><b>보고서 작성자</b><input data-qauth="1" type="text" maxlength="20" placeholder="이름 (비우면 표지·꼬리말에 안 넣음)" value="'+esc(repAuthor())+'"></label>');
       
-      h.push('<div class="qn" style="margin-top:8px">보고서 양식 — 눌러서 바로 만들기</div><div class="qform"><button class="qb qgo" data-qbuild="fo">FO센터양식</button><button class="qb qgo qsl" data-qbuild="sl">삼성생명양식</button></div>');
+      h.push('<div class="qn" style="margin-top:8px">보고서 양식 — 눌러서 바로 만들기</div><div class="qform"><button class="qb qgo" data-qbuild="fo">골드</button><button class="qb qgo qsl" data-qbuild="sl">블루</button></div>');
       h.push('<div><button class="qb" data-qback="1">뒤로</button>'+saveBtns()+'</div>');
     }
     if(st.msg) h.push('<div class="'+(/^오류|못/.test(st.msg)?'qw':'qn')+'">'+esc(st.msg)+'</div>');
@@ -44202,7 +44487,7 @@ var QFLOW=(function(){
     try{ var M=window.MULTI; if(M&&M.st&&M.st.sol&&M.st.cos.filter(function(c){ return c.inp; }).length>1&&!M.on){ var r=M.applyPlan(); if(r&&r.err){ st.msg='오류 — 여러 회사 반영 : '+r.err; render(); return null; } } }catch(x){}
     var set=apply(); if(st.holder) set.unshift('기준 주주 '+st.holder); st.built={at:new Date().toISOString(), set:set, secs:st.secs.slice()};
     save(true);
-    if(pdf){ try{ var sl=form==='sl', b2=document.getElementById(sl?'v8PdfSL':'v8Pdf2'); if(b2) b2.click(); st.msg='보고서 만드는 중 — '+(sl?'삼성생명양식':'FO센터양식')+' PDF 받기 · 기본값으로 둔 것 '+window.__qaDefaults.length+'개'; }catch(x){ st.msg='오류 — '+x.message; } }
+    if(pdf){ try{ var sl=form==='sl', b2=document.getElementById(sl?'v8PdfSL':'v8Pdf2'); if(b2) b2.click(); st.msg='보고서 만드는 중 — '+(sl?'블루':'골드')+' PDF 받기 · 기본값으로 둔 것 '+window.__qaDefaults.length+'개'; }catch(x){ st.msg='오류 — '+x.message; } }
     render(); return set;
   }
   function defaults(){ return st.list.filter(function(it){ return it.k!=='shAsm'&&st.how[it.k]!=='ans'&&st.how[it.k]!=='read'; }).map(function(it){ if(it.inv) return '가정 : '+qLab(it)+' = 0(모름 — 평가액 전액 순자산 가산 · 재무상태표 투자주식 정본 필요)'; if(it.ck) return '가정 : '+qLab(it)+' — 모름, 툴 기본값 그대로'; return Q[it.k].l+' = '+(cur(it.k).ph||'툴 기본'); }); }   
@@ -46572,6 +46857,6 @@ window.__diag.blk.b3=1;
 
 
 </script>
-<div id="pubFoot" style="margin:28px auto 0;padding:14px 16px 22px;max-width:1100px;font:14px/1.6 Freesentation,-apple-system,BlinkMacSystemFont,'Apple SD Gothic Neo','Malgun Gothic','Noto Sans KR',sans-serif;color:#6B7684;text-align:center;border-top:1px solid #E5E8EB">본 자료 = 일반적 정보 제공 목적, 실제 적용 시 개별 사안별 법률적 검토 및 전문가 자문 필수<br>계산은 이 기기 안에서만 하며 입력값은 보내지 않습니다(「주소로 찾기」에 넣은 주소만 공시가격, 조정대상지역 확인을 위해 브이월드로 보냄). · 판 2026-11-24<br>오류를 찾으시면 <a href="mailto:jeongkh86@gmail.com?subject=%EC%84%B8%EA%B8%88%20%EA%B3%84%EC%82%B0%EA%B8%B0%20%EC%98%A4%EB%A5%98" style="color:inherit;text-decoration:underline">jeongkh86@gmail.com</a> 으로 알려 주세요</div><script>try{if(window.self!==window.top)document.getElementById("pubFoot").style.display="none";}catch(e){}</script>
+<div id="pubFoot" style="margin:28px auto 0;padding:14px 16px 22px;max-width:1100px;font:14px/1.6 Freesentation,-apple-system,BlinkMacSystemFont,'Apple SD Gothic Neo','Malgun Gothic','Noto Sans KR',sans-serif;color:#6B7684;text-align:center;border-top:1px solid #E5E8EB">본 자료 = 일반적 정보 제공 목적, 실제 적용 시 개별 사안별 법률적 검토 및 전문가 자문 필수<br>계산은 이 기기 안에서만 하며 입력값은 보내지 않습니다(「주소로 찾기」에 넣은 주소만 공시가격, 조정대상지역 확인을 위해 브이월드로 보냄). · 판 2026-11-25<br>오류를 찾으시면 <a href="mailto:jeongkh86@gmail.com?subject=%EC%84%B8%EA%B8%88%20%EA%B3%84%EC%82%B0%EA%B8%B0%20%EC%98%A4%EB%A5%98" style="color:inherit;text-decoration:underline">jeongkh86@gmail.com</a> 으로 알려 주세요</div><script>try{if(window.self!==window.top)document.getElementById("pubFoot").style.display="none";}catch(e){}</script>
 </body>
 </html>

@@ -3983,11 +3983,12 @@ if (__SEV_NODE) {
     
     var scanRows = function (p, sum) {
       p.rows.forEach(function (r) {
-        var t = r.cells.map(function (c) { return c.str; }).join(' '), re = /(?:감가상각누계액|손상차손누계액|정부보조금등?차감액)\)?\s*(11[5-79]|12[01])[\s:;∶]+(\d{1,3}(?:[:;∶,.]\d{3})+|\d{4,})/g, m;
+        
+        var t = r.cells.map(function (c) { return c.str; }).join(' '), re = /(?:감가상각누계액|손상차손누계액)\)?\s*(11[5-79]|12[01])[\s:;∶]+(\d{1,3}(?:[:;∶,.]\d{3})+|\d{4,})/g, m;
         while ((m = re.exec(t))) { if (seen[m[1]]) continue; seen[m[1]] = 1; var v = +m[2].replace(/[:;∶,.]/g, ''); contra[+m[1] <= 117 ? 'building' : 'structure'] += v; if (sum) fromSum.push({ code: +m[1], v: v, page: p.page }); }
         
         var rg = /정부보조금등?(?:차감액)?\)?\s*(\d{3})[\s:;∶]+(\d{1,3}(?:[:;∶,.]\d{3})+|\d{4,})/g, mg;
-        while ((mg = rg.exec(t))) { var cd = +mg[1]; if (cd >= 115 && cd <= 121) continue; if (seenG[cd]) continue; seenG[cd] = 1; grantSum += +mg[2].replace(/[:;∶,.]/g, ''); }
+        while ((mg = rg.exec(t))) { var cd = +mg[1]; if (seenG[cd] || seen[mg[1]]) continue; seenG[cd] = 1; grantSum += +mg[2].replace(/[:;∶,.]/g, ''); }
       });
     };
     (pages || []).forEach(function (p) {
@@ -5458,15 +5459,17 @@ if (__SEV_NODE) {
         if (def.contra) {
           var sig = String(lastTarget) + '|' + vals.join(',');
           if (def.key === 'govGrant') gOwner = lastTarget || contraOwner;
-          var noNet = def.key === 'govGrant' && GRANT_NONET.test(normLabel(cells[labelIdx].str));
-          if (lastTarget && found[lastTarget] && !contraSeen[sig] && !noNet) {
+          
+          
+          var cTgt = def.key === 'govGrant' ? null : lastTarget;
+          if (cTgt && found[cTgt] && !contraSeen[sig]) {
             contraSeen[sig] = 1;
-            var tv = found[lastTarget].values;
+            var tv = found[cTgt].values;
             vals.forEach(function (v, i) {
               if (v === undefined) return;
               tv[i] = (tv[i] === undefined ? 0 : tv[i]) - Math.abs(v);
             });
-            found[lastTarget].contraApplied = true;
+            found[cTgt].contraApplied = true;
             
             if (/^(shortTermLoan|longTermLoan|relatedPartyLoan)$/.test(lastTarget)) {
               var faL = found.allowanceLoan || (found.allowanceLoan = { label: '대여금 대손충당금', group: 'bs', values: [],
@@ -5474,8 +5477,7 @@ if (__SEV_NODE) {
               vals.forEach(function (v, i) { if (v === undefined) return; faL.values[i] = (faL.values[i] || 0) + Math.abs(v); });
             }
           }
-          if (lastTarget) contraOwner = lastTarget;
-          lastTarget = null;
+          if (def.key !== 'govGrant') { if (lastTarget) contraOwner = lastTarget; lastTarget = null; }
         } else {
           contraOwner = null;
           lastTarget = def.contraTarget
@@ -9551,8 +9553,8 @@ var SEV = (function () {
       var v = [toN(m[m.length - 2]), toN(m[m.length - 1])];
       
       if (/^(building|structure)$/.test(k)) {
-        var rest = S.slice(m.index + m[0].length), c, cre = new RegExp('^(?:감가상각누계액|손상차손누계액|정부보조금|국고보조금)' + NN);
-        while ((c = cre.exec(rest))) { v[0] -= Math.abs(toN(c[1])); v[1] -= Math.abs(toN(c[2])); rest = rest.slice(c[0].length); }
+        var rest = S.slice(m.index + m[0].length), c, cre = new RegExp('^(감가상각누계액|손상차손누계액|정부보조금|국고보조금)(?:등)?' + NN);
+        while ((c = cre.exec(rest))) { if (!/보조금/.test(c[1])) { v[0] -= Math.abs(toN(c[2])); v[1] -= Math.abs(toN(c[3])); } rest = rest.slice(c[0].length); }
       }
       [0, 1].forEach(function (i) { var e = o.ends[i]; if (e) (o.years[e] = o.years[e] || {})[k] = v[i]; });
     });
@@ -10542,7 +10544,7 @@ var SEV = (function () {
         inp.asset.add.yubo = g5; inp.asset.yuboAuto = g5;
         inp.src['asset.add.yubo'] = s5 + ' — 재무상태표 정부보조금(자산 차감 표시) 가산 · 세무조정계산서 없음';
         chk.push('정부보조금 ' + g5.toLocaleString() + '원 — 자산에서 차감 표시 → 순자산 가산(' + s5 + ' · 「2026 비상장주식평가실무」 p.342 · 서면4팀-3315) · 세무조정계산서 없음 [확인 필요] 반환 조건(상환의무 있으면 부채)' +
-          (gr5 > 0 ? ' · 그중 토지·건물·구축물분 ' + gr5.toLocaleString() + '원 = 그 부동산을 시가·기준시가로 바꾸면 시가에 들어가 빼야 함' : ''));
+          (gr5 > 0 ? ' · 그중 토지·건물·구축물분 ' + gr5.toLocaleString() + '원(부동산 장부가는 보조금 안 뺀 값 · 시가로 바꿔도 이 가산은 그대로)' : ''));
       }
     }
     
@@ -11305,10 +11307,9 @@ var BIZA = (function () {
     var reBookBasis = (+o.reBookIn > 0) ? +o.reBookIn : reBook;
     var reVal = (+o.reNavIn > 0) ? Math.max(+o.reNavIn, reBookBasis) : reBook;
     var reUp = Math.max(0, reVal - reBookBasis);
+    
     var grantRE = 0, grantAll = grant;
-    if (o.grantOn && reUp > 0 && +o.grantRE > 0) grantRE = Math.min(grant, +o.grantRE);
-    grant = grant - grantRE;
-    var grantREWarn = !!(o.grantOn && reUp > 0 && grantAll > 0 && !(+o.grantRE > 0));
+    var grantREWarn = false;
     try {
       var _gapNAV = Math.max(0, (+o.evalGap || 0));
       if (reUp > _gapNAV + 1) DIAG(new Error('부동산 평가차액 불변식 위반 — 비율용 ' + Math.round(reUp) + '원 > 순자산용 ' + Math.round(_gapNAV) + '원'), 'baRatio.reUp');
@@ -14103,6 +14104,6 @@ https://github.com/nodeca/pako/blob/main/LICENSE
 })();
 
 </script>
-<div id="pubFoot" style="margin:28px auto 0;padding:14px 16px 22px;max-width:1100px;font:14px/1.6 Freesentation,-apple-system,BlinkMacSystemFont,'Apple SD Gothic Neo','Malgun Gothic','Noto Sans KR',sans-serif;color:#6B7684;text-align:center;border-top:1px solid #E5E8EB">본 자료 = 일반적 정보 제공 목적, 실제 적용 시 개별 사안별 법률적 검토 및 전문가 자문 필수<br>계산은 이 기기 안에서만 하며 입력값은 보내지 않습니다(「주소로 찾기」에 넣은 주소만 공시가격, 조정대상지역 확인을 위해 브이월드로 보냄). · 판 2026-11-24<br>오류를 찾으시면 <a href="mailto:jeongkh86@gmail.com?subject=%EC%84%B8%EA%B8%88%20%EA%B3%84%EC%82%B0%EA%B8%B0%20%EC%98%A4%EB%A5%98" style="color:inherit;text-decoration:underline">jeongkh86@gmail.com</a> 으로 알려 주세요</div><script>try{if(window.self!==window.top)document.getElementById("pubFoot").style.display="none";}catch(e){}</script>
+<div id="pubFoot" style="margin:28px auto 0;padding:14px 16px 22px;max-width:1100px;font:14px/1.6 Freesentation,-apple-system,BlinkMacSystemFont,'Apple SD Gothic Neo','Malgun Gothic','Noto Sans KR',sans-serif;color:#6B7684;text-align:center;border-top:1px solid #E5E8EB">본 자료 = 일반적 정보 제공 목적, 실제 적용 시 개별 사안별 법률적 검토 및 전문가 자문 필수<br>계산은 이 기기 안에서만 하며 입력값은 보내지 않습니다(「주소로 찾기」에 넣은 주소만 공시가격, 조정대상지역 확인을 위해 브이월드로 보냄). · 판 2026-11-25<br>오류를 찾으시면 <a href="mailto:jeongkh86@gmail.com?subject=%EC%84%B8%EA%B8%88%20%EA%B3%84%EC%82%B0%EA%B8%B0%20%EC%98%A4%EB%A5%98" style="color:inherit;text-decoration:underline">jeongkh86@gmail.com</a> 으로 알려 주세요</div><script>try{if(window.self!==window.top)document.getElementById("pubFoot").style.display="none";}catch(e){}</script>
 </body>
 </html>
