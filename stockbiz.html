@@ -28,7 +28,7 @@ html.fwait body{visibility:hidden}
 </style>
 <script>(function(){var d=document.documentElement;d.classList.add('fwait');var k=0,rs,done=function(){if(!k){k=1;d.classList.remove('fwait');if(rs)rs();}};try{window.__fontsP=new Promise(function(r){rs=r;});}catch(e){}setTimeout(done,3000);try{Promise.all([400,700].map(function(w){return document.fonts.load(w+' 16px Freesentation');})).then(done,done);}catch(e){done();}})();</script>
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>주식평가·사업용비율 계산기</title>
+<title>세무조정 주식평가</title>
 
 <style>
 
@@ -259,6 +259,18 @@ html.fwait body{visibility:hidden}
   #pkRoot .sbz-btns button.xl{background:var(--ink)}
   #pkRoot .sbz-btns button:disabled{opacity:.55}
   #pkRoot .sbz-out{font-size:16px;color:var(--ink2);margin-top:6px;min-height:22px;word-break:break-all}
+  
+  #pkRoot .sbz-pv .pk-wo button small{display:block;font-size:15px;color:var(--ink3);margin-top:4px;font-weight:600}
+  #pkRoot .sbz-pvq{font-size:18px;font-weight:800;line-height:1.45;word-break:keep-all}
+  #pkRoot .sbz-pvw{line-height:1.55;margin:6px 0 8px}
+  #pkRoot .sbz-ev{margin-top:10px;border:1px solid #E5E8EB;border-radius:12px;padding:8px 12px;background:#F9FAFB;font-size:15px}
+  #pkRoot .sbz-ev summary{font-weight:700;cursor:pointer}
+  #pkRoot .sbz-evi{margin-top:8px}
+  #pkRoot .sbz-evi table{width:100%;border-collapse:collapse;margin-top:4px}
+  #pkRoot .sbz-evi td{border-top:1px solid #E5E8EB;padding:3px 4px;vertical-align:top;word-break:keep-all}
+  #pkRoot .sbz-evi td.n{text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}
+  #pkRoot .sbz-evx{color:#D22030;margin-top:2px}
+  #pkRoot .sbz-evf{margin-top:8px;color:var(--ink3)}
   #pkRoot .sbz-ck{background:#FFF7D6;border:1px solid #F1D36B;border-radius:12px;padding:8px 12px;margin-top:10px;font-size:16px;line-height:1.5;color:#5b4a00;word-break:keep-all}
   
   #pkRoot .sbz-segw{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:6px}
@@ -463,8 +475,8 @@ body .y4box .y4e{color:var(--pd-acc)!important}
 </head>
 <body>
 <div class="wrap">
-  <div class="eyebrow">세금 계산기 · <span class="ex">주식평가 및 사업용비율</span> · 2026년 기준</div>
-  <h1>주식평가 및 사업용비율</h1>
+  <div class="eyebrow">세금 계산기 · <span class="ex">세무조정 주식평가</span> · 2026년 기준</div>
+  <h1>세무조정 주식평가</h1><div class="pk-wh" style="margin-top:2px">비상장주식 평가, 사업용자산비율, 가업상속공제</div>
   <details class="why"><summary>근거, 계산 방법</summary><ul class="lead lead-in"><li>크레탑, 감사보고서, 세무조정계산서 PDF → 비상장주식 1주 평가(상증법 §63), 법인 여러 개 = 서로 가진 주식까지 묶어 평가</li><li>재무상태표 항목별 장부가액 vs 적용가액, 사업용 vs 사업무관자산(상증령 §15⑤2호 가~마목)</li><li>가업상속공제 대상금액 → 평가서, 가업상속공제신고서, 부표1 PDF와 엑셀(수식)</li></ul>
   <p class="law" id="lawBox">1주 평가 = 비상장평가 엔진(순손익가치, 순자산가치 가중평균, 순자산 80% 하한, 최대주주 할증) / 사업용자산비율 = 상속개시일 현재 적용가액(상증법 제4장 평가액) 기준, 사업무관자산 = 상증령 §15⑤2호 가목~마목 / 가업상속공제 대상 = 주식가액 × 사업관련 자산가액 ÷ 총자산가액(부표1 ⑦), 한도 = 가업 영위기간별(상증법 §18의2①) / 자료 = 크레탑, 감사보고서, 세무조정계산서(글자 PDF, 스캔본은 읽지 못함) / 여러 회사 = 보유 주식을 그 회사 평가액으로 넣어 묶어 계산(상호출자, 순환출자 = 1주 값 연립 풀이), 공제는 고른 가업 회사 하나</p></details>
 
@@ -8150,6 +8162,18 @@ var SEV = (function () {
       })();
       
       if (!has(y.developmentCost) && has(y.development)) { y.developmentCost = y.development; if (y.__src.development) y.__src.developmentCost = y.__src.development; }
+      
+      (function () {
+        var SL = (d.stdLines || []).filter(function (q) { return q && q.name && num(q.v) > 0 && !q.total; }), seen = {};
+        SL = SL.filter(function (q) { var k = q.code + '|' + q.name; if (seen[k]) return false; seen[k] = 1; return true; });
+        var stem = function (n) { return String(n || '').replace(/충당부채|충당금/g, '').replace(/^(유동성|유동|비유동|장기|단기)/, ''); };
+        var L = SL.filter(function (q) { return +q.code >= 229 && +q.code <= 332 && !q.contra && /충당부채$|충당금$/.test(q.name) && !/퇴직|대손|종업원|연차/.test(q.name); });
+        L = L.filter(function (q) { return stem(q.name) || !L.some(function (z) { return stem(z.name) && +z.code > +q.code && +z.code <= +q.code + 10; }); });
+        y.__prov = L.map(function (q) { return { name: q.name, code: q.code, v: num(q.v), src: srcOf(num(q.v), x.file, 'fs') || '' }; });   
+        if (d.f32 && !d.f32.suspect && has(d.f32.estimate)) y.__f32 = { v: num(d.f32.estimate), src: srcOf(num(d.f32.estimate), x.file, 'f32') || '', from33: !!d.f32.from33 };
+        
+        if (d.f34sum && has(d.f34sum.total)) y.__f34 = { v: num(d.f34sum.total), page: d.f34sum.page || null };
+      })();
       inp.bsYears[e] = y;
     });
     (function () { var f1 = (ds[0] && ds[0].d && ds[0].d.f1) || null; if (f1 && (f1.bizType || f1.bizItem || f1.bizCode)) inp.bizInd = [f1.bizType, f1.bizItem].filter(Boolean).join(' ') + (f1.bizCode ? ' 주업종코드 ' + f1.bizCode : ''); })();
@@ -10187,9 +10211,44 @@ var SEV = (function () {
     (a.qa || []).forEach(function (id) { answer(inp, id, ''); });
     if (a.pick) { if (inp.srcPick) delete inp.srcPick[a.pick.label]; var row = (inp.srcCompare || []).filter(function (q) { return q.label === a.pick.label; })[0]; if (row) { row.used = a.pick.used; delete row.picked; delete row.pickPath; } }
   }
+  
+  function provItems(inp, r) {
+    inp = inp || {}; var A = inp.asset || {}, la = A.liabAdd || {}, P = A.pend || {}, ans = inp.ckAns || {}, out = [];
+    var rq = (inp.qa || {}).retireEst, mine = ans['p:retire'];
+    var est0 = mine && rq && rq.undo && rq.undo[0] ? rq.undo[0][1] : la.retireEst, sev0 = num(P.sevVal);
+    if (has(est0) && (mine || !rq) && (num(est0) > 0 || sev0 > 0)) {
+      var e0 = num(est0);
+      out.push({ key: 'p:retire', kind: 'provRetire', est: e0, sev: sev0, ans: mine || null,
+        line: '충당부채 처리 — 퇴직급여충당부채 ' + W0(sev0) + '원, 퇴직급여추계액 ' + W0(e0) + '원',
+        why: '· 「2026 비상장주식평가실무」대로 = 장부 퇴직급여충당부채(예치금 차감 전)는 부채에서 빼고 추계액은 부채에 더함(「2026 비상장주식평가실무」 p.533 · 서면4팀-785, 2004.06.03.)\n· 상증칙 §17의2 3호다(추계액 가산), 4호(제충당금 차감) · 상증령 §55②',
+        opts: [{ c: 'book', label: '「2026 비상장주식평가실무」대로 — 충당부채 ' + W0(sev0) + '원 빼고 추계액 ' + W0(e0) + '원 더함 (기본)' },
+               { c: 'sev', label: '장부 퇴직급여충당부채 ' + W0(sev0) + '원을 추계액으로 (부채 그대로 인정)' },
+               { c: 'amt', label: '퇴직급여추계액 직접 입력', f: [{ k: 'est', t: 'm', label: '퇴직급여추계액', def: e0 }] }] });
+    }
+    var x0 = num(P.provExtra);
+    if (x0 > 0) {
+      out.push({ key: 'p:other', kind: 'provOther', amt: x0, ans: ans['p:other'] || null,
+        line: '충당부채 처리 — 하자보수 등 그 밖 충당부채 ' + W0(x0) + '원',
+        why: '· 「2026 비상장주식평가실무」대로 = 제충당금으로 부채에서 뺌(「2026 비상장주식평가실무」 p.533 하자보수충당부채 「부표 5 ⑯에 기입하여 부채에서 제외」)\n· 평가기준일 현재 비용으로 확정된 몫만 부채로 남김(상증칙 §17의2 4호 가목) · 상증령 §55②',
+        opts: [{ c: 'book', label: '「2026 비상장주식평가실무」대로 — ' + W0(x0) + '원 부채에서 뺌 (기본)' },
+               { c: 'all', label: '전액 비용으로 확정 — ' + W0(x0) + '원 부채로 남김' },
+               { c: 'amt', label: '확정된 몫만 부채로 남김', f: [{ k: 'v', t: 'm', label: '확정된 몫(부채로 남길 금액)' }] }] });
+    }
+    
+    var pt = ((inp.parts || {})['asset.liabSub.provisions'] || []), bad0 = pt.filter(function (q) { return /대손/.test(q.label || ''); }).reduce(function (t, q) { return t + num(q.v); }, 0);
+    var ybd = (A.yuboItems || []).filter(function (q) { return !q.out && num(q.end) > 0 && /대손상각|대손금/.test(q.label || ''); }).reduce(function (t, q) { return t + num(q.end); }, 0);
+    if (bad0 > 0 || ybd > 0) {
+      out.push({ key: 'p:bad', kind: 'provBad', amt: bad0, yb: ybd, ans: ans['p:bad'] || null,
+        line: '회수 불가능 채권 — 대손충당금 ' + W0(bad0) + '원' + (ybd ? ', 대손금 부인 유보 ' + W0(ybd) + '원' : '') + ' 채권에 더함',
+        why: '· 지금 = 대손충당금은 제충당금으로 되돌려 채권 원본가액으로 평가(상증칙 §17의2 4호)' + (ybd ? ', 대손금 부인 유보도 가산(「2026 비상장주식평가실무」 p.322)' : '') + '\n· 평가기준일 현재 회수 불가능으로 인정되는 채권은 빼고 평가(상증령 §58② 단서 · 국심2002광3299)',
+        opts: [{ c: 'no', label: '없음 — 지금 그대로 (기본)' },
+               { c: 'yes', label: '있음 — 회수 불가능 금액만 채권에서 뺌', f: [{ k: 'v', t: 'm', label: '회수 불가능 채권 금액' }] }] });
+    }
+    return out;
+  }
   function ckAnswer(inp, r, key, c, vals, meta) {   
     inp.ckAns = inp.ckAns || {}; vals = vals || {}; meta = meta || {};
-    var it = ckItems(inp, r, true).filter(function (x) { return x.key === key; })[0], old = inp.ckAns[key];
+    var it = (/^p:/.test(key) ? provItems(inp, r) : ckItems(inp, r, true)).filter(function (x) { return x.key === key; })[0], old = inp.ckAns[key];   
     if (!it && old && old.it) it = old.it;
     if (!c && !old && it && it.auto) { inp.ckAutoOff = inp.ckAutoOff || {}; inp.ckAutoOff[key] = 1; return inp; }   
     ckUndo(inp, key); delete inp.ckAns[key];
@@ -10243,6 +10302,9 @@ var SEV = (function () {
       case 'badDebt': if (c === 'amt' && has(vals.v)) set('asset.liabSub.provisions', num((A.liabSub || {}).provisions) - it.amt + num(vals.v), '대손충당금 ' + W0(it.amt) + ' → ' + W0(vals.v)); break;
       case 'prepaid': if (c === 'amt' && has(vals.v)) set('asset.sub.prepaid', num(vals.v), '확정된 선급비용'); break;
       case 'provExtra': if (c === 'amt' && num(vals.v) > 0) set('asset.liabSub.provisions', num((A.liabSub || {}).provisions) - num(vals.v), '충당부채 확정 몫 부채로 남김'); break;
+      case 'provRetire': if (c === 'sev') qa('retireEst', { est: num(it.sev) }); if (c === 'amt' && has(vals.est)) qa('retireEst', { est: num(vals.est) }); break;   
+      case 'provBad': if (c === 'yes' && num(vals.v) > 0) { A.sub = A.sub || {}; set('asset.sub.etc', num(A.sub.etc) + num(vals.v), '회수 불가능 채권 ' + W0(vals.v) + '원 채권에서 뺌(상증령 §58② 단서)'); } break;   
+      case 'provOther': { var pv = c === 'all' ? num(it.amt) : c === 'amt' ? Math.min(num(vals.v), num(it.amt)) : 0; if (pv > 0) set('asset.liabSub.provisions', num((A.liabSub || {}).provisions) - pv, c === 'all' ? '그 밖 충당부채 전액 비용 확정 → 부채로 남김(상증칙 §17의2 4호 가목)' : '그 밖 충당부채 확정 몫 부채로 남김(상증칙 §17의2 4호 가목)'); break; }
     }
     inp.ckAns[key] = rec;
     return inp;
@@ -10671,7 +10733,7 @@ var SEV = (function () {
 
   return { treasuryBoth: treasuryBoth, extraGate: extraGate, corpTaxOf: corpTaxOf, questions: questions, answer: answer, scanText: scanText, rentValue: rentValue, evalDateOf: evalDateOf,
            dartRead: dartRead, cretopRead: cretopRead, mergeExt: mergeExt, splitInfo: splitInfo, splitEff: splitEff, survOff: survOff, survOf: survOf, SURV_LABEL: SURV_LABEL, splitRatio: splitRatio, splitShare: splitShare, splitPct: splitPct,
-           compute: compute, fromTxadj: fromTxadj, cleanOcr: cleanOcr, fix54: fix54, fix54Pages: fix54Pages, fixRead: fixRead, fixRead2: fixRead2, pickSrc: pickSrc, advisor: (typeof TXADJ !== 'undefined' ? TXADJ.ADVISOR : null), advisorAnswered: (typeof TXADJ !== 'undefined' ? TXADJ.ADVISOR_ANSWERED : null), pendingCheck: pendingCheck, read51: read51, fillRects: fillRects, sizeJudge: sizeJudge, ckSplit: ckSplit, ckBook: ckBook, fmtNum: fmtNum, ckKey: ckKey, ckItems: ckItems, ckAnswer: ckAnswer, ocrLedger: ocrLedger, parcel: parcel, gapLine: gapLine, yearIncome: yearIncome, num: num, PLUS_ROWS: PLUS_ROWS, MINUS_ROWS: MINUS_ROWS, VERSION: '1.1' };
+           compute: compute, fromTxadj: fromTxadj, cleanOcr: cleanOcr, fix54: fix54, fix54Pages: fix54Pages, fixRead: fixRead, fixRead2: fixRead2, pickSrc: pickSrc, advisor: (typeof TXADJ !== 'undefined' ? TXADJ.ADVISOR : null), advisorAnswered: (typeof TXADJ !== 'undefined' ? TXADJ.ADVISOR_ANSWERED : null), pendingCheck: pendingCheck, read51: read51, fillRects: fillRects, sizeJudge: sizeJudge, ckSplit: ckSplit, ckBook: ckBook, fmtNum: fmtNum, ckKey: ckKey, ckItems: ckItems, ckAnswer: ckAnswer, provItems: provItems, ocrLedger: ocrLedger, parcel: parcel, gapLine: gapLine, yearIncome: yearIncome, num: num, PLUS_ROWS: PLUS_ROWS, MINUS_ROWS: MINUS_ROWS, VERSION: '1.1' };
 })();
 if (typeof module !== 'undefined' && module.exports) module.exports.SEV = SEV;
 
@@ -13159,8 +13221,8 @@ window.__FSPDF={M:"AAEAAAAMAIAAAwBARFNJRwAAAAEACfTYAAAACEdQT1MBV/JlAAnmoAAADjZPU
   function newCo(i) { return { id: LET[i], name: '', files: { cretop: [], dart: [], tax: [] }, inp: null, docs: [], inv: [], holders54: [], pctHolders: [], tx: null, notes: [], read: false }; }
 
   var S = { cos: [newCo(0)], n: 1, grp: false, sol: null, links: [], fix: {}, extra: [], plan: 'A', inp: null, U: { ov: {} }, form: {}, cur: 'file', path: [], done: false, o: null, base: null, msg: '', bad: false, busy: false };
-  var STEPS = ['file', 'holders', 'plan', 'links', 'evalDate', 'shares', 'start', 'adjQ', 'adj', 'clsQ', 'cls', 'cash', 'formQ', 'form'];
-  function on(id) { if (id === 'links' || id === 'plan') return S.grp; if (id === 'adj') return S.adjQ === 'y'; if (id === 'cls') return S.clsQ === 'y'; if (id === 'form') return S.formQ === 'y'; return true; }
+  var STEPS = ['file', 'holders', 'plan', 'links', 'evalDate', 'shares', 'start', 'prov', 'adjQ', 'adj', 'clsQ', 'cls', 'cash', 'formQ', 'form'];
+  function on(id) { if (id === 'links' || id === 'plan') return S.grp; if (id === 'prov') return provRaw().length > 0; if (id === 'adj') return S.adjQ === 'y'; if (id === 'cls') return S.clsQ === 'y'; if (id === 'form') return S.formQ === 'y'; return true; }
   function vis() { return STEPS.filter(on); }
   function next(id) { var V = vis(), i = V.indexOf(id); return i >= 0 && i < V.length - 1 ? V[i + 1] : null; }
 
@@ -13174,8 +13236,57 @@ window.__FSPDF={M:"AAEAAAAMAIAAAwBARFNJRwAAAAEACfTYAAAACEdQT1MBV/JlAAnmoAAADjZPU
     return o; }
   
   function stop(o) { var bl = o && !o.none && o.R && o.R.blocked; if (!bl || !bl.length) return o; return { none: '계산 멈춤 — ' + bl.join(', ') + ' 세무조정계산서 필요(순손익 3개 사업연도 중 빠진 해) · 그 해 계산서를 함께 넣으면 다시 계산 · ' + SCAN_TIP, R: o.R, inp: o.inp }; }
-  function calc() { if (!S.inp) return null; try { S.o = deco(stop(SBZ.run(S.inp, S.U, window))); } catch (e) { S.o = { none: '계산 오류 : ' + e.message }; console.warn(e); } return S.o; }
-  function base() { if (!S.inp) return null; try { S.base = stop(SBZ.run(S.inp, { evalDate: S.U.evalDate, shares: S.U.shares, startDate: S.U.startDate }, window)); } catch (e) { S.base = null; } return S.base; }
+  function calc() { if (!S.inp) return null; try { S.o = deco(stop(SBZ.run(provApply(S.inp), S.U, window))); } catch (e) { S.o = { none: '계산 오류 : ' + e.message }; console.warn(e); } return S.o; }
+  function base() { if (!S.inp) return null; try { S.base = stop(SBZ.run(provApply(S.inp), { evalDate: S.U.evalDate, shares: S.U.shares, startDate: S.U.startDate }, window)); } catch (e) { S.base = null; } return S.base; }
+
+  
+  var PROV_LAW = { provRetire: '근거 : 「2026 비상장주식평가실무」 p.533 「퇴직급여충당부채(퇴직보험예치금과 국민연금전환금을 차감하기 전의 금액)은 부채에서 차감 … 추계액은 부채에 가산」(서면4팀-785, 2004.06.03.) · 상증칙 §17의2 3호다, 4호 · 상증령 §55②',
+    provOther: '근거 : 「2026 비상장주식평가실무」 p.533 「하자보수충당부채는 … 부채에서 제외」 · 상증칙 §17의2 4호(가목 「충당금중 평가기준일 현재 비용으로 확정된 것」은 차감 안 함) · 상증령 §55②',
+    provBad: '근거 : 상증령 §58② 단서 「채권의 전부 또는 일부가 평가기준일 현재 회수불가능한 것으로 인정되는 경우에는 그 가액을 산입하지 않는다」(법제처 원문 2026-11-24) · 대손충당금 = 제충당금으로 되돌려 채권 원본가액(상증칙 §17의2 4호) · 대손금 부인 채권 가산(「2026 비상장주식평가실무」 p.322 · 국심2002광3299)' };
+  var PROV_DEF = { book: 1, no: 1 };   
+  function provRaw() { if (!S.inp || typeof SEV !== 'object' || !SEV.provItems) return []; if (S._provFor === S.inp) return S._prov;
+    var L = []; try { var x = cp(S.inp), r = SEV.compute(cp(x), TaxEngine); L = SEV.provItems(x, r) || []; } catch (e) { L = []; } S._provFor = S.inp; S._prov = L; return L; }
+  function provAns(P) { P = P || S.U.prov || {}; var o = {}; Object.keys(P).forEach(function (k) { var a = P[k]; if (a && a.c && a.c !== 'unk' && !PROV_DEF[a.c]) o[k] = a; }); return o; }
+  function provApply(inp, P) { var A = provAns(P), ks = Object.keys(A); if (!ks.length || !inp || !SEV.provItems) return inp; var x = cp(inp);
+    try { var r = SEV.compute(cp(x), TaxEngine); for (var ps = 0; ps < 2; ps++) { var any = false; SEV.provItems(x, r).forEach(function (it) { var a = A[it.key]; if (!a || (x.ckAns || {})[it.key]) return; SEV.ckAnswer(x, r, it.key, a.c, a.vals || {}, { by: '질문 답' }); any = true; }); if (!any) break; r = SEV.compute(cp(x), TaxEngine); } }
+    catch (e) { console.warn(e); return inp; } return x; }
+  function provVal(P) { try { var o = SBZ.run(provApply(S.inp, P), { evalDate: S.U.evalDate, shares: S.U.shares, startDate: S.U.startDate }, window); var R0 = o && o.R; return { per: o ? +o.per : NaN, na: R0 && R0.params ? +R0.params.netAsset : NaN }; } catch (e) { return null; } }
+  function provEff(key, c, vals) { var P0 = cp(S.U.prov || {}); delete P0[key]; var b = provVal(P0); if (!b) return ''; var x = b; if (!PROV_DEF[c]) { var P1 = cp(P0); P1[key] = { c: c, vals: vals || {} }; x = provVal(P1); } if (!x) return '';
+    var d = function (v) { return !isFinite(v) ? '' : v === 0 ? '변동 없음' : (v > 0 ? '+' : '△') + Math.round(Math.abs(v)).toLocaleString('ko-KR') + '원'; };
+    return '→ 순자산가액 ' + won(x.na) + '(' + d(x.na - b.na) + '), 1주 ' + won(x.per) + '(' + d(x.per - b.per) + ')'; }
+  function provNeed(o, vals) { return (o.f || []).some(function (f) { return !(+String((vals || {})[f.k] == null ? '' : vals[f.k]).replace(/[^\d]/g, '') > 0); }); }
+  
+  function provEv(it) { var inp = S.inp || {}, BY = inp.bsYears || {}, ye = Object.keys(BY).sort().reverse().slice(0, 3), A0 = inp.asset || {}, PT = (inp.parts || {})['asset.liabSub.provisions'] || [], files = [], items = [];
+    var f = function (file, form) { file = String(file || '').split('/').pop(); if (!file) return form || ''; var i = files.indexOf(file); if (i < 0) { files.push(file); i = files.length - 1; } return '세무조정계산서 ' + '①②③④⑤⑥⑦⑧⑨⑩'.charAt(i) + (form ? ' ' + form : ''); };
+    var fp = function (src, form) { var m = String(src || '').match(/^(.*?\.pdf)\s*(p\.\d+)?/i); return m ? f(m[1], (form ? form + ' ' : '') + (m[2] || '')) : (ye.length ? f(BY[ye[0]].__file, form) : String(src || '')); };
+    var add = function (lab, rows, note) { items.push({ lab: lab, rows: rows || [], note: note || '' }); };
+    var acct = function (key, lab) { add(lab, ye.filter(function (e) { var v = (BY[e] || {})[key]; return v !== undefined && v !== null && v !== ''; }).map(function (e) { var y = BY[e], sp = ((y.__src || {})[key] || '').match(/p\.\d+/); return [e.slice(0, 4), won(y[key]), f(y.__file, '표준재무상태표' + (sp ? ' ' + sp[0] : ''))]; })); };
+    var yb = function (re, no, lab, note) { add('별지50호(을) 자본금과적립금조정명세서 유보 — ' + lab, (A0.yuboItems || []).filter(function (q) { return re.test(q.label || '') && !(no && no.test(q.label || '')); }).map(function (q) { return [q.label + (q.out ? ' (가산 안 함)' : ' (가산)'), won(q.end), fp(q.src, '별지50호(을)')]; }), note); };
+    if (it.kind === 'provRetire') { acct('severanceLiab', '퇴직급여충당부채'); acct('pensionAsset', '퇴직연금운용자산');
+      add('퇴직급여추계액 (별지32호 퇴직급여충당금 조정명세서)', ye.filter(function (e) { return BY[e].__f32; }).map(function (e) { var q = BY[e].__f32; return [e.slice(0, 4), won(q.v), (q.src ? fp(q.src, '별지32호') : f(BY[e].__file, '별지32호')) + (q.from33 ? ' (별지33호 ①)' : '')]; }));
+      yb(/퇴직/, null, '퇴직 관련', '퇴직 유보는 순자산에 따로 가산하지 않음(추계액·충당부채로 처리 · 「2026 비상장주식평가실무」 p.324)');
+      add('지금 계산 (「2026 비상장주식평가실무」대로)', [['부채에서 뺌 : 장부 퇴직급여충당부채', won(it.sev), fp((PT.filter(function (q) { return /퇴직/.test(q.label); })[0] || {}).src, '표준재무상태표')], ['부채에 더함 : 퇴직급여추계액', won(it.est), fp((inp.src || {})['asset.liabAdd.retireEst'], '별지32호')]]); }
+    else if (it.kind === 'provOther') {
+      add('그 밖 충당부채 (표준재무상태표 부채, 퇴직·대손·연차 뺌)', [].concat.apply([], ye.map(function (e) { var L = BY[e].__prov || []; return L.length ? L.map(function (q) { return [e.slice(0, 4) + ' ' + q.name + (q.code ? '(' + q.code + ')' : ''), won(q.v), q.src ? fp(q.src, '표준재무상태표') : f(BY[e].__file, '표준재무상태표')]; }) : [[e.slice(0, 4), '없음', f(BY[e].__file, '표준재무상태표')]]; })));
+      yb(/충당|보증|하자/, /퇴직|대손|일시상각|압축|감액|평가/, '충당부채 관련', '같은 이름 (+)유보는 제충당금 차감과 겹쳐 가산 안 함');
+      add('지금 계산 (「2026 비상장주식평가실무」대로 · 제충당금에 더해 부채에서 뺌)', PT.filter(function (q) { return !/퇴직|대손/.test(q.label); }).map(function (q) { return [q.label, won(q.v), fp(q.src, '표준재무상태표')]; })); }
+    else if (it.kind === 'provBad') { acct('allowanceBad', '대손충당금');
+      add('별지34호 대손충당금 및 대손금조정명세서 ⑥ 회사계상액 계', ye.filter(function (e) { return BY[e].__f34; }).map(function (e) { var q = BY[e].__f34; return [e.slice(0, 4), won(q.v), f(BY[e].__file, '별지34호' + (q.page ? ' p.' + q.page : ''))]; }));
+      yb(/대손/, null, '대손 관련', '대손충당금 유보 = 충당금을 따로 되돌려 가산 안 함(「2026 비상장주식평가실무」 p.324) · 대손금 부인 유보 = 채권 가산(「2026 비상장주식평가실무」 p.322)');
+      add('지금 계산 (없음 = 충당금 전액 채권에 더함)', PT.filter(function (q) { return /대손/.test(q.label || ''); }).map(function (q) { return ['제충당금에 넣어 되돌림 : ' + q.label, won(q.v), fp(q.src, '표준재무상태표')]; })); }
+    var h = '<details class="sbz-ev pk-won" open><summary>근거 숫자 보기 — 세무조정계산서</summary>' + items.map(function (x) { return '<div class="sbz-evi"><b>' + esc(x.lab) + '</b>' + (x.rows.length ? '<table>' + x.rows.map(function (r) { return '<tr><td>' + esc(r[0]) + '</td><td class="n">' + esc(r[1]) + '</td><td>' + esc(r[2]) + '</td></tr>'; }).join('') + '</table>' : '<div class="sbz-evx">자료에 없음</div>') + (x.note ? '<div class="sbz-sub">· ' + esc(x.note) + '</div>' : '') + '</div>'; }).join('');
+    return h + (files.length ? '<div class="sbz-evf">' + files.map(function (x, i) { return '<div>' + '①②③④⑤⑥⑦⑧⑨⑩'.charAt(i) + ' 세무조정계산서 — ' + esc(x) + '</div>'; }).join('') + '</div>' : '') + '</details>'; }
+  function provHtml() { var P = S.U.prov || {};
+    return provRaw().map(function (it) { var a = P[it.key] || {}, cur = a.c || '';
+      return '<div class="sbz-co sbz-pv" data-pvk="' + esc(it.key) + '"><div class="sbz-pvq pk-won">' + esc(it.line) + '</div><div class="sbz-sub sbz-pvw">' + esc(it.why).replace(/\n/g, '<br>') + '<br>· ' + esc(PROV_LAW[it.kind] || '') + '<br>· 안 고르거나 「모름」 = ' + (it.kind === 'provBad' ? '없음' : '「2026 비상장주식평가실무」대로') + '(지금 계산 그대로)</div>'
+        + '<div class="pk-wo">' + (it.opts || []).concat([{ c: 'unk', label: '모름 — 기본 그대로' }]).map(function (o, oi) { var vv = {}; (o.f || []).forEach(function (fd) { vv[fd.k] = cur === o.c && a.vals && a.vals[fd.k] != null ? a.vals[fd.k] : (fd.def != null ? fd.def : ''); });
+          var eff = o.c === 'unk' ? '' : provNeed(o, vv) ? '→ 금액을 넣으면 순자산가액·1주가 여기 나옴' : provEff(it.key, o.c, vv);
+          return '<button type="button" class="' + (cur === o.c || (!cur && o.c === 'unk' && false) ? 'on' : '') + '" data-pvo="' + esc(it.key) + '|' + o.c + '"><span>' + esc(o.label) + (eff ? '<br><small data-pve="' + esc(it.key) + '|' + o.c + '">' + esc(eff) + '</small>' : '') + '</span></button>'
+            + (o.f || []).map(function (fd) { return '<div class="pk-wi"><label class="sbz-sub">' + esc(fd.label) + '(원)</label><input type="text" inputmode="numeric" data-pvf="' + esc(it.key) + '|' + o.c + '|' + fd.k + '" value="' + esc(vv[fd.k] === '' || vv[fd.k] == null ? '' : Math.round(+String(vv[fd.k]).replace(/[^\d]/g, '')).toLocaleString('ko-KR')) + '" placeholder="금액(원)"></div>'; }).join(''); }).join('') + '</div>'
+        + provEv(it) + '</div>'; }).join(''); }
+  function provSet(key, c) { var it = provRaw().filter(function (x) { return x.key === key; })[0]; if (!it) return; S.U.prov = S.U.prov || {}; var o = (it.opts || []).filter(function (x) { return x.c === c; })[0], vals = {};
+    (o && o.f || []).forEach(function (fd) { var e = document.querySelector('[data-pvf="' + key + '|' + c + '|' + fd.k + '"]'); var v = e ? String(e.value).replace(/[^\d]/g, '') : ''; vals[fd.k] = v === '' ? '' : +v; });
+    S.U.prov[key] = { c: c, vals: vals }; }
 
   
   function kindOf(n) { return /감사보고서|검토보고서|_DART|dart/i.test(n) ? 'dart' : 'cretop'; }
@@ -13564,6 +13675,9 @@ window.__FSPDF={M:"AAEAAAAMAIAAAwBARFNJRwAAAAEACfTYAAAACEdQT1MBV/JlAAnmoAAADjZPU
     } else if (id === 'start') {
       h += Q('피상속인이 이 가업을 시작한 날은요?', '가업 영위기간 → 공제 한도(10년 이상) · 빈칸으로 [다음] = ' + (B && B.start ? B.start + '(사업개시일 또는 설립일)' : '모름 → 한도 미적용'));
       h += '<div class="pk-wi"><input type="date" id="sbzIn" value="' + esc(S.U.startDate || '') + '"></div>' + nextBtn();
+    } else if (id === 'prov') {
+      h += Q('충당부채, 회수 불가능 채권을 확인해 주세요', '기본 = 「2026 비상장주식평가실무」대로(지금 계산 그대로) · 고르면 순자산가액, 1주가 바로 바뀜 · 근거 숫자 = 세무조정계산서');
+      h += provHtml() + nextBtn();
     } else if (id === 'adjQ' || id === 'clsQ' || id === 'formQ') {
       var T = { adjQ: ['토지 시가처럼 적용가액을 바꿀 항목이 있어요?', '기본 = 장부가액, 엔진 평가가 있으면 그 값(상증법 제4장 평가액)', [['n', '없어요 — 기본값 그대로'], ['y', '있어요 — 항목별로 넣을래요']]],
         clsQ: ['사업용 / 사업무관 구분을 바꿀 항목이 있어요?', '기본 = 엔진 구분 · 지금 사업무관 ' + (B ? eok(B.idle) + ', 사업용자산비율 ' + pct(B.ratio) : ''), [['n', '없어요 — 엔진 구분 그대로'], ['y', '있어요 — 항목별로 바꿀래요']]],
@@ -13675,6 +13789,8 @@ window.__FSPDF={M:"AAEAAAAMAIAAAwBARFNJRwAAAAEACfTYAAAACEdQT1MBV/JlAAnmoAAADjZPU
       return bad2 ? err(bad2) : true; }
     if (id === 'cash') { var bad3 = false; S.U.cashPrev = [0, 1].map(function (k) { var e = document.querySelector('[data-cp="' + k + '"]'), w = eokToWon(e ? e.value : ''); if (isNaN(w)) bad3 = true; return w === '' || isNaN(w) ? '' : w; });
       S.U.cashFill = [0, 1].map(function (k) { var e = document.querySelector('[data-cf="' + k + '"]'), w = eokToWon(e ? e.value : ''); if (isNaN(w)) bad3 = true; return w === '' || isNaN(w) ? '' : w; }); return bad3 ? err('숫자로 넣어 주세요(억)') : true; }
+    if (id === 'prov') { var bp = ''; Object.keys(S.U.prov || {}).forEach(function (k) { var a = S.U.prov[k], it = provRaw().filter(function (x) { return x.key === k; })[0]; if (!a || !it) return; provSet(k, a.c); var o = (it.opts || []).filter(function (x) { return x.c === a.c; })[0]; if (o && provNeed(o, S.U.prov[k].vals)) bp = '「' + o.label + '」 금액을 넣어 주세요'; });
+      if (bp) return err(bp); base(); return true; }
     if (id === 'form') { [].forEach.call(document.querySelectorAll('[data-form]'), function (e) { S.form[e.getAttribute('data-form')] = e.value.trim(); }); return true; }
     return true;
   }
@@ -13686,8 +13802,9 @@ window.__FSPDF={M:"AAEAAAAMAIAAAwBARFNJRwAAAAEACfTYAAAACEdQT1MBV/JlAAnmoAAADjZPU
   function fname(ext) { return (corpName() || '회사').replace(/\(주\)|（주）|㈜|주식회사|\(「2026 비상장주식평가실무」 사례\)/g, '').replace(/[\\/:*?"<>|\s()（）㈜]/g, '').replace(/^주식회사/, '') + '_주식평가_사업용비율_' + stamp() + ext; }
   function save(blob, name) { return window.TXXL ? TXXL.saveBlob(blob, name) : Promise.resolve(name); }
   document.addEventListener('click', function (e) {
-    var t = e.target.closest && e.target.closest('#pkRoot [data-sbz],#pkRoot [data-sbzv],#pkRoot [data-sbzn],#pkRoot [data-sbzp]'); if (!t) return;
+    var t = e.target.closest && e.target.closest('#pkRoot [data-sbz],#pkRoot [data-sbzv],#pkRoot [data-sbzn],#pkRoot [data-sbzp],#pkRoot [data-pvo]'); if (!t) return;
     if (t.hasAttribute('data-sbzv')) { S[S.cur] = t.getAttribute('data-sbzv'); go(); return; }
+    if (t.hasAttribute('data-pvo')) { var pq = t.getAttribute('data-pvo').split('|'); if (pq[1] === 'unk') { S.U.prov = S.U.prov || {}; S.U.prov[pq[0]] = { c: 'unk', vals: {} }; } else provSet(pq[0], pq[1]); base(); draw(); return; }
     if (t.hasAttribute('data-sbzn')) { if (S.busy) return; setN(+t.getAttribute('data-sbzn')); draw(); return; }
     if (t.hasAttribute('data-sbzp')) { S.plan = t.getAttribute('data-sbzp'); if (readStep()) go(); return; }
     var a = t.getAttribute('data-sbz');
@@ -13711,6 +13828,11 @@ window.__FSPDF={M:"AAEAAAAMAIAAAwBARFNJRwAAAAEACfTYAAAACEdQT1MBV/JlAAnmoAAADjZPU
   });
   document.addEventListener('change', function (e) { var t = e.target; if (t && t.hasAttribute && t.hasAttribute('data-sbzf')) { var fs = [].slice.call(t.files || []); t.value = ''; if (fs.length) addFiles(+t.getAttribute('data-sbzf'), t.getAttribute('data-sbzk'), fs); } });
   
+  document.addEventListener('input', function (e) { var t = e.target; if (!t || !t.getAttribute || !t.hasAttribute('data-pvf')) return; var q = t.getAttribute('data-pvf').split('|'), d = String(t.value).replace(/[^\d]/g, '');
+    t.value = d ? (+d).toLocaleString('ko-KR') : ''; var vv = {}; vv[q[2]] = d === '' ? '' : +d; var a = (S.U.prov || {})[q[0]]; if (a && a.c === q[1]) { a.vals = vv; base(); }
+    var ef = document.querySelector('[data-pve="' + q[0] + '|' + q[1] + '"]'), it = provRaw().filter(function (x) { return x.key === q[0]; })[0], o = it && (it.opts || []).filter(function (x) { return x.c === q[1]; })[0];
+    if (ef && o) ef.textContent = provNeed(o, vv) ? '→ 금액을 넣으면 순자산가액·1주가 여기 나옴' : provEff(q[0], q[1], vv); });
+  
   function hrAt(k) { var q = String(k).split(':'), c = S.cos[+q[0]]; return c && c.rows ? { c: c, ci: +q[0], ri: +q[1], r: c.rows[+q[1]] } : null; }
   document.addEventListener('input', function (e) { var t = e.target; if (!t || !t.getAttribute) return;
     var k = t.getAttribute('data-hrs') || t.getAttribute('data-hrn'); if (!k) return; var x = hrAt(k); if (!x || !x.r) return;
@@ -13724,7 +13846,7 @@ window.__FSPDF={M:"AAEAAAAMAIAAAwBARFNJRwAAAAEACfTYAAAACEdQT1MBV/JlAAnmoAAADjZPU
   
   function play(P) { P = P || {}; S.U = Object.assign({ ov: {} }, JSON.parse(JSON.stringify(P.U || {}))); S.form = Object.assign({}, P.form || {}); S.adjQ = S.clsQ = 'n'; S.formQ = P.form ? 'y' : 'n';
     if (P.plan) S.plan = P.plan; if (P.fix) S.fix = cp(P.fix); if (S.grp) solveG(); S.path = vis().slice(0, -1); S.done = true; base(); draw(); return S.o; }
-  window.SBZUI = { S: S, setRows: setRows, gate: gate, gateMsg: gateMsg, initRows: initRows, loadInp: loadInp, loadGroup: loadGroup, readFiles: readFiles, readAll: readAll, setN: setN, addFiles: addFiles, solveG: solveG, grpInfo: grpInfo, play: play, draw: draw, calc: calc, restart: restart };
+  window.SBZUI = { S: S, provRaw: provRaw, provApply: provApply, provEff: provEff, setRows: setRows, gate: gate, gateMsg: gateMsg, initRows: initRows, loadInp: loadInp, loadGroup: loadGroup, readFiles: readFiles, readAll: readAll, setN: setN, addFiles: addFiles, solveG: solveG, grpInfo: grpInfo, play: play, draw: draw, calc: calc, restart: restart };
   draw();
 })();
 
