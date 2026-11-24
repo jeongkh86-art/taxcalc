@@ -7693,7 +7693,9 @@ if (__SEV_NODE) {
     { key: 'inventoryAllowance', label: '재고자산평가충당금', group: 'bs', contra: true, sum: true,
       pats: ['재고자산평가충당금', '평가충당금', '재고평가충당금', '재고자산평가손실충당금'] },
     { key: 'govGrant',         label: '정부보조금',       group: 'bs', contra: true, sum: true,
-      pats: ['정부보조금', '국고보조금', '정부보조금등', '공사부담금', '정부보조금차감액'] },
+      pats: ['정부보조금', '국고보조금', '정부보조금등', '공사부담금', '정부보조금차감액',
+             
+             '국고보조금등차감액', '정부보조금등차감액', '국고보조금차감액'] },
     { key: 'intangibleAssets', label: '무형자산',        group: 'bs',
       pats: ['무형자산', '무형자산계'] },
     
@@ -8149,6 +8151,14 @@ if (__SEV_NODE) {
     var lastTarget = null;   
     var contraSeen = {};     
     
+    var contraOwner = null, GRANT_NONET = /^(국고보조금등차감액|정부보조금등차감액|국고보조금차감액)$/;
+    var grantRE = function (owner, vals) {
+      if (!/^(land|building|structure)$/.test(owner || '')) return;
+      var g = found.govGrantRE || (found.govGrantRE = { label: '정부보조금(토지·건물·구축물분)', group: 'bs', values: [], stmt: t.stmt || null, fromTotal: false, seen: {}, seenV: {}, owners: [] });
+      vals.forEach(function (v, i) { if (v === undefined) return; g.values[i] = (g.values[i] || 0) + Math.abs(v); });
+      g.owners.push(owner);
+    };
+    
     var lastTotalKey = null;
     var FIN_SWAP = { shortTermInv: 'longTermFin', longTermFin: 'shortTermInv' };
     t.finSwap = [];
@@ -8185,7 +8195,7 @@ if (__SEV_NODE) {
         
         if (!def) {
           if (hasNumber(cells.slice(pos))) {
-            lastTarget = null;
+            lastTarget = null; contraOwner = null;
             var lab = String(cells[pos].str || '').trim();
             if (lab && !/^[\d,().\-\s%]+$/.test(lab) && !NOISE_RE.test(lab.replace(/\s/g, '')))
               unmatched.push({ label: lab, stmt: t.stmt || null, page: t.page });
@@ -8208,9 +8218,12 @@ if (__SEV_NODE) {
         if (!vals.length) { if (!def.contra) lastTarget = null; pos = Math.max(end, labelIdx + 1); continue; }
 
         
+        var gOwner = null;
         if (def.contra) {
           var sig = String(lastTarget) + '|' + vals.join(',');
-          if (lastTarget && found[lastTarget] && !contraSeen[sig]) {
+          if (def.key === 'govGrant') gOwner = lastTarget || contraOwner;
+          var noNet = def.key === 'govGrant' && GRANT_NONET.test(normLabel(cells[labelIdx].str));
+          if (lastTarget && found[lastTarget] && !contraSeen[sig] && !noNet) {
             contraSeen[sig] = 1;
             var tv = found[lastTarget].values;
             vals.forEach(function (v, i) {
@@ -8225,8 +8238,10 @@ if (__SEV_NODE) {
               vals.forEach(function (v, i) { if (v === undefined) return; faL.values[i] = (faL.values[i] || 0) + Math.abs(v); });
             }
           }
+          if (lastTarget) contraOwner = lastTarget;
           lastTarget = null;
         } else {
+          contraOwner = null;
           lastTarget = def.contraTarget
             ? ((t.stmt === 'mfg' && MFG_REMAP[def.key]) ? MFG_REMAP[def.key] : def.key) : null;
         }
@@ -8246,6 +8261,7 @@ if (__SEV_NODE) {
           found[outKey].seen[vals.join(',')] = 1;
           found[outKey].seenV[vals.filter(function(v){ return v!==undefined; })
                                   .slice().sort(function(a,b){ return a-b; }).join(',')] = 1;
+          if (outKey === 'govGrant') grantRE(gOwner, vals);
         } else if (/^(capitalStock|sharesIssued|parValue|treasuryStock|authorizedShares)$/.test(outKey)) {
           
           var sigG = vals.filter(function(v){ return v!==undefined; })
@@ -8302,6 +8318,7 @@ if (__SEV_NODE) {
               if (v === undefined) return;
               tgt[i] = (tgt[i] === undefined ? 0 : tgt[i]) + v;
             });
+            if (outKey === 'govGrant') grantRE(gOwner, vals);
           }
         }
         pos = Math.max(end, labelIdx + 1);   
@@ -8649,7 +8666,7 @@ if (__SEV_NODE) {
                    data[k].values.filter(function (v) { return v !== undefined; }).slice().sort(function (x, y) { return x - y; }).join(',') ===
                    src.values.filter(function (v) { return v !== undefined; }).slice().sort(function (x, y) { return x - y; }).join(','))) {
           
-        } else if (KEYDEF[k] && KEYDEF[k].sum) {
+        } else if ((KEYDEF[k] && KEYDEF[k].sum) || k === 'govGrantRE') {   
           var tgt = data[k].values;
           src.values.forEach(function (v, i) {
             if (v === undefined) return;
@@ -12329,6 +12346,13 @@ var SEV = (function () {
         if (nq) put(q[0], sq);
       });
       
+      (function () {
+        var aEnd = B.search(/(?<![와및])자산총계/), BA = aEnd > 0 ? B.slice(0, aEnd) : '';
+        var rg = new RegExp('(?<![가-힣])(?:정부보조금|국고보조금)(?:등)?' + NN, 'g'), mg, sg = [0, 0], ng = 0;
+        while ((mg = rg.exec(BA))) { sg[0] += Math.abs(toN(mg[1])); sg[1] += Math.abs(toN(mg[2])); ng++; }
+        if (ng && (sg[0] || sg[1])) put('govGrant', sg);
+      })();
+      
       var BZ = { cash: '(?:현금및현금성자산|현금및예금|현금과예금)', shortTermInv: '(?:단기금융상품|단기매매증권|단기투자자산|단기투자증권|단기예금|정기예금|정기적금|당기손익-?공정가치측정금융자산)',
         shortTermLoan: '(?:단기대여금|주임종단기대여금|임직원단기대여금|종업원단기대여금)', longTermLoan: '(?:장기대여금|주임종장기대여금|임직원장기대여금|종업원장기대여금)',
         relatedPartyLoan: '(?:특수관계자(?:단기|장기)?대여금|관계회사(?:단기|장기)?대여금)', provisionalPay: '(?:가지급금|업무무관가지급금)',
@@ -12494,7 +12518,7 @@ var SEV = (function () {
     fx = fx || {}; var u = fx.unit || 1, D = fx.data || {}, per = fx.periods || [], M = fx.meta || {};
     var o = { kind: 'cretop', file: file || '', years: {}, corp: {}, holders: [], unit: u };
     per.forEach(function (e, i) {
-      var y = {}; EXT_KEYS.concat(['allowanceBad', 'incomeTaxPayable', 'deferredTaxLiab', 'deferredTaxAsset']).forEach(function (k) { var v = D[k] && D[k].values ? D[k].values[i] : null; if (v !== null && v !== undefined && isFinite(v)) y[k] = /^(allowanceBad|incomeTaxPayable|deferredTaxLiab|deferredTaxAsset)$/.test(k) ? Math.round(Math.abs(v) * u) : Math.round(v * u); });      
+      var y = {}; EXT_KEYS.concat(['allowanceBad', 'incomeTaxPayable', 'deferredTaxLiab', 'deferredTaxAsset', 'govGrant', 'govGrantRE']).forEach(function (k) { var v = D[k] && D[k].values ? D[k].values[i] : null; if (v !== null && v !== undefined && isFinite(v)) y[k] = /^(allowanceBad|incomeTaxPayable|deferredTaxLiab|deferredTaxAsset|govGrant|govGrantRE)$/.test(k) ? Math.round(Math.abs(v) * u) : Math.round(v * u); });      
       o.years[e] = y;
     });
     o.ends = per.slice().sort().reverse();
@@ -13271,6 +13295,19 @@ var SEV = (function () {
         inp.src['asset.' + q[1] + '.' + q[0]] = s4 + ' — 재무상태표 ' + q[2];
         chk.push(q[2] + ' ' + v4.toLocaleString() + '원 ' + q[3] + ' — ' + s4 + ' · 재산상속46014-587');
       });
+    }
+    
+    if (!Object.keys(TXY).length && !has((inp.asset.add || {}).yubo)) {
+      var dy5 = (e0 && DY[e0]) || {}, g5 = 0, gr5 = 0, s5 = '';
+      if (dy5.govGrant !== undefined && num(dy5.govGrant) > 0) { g5 = Math.abs(num(dy5.govGrant)); s5 = 'DART ' + DSRC[e0].file; }
+      else if (cre && num(cy0.govGrant) > 0) { g5 = Math.abs(num(cy0.govGrant)); gr5 = Math.abs(num(cy0.govGrantRE)); s5 = '크레탑 ' + cre.file; }
+      if (g5 > 0) {
+        inp.asset.add = inp.asset.add || {};
+        inp.asset.add.yubo = g5; inp.asset.yuboAuto = g5;
+        inp.src['asset.add.yubo'] = s5 + ' — 재무상태표 정부보조금(자산 차감 표시) 가산 · 결산서 기준';
+        chk.push('정부보조금 ' + g5.toLocaleString() + '원 — 자산에서 차감 표시 → 순자산 가산(' + s5 + ' · 「2026 비상장주식평가실무」 p.342 · 서면4팀-3315) · 결산서 기준 [확인 필요] 반환 조건(상환의무 있으면 부채)' +
+          (gr5 > 0 ? ' · 그중 토지·건물·구축물분 ' + gr5.toLocaleString() + '원 = 그 부동산을 시가·기준시가로 바꾸면 시가에 들어가 빼야 함' : ''));
+      }
     }
     
     var dlast = darts[0] || null;
@@ -17694,7 +17731,16 @@ function autoFill(){
       var by=(FX.parsePeriod(S.periods[c])||{}).year;
       var td=by&&S.txadj?S.txadj[String(by)]:null;
       
-      if(!td){ S.sevYuboOnly=null; S.txUnpaidTax=null; S.txRefund=null; S.txYuboMemo=''; S.txYuboSkip=[]; S.txYuboFloor=[]; S.txYuboCheck=[]; S.txYuboAdd=[]; S.txYuboNone=[]; return; }
+      if(!td){ S.sevYuboOnly=null; S.txUnpaidTax=null; S.txRefund=null; S.txYuboMemo=''; S.txYuboSkip=[]; S.txYuboFloor=[]; S.txYuboCheck=[]; S.txYuboAdd=[]; S.txYuboNone=[];
+        
+        S.txGrantAdd=null;
+        var gAll0=Math.abs(pick('govGrant',c)||0)*u, gRE0=Math.abs(pick('govGrantRE',c)||0)*u, gAdd0=Math.max(0,gAll0-(S.grantRE||0));
+        if(gAdd0>0){
+          S.txGrantAdd={amt:gAdd0,all:gAll0,re:S.grantRE||0,reLine:gRE0,noTx:true};
+          setWon('apEtc',gAdd0,true); any=true;
+          S.txYuboMemo='＋정부보조금(재무상태표 차감 표시 · 결산서 기준) '+fmt(gAdd0)+(gRE0>0&&!(S.grantRE>0)?' · 그중 토지·건물·구축물분 '+fmt(gRE0)+'(그 부동산을 시가로 바꾸면 빼기)':'')+' [확인 필요]';
+        }
+        return; }
       S.txYuboMemo='';   
       S.txYuboSkip=[]; S.txYuboFloor=[];
       
