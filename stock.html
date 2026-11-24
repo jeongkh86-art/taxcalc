@@ -23684,6 +23684,7 @@ var PORT={
       shares:r?r.effectiveShares:0,
       
       sharesTotal:r?(+r.shares||0):0,
+      par:(function(){ try{ return TE.num($('parValue').value)||0; }catch(e){ return 0; } })(),   
       tsShares:r?(+r.treasuryShares||0):0,
       pct:P.pct,
       stake:P.stake,
@@ -28983,7 +28984,9 @@ DG.prototype.box=function(x,y,w,h,kind,label,lines){
   (lines||[]).forEach(function(l,i){ this.txt(l,x+0.14,y0+i*0.27,w-0.28,0.27,tax?14:13,true,vc,'left'); },this);
 };
 DG.prototype.lab=function(t,x,y,w,b,col,al){ this.txt(t,x,y,w,0.27,12.5,b!==false,col||DGC.ink,al||'left'); };
-DG.prototype.note=function(t,x,y,w,al){ this.txt(t,x,y,w,0.27,12,false,DGC.sub,al||'left'); };
+DG.prototype.note=function(t,x,y,w,al){ this.txt(t,x,y,w,0.27,12,false,DGC.sub,al||'left');
+  
+  var o=this.ops[this.ops.length-1]; if(o&&o.tx===String(t)&&dgW(t,12,false)>w*0.95){ o.va='top'; o.y+=0.02; o.h=0.27+12*1.22/72; var ps=String(t).split(', '); if(ps.length>1){ var hb=Math.floor(ps.length/2); var a1=ps.slice(0,hb).join(', ')+',', a2=ps.slice(hb).join(', '); if(dgW(a1,12,false)<=w&&dgW(a2,12,false)<=w) o.tx=a1+'\n'+a2; } } };   
 
 function dgSlide(title,sub,band,draw){
   var g=new DG(), X=D2.MX, W=D2.CW;
@@ -29748,7 +29751,7 @@ function rdKpi(K,w,sp){
   var t=rdTx(sp.t), v=rdTx(sp.v), sm=sp.sm?rdTx(sp.sm):'', s=sp.s?rdTx(sp.s):'';
   var Ls=s?K.wrap(s,12,false,w-0.28):[]; var lh=12*1.26/72;
   var vfs=K.fit(v+(sm?'  '+sm:''),w-0.28,22,true);
-  var h=0.08+0.24+vfs*1.18/72+Ls.length*lh+0.10;
+  var h=Math.max(sp.minH||0,0.08+0.24+vfs*1.18/72+Ls.length*lh+0.10);   
   return {h:h, draw:function(x,y){
     K.rect(x,y,w,h,RDC.panel,RDC.line,0.75); K.rect(x,y,w,0.035,RDC.mid);
     K.t(t,x+0.14,y+0.08,K.fit(t,w-0.28,12.5,true),true,RDC.sub);
@@ -29760,22 +29763,31 @@ function rdKpi(K,w,sp){
 
 function rdFx(K,w,items,fsV,maxGap,left){
   fsV=fsV||16;
-  var boxes=items.map(function(it){ if(typeof it==='string') return {op:it, w:K.w(it,16,true)+0.04};
-    var tw=Math.max(K.w(rdTx(it.t),12,true),K.w(rdTx(it.v),fsV,true))+0.18; return {t:rdTx(it.t),v:rdTx(it.v),res:it.res,w:tw}; });
-  var tot=boxes.reduce(function(a,b){ return a+b.w; },0);
-  var gap=Math.min(maxGap||0.42,Math.max(0.04,(w-tot)/Math.max(1,boxes.length-1)));
-  var scale=tot+gap*(boxes.length-1)>w?w/(tot+gap*(boxes.length-1)):1;
-  var h=0.24+fsV*1.2/72+0.10;
-  var used=tot+gap*(boxes.length-1);
-  return {h:h, over:scale<1, draw:function(x,y){
-    var xx=left?x:x+Math.max(0,(w-used)/2);
-    boxes.forEach(function(b){
-      if(b.op){ K.t(b.op,xx+b.w/2,y+h/2-16*0.62/72,16,true,RDC.gold,'center'); xx+=b.w+gap; return; }
+  
+  var mkB=function(fv,pad,ow){ return items.map(function(it){ if(typeof it==='string') return {op:it, w:K.w(it,ow,true)+0.04, ow:ow};
+    var tw=Math.max(K.w(rdTx(it.t),12,true),K.w(rdTx(it.v),fv,true))+pad; return {t:rdTx(it.t),v:rdTx(it.v),res:it.res,w:tw}; }); };
+  var sumW=function(B,g){ return B.reduce(function(a,b){ return a+b.w; },0)+g*Math.max(0,B.length-1); };
+  var boxes=null, two=false, fv0=fsV;
+  for(var f=fsV; f>=12&&!boxes; f-=0.5){ [0.18,0.12].forEach(function(pd){ if(boxes) return; var B=mkB(f,pd,Math.min(16,f)); if(sumW(B,0.06)<=w){ boxes=B; fv0=f; } }); }
+  if(!boxes){ fv0=12; boxes=mkB(12,0.12,12); two=boxes.length>=3&&typeof items[items.length-2]==='string'; }
+  fsV=fv0;
+  var B1=two?boxes.slice(0,-2):boxes, B2=two?boxes.slice(-2):[];
+  var tot=B1.reduce(function(a,b){ return a+b.w; },0);
+  var gap=Math.min(maxGap||0.42,Math.max(0.04,(w-tot)/Math.max(1,B1.length-1)));
+  var h1=0.24+fsV*1.2/72+0.10, h=two?h1*2+0.08:h1;
+  var used=tot+gap*(B1.length-1);
+  return {h:h, over:sumW(B1,0.04)>w+0.005, draw:function(x,y){
+    var xx=left?x:x+Math.max(0,(w-used)/2), h0=h, y0=y; h=h1;
+    var put=function(b){
+      if(b.op){ var ofs=b.ow||16; K.t(b.op,xx+b.w/2,y+h/2-ofs*0.62/72,ofs,true,RDC.gold,'center'); xx+=b.w+gap; return; }
       K.rrect(xx,y,b.w,h,0.04,b.res?RDC.hi:RDC.panel,b.res?RDC.mid:RDC.line,b.res?1.5:0.75);
       K.t(b.t,xx+b.w/2,y+0.05,12,true,RDC.sub,'center');
       K.t(b.v,xx+b.w/2,y+0.25,fsV,true,b.res?RDC.gold:RDC.ink,'center');
       xx+=b.w+gap;
-    });
+    };
+    B1.forEach(put);
+    if(B2.length){ y=y0+h1+0.08; var w2=B2.reduce(function(a,b){ return a+b.w; },0)+gap; xx=x+w-w2; B2.forEach(put); }
+    h=h0;
   }};
 }
 
@@ -30450,7 +30462,13 @@ function rdResolve(ctx,p){
   for(var i=0;i<tries.length;i++){
     var items=p.build(K,top,tries[i]);
     var L=rdLay(top,items,tries[i].tight?0.12:0.17);
-    if(L.fits){ p.lay=L; return [p]; }
+    if(L.fits){ p.lay=L;
+      
+      try{ var av=RD_BOT-top-0.04; if(i===0&&!p.noAir&&L.h<av*0.62){ var tbs=items.map(function(c,j){ return (c&&c.tb&&c.fit)?j:-1; }).filter(function(j){ return j>=0; });
+        if(tbs.length){ var ext=av*0.85-L.h, th=tbs.reduce(function(a,j){ return a+items[j].h; },0)||1, it2=items.slice();
+          tbs.forEach(function(j){ var c=items[j], nr=Math.max(1,Math.round(c.h/0.3)), add=Math.min(ext*c.h/th,nr*0.16); var f=c.fit(c.h+add); if(f) it2[j]=f; });
+          var L2=rdLay(top,it2,0.17); if(L2.fits&&L2.h<=av){ p.lay=L2; ctx.log.push('여백 채움 : '+p.title+' '+(L.h/av*100).toFixed(0)+'% → '+(L2.h/av*100).toFixed(0)+'%'); } } } }catch(e){}
+      return [p]; }
   }
   
   var cOpt={fs:12,tight:1}; if(p.lite) cOpt.lite=p.lite;
@@ -31024,54 +31042,63 @@ function rdShPage(ctx,u){
   if(window.__reqIn&&window.__reqIn.shOrder){   
     ppl.sort(function(a,b){ return (RD_SHG.indexOf(rdShRelG(a[0]))-RD_SHG.indexOf(rdShRelG(b[0])))||(rdV(b[cP])-rdV(a[cP])); });
     body=ppl.concat(body.filter(function(r){ return /합 *계/.test(r[0]); })); }
-  var top=ppl[0];
-  var runs=[{t:top[0]+' '+top[1]+', 지분 '+top[cP]},{t:' / 평가금액 '+top[cV]+'원'.replace(/원원$/,'원'),b:true,col:RDC.gold}];
+  var top=ppl[0], cN=function(n){ return String(n==null?'':n).replace(/\s*\(법인\)\s*$/,''); };   
+  var runs=[{t:cN(top[0])+' '+top[1]+', 지분 '+top[cP]},{t:' / 평가금액 '+top[cV]+'원'.replace(/원원$/,'원'),b:true,col:RDC.gold}];
   runs[1].t=' / 평가금액 '+(/원$/.test(top[cV])?top[cV]:top[cV]+'원');
   
   var GRP=['본인','배우자','자녀','기타친족','기타'];
   var G6=!!(window.__reqIn&&window.__reqIn.shOrder); if(G6) GRP=['본인','배우자','자녀','손자녀','기타친족','기타'];   
+  var GRP0=GRP.slice(), HASC=ppl.some(function(r){ return /\(법인\)\s*$/.test(String(r[0]||'')); }); if(HASC) GRP=GRP.slice(0,-1).concat(['법인','기타']);   
   var relOf=function(nm){
     var n=String(nm==null?'':nm).trim();
     if(G6){ try{ var dt0=(window.__shRelDet||{})[n]; if(dt0&&/손자녀/.test(dt0)) return '손자녀'; }catch(e){} }
     try{ var I=window.__shRelIn; if(I&&I[n]&&GRP.indexOf(I[n])>=0) return I[n]; }catch(e){}
     if(/자기주식/.test(n)) return '기타';
+    if(HASC&&/\(법인\)\s*$/.test(n)) return '법인';   
     try{ if(window.RELSTORE){ if(RELSTORE.isOwner(n)) return '본인';
       var co=''; try{ co=window.SIMAPI.corpKey(); }catch(e){} if(!co) co=ctx.co;
       var v=RELSTORE.get(co,n); if(v==='spouse') return '배우자'; if(v==='kid') return '자녀'; if(v&&v!=='etc') return '기타친족'; } }catch(e){}
     try{ var ow=String((ctx.meta&&ctx.meta.name)||'').split(/[·,]/)[0].trim(); if(ow&&n.replace(/\s/g,'')===ow.replace(/\s/g,'')) return '본인'; }catch(e){}
     return '기타';
   };
-  var rels=ppl.map(function(r){ return relOf(r[0]); }), hasRel=rels.some(function(g){ return g!=='본인'&&g!=='기타'; });
-  var grp=GRP.map(function(g){ var p=0, nms=[]; ppl.forEach(function(r,i){ if(rels[i]===g){ p+=rdV(r[cP])||0; nms.push(r[0]); } }); return {g:g,p:p,nms:nms}; }).filter(function(x){ return x.p>0; });
+  var rels=ppl.map(function(r){ return relOf(r[0]); }), hasRel=rels.some(function(g){ return g!=='본인'&&g!=='기타'&&g!=='법인'; });   
+  
+  var grp=[]; GRP.forEach(function(g){
+    if(g==='법인'){ ppl.forEach(function(r,i){ if(rels[i]==='법인'){ var p1=rdV(r[cP])||0; if(p1>0) grp.push({g:g,p:p1,nms:[r[0]],lab:cN(r[0])}); } }); return; }
+    var p=0, nms=[]; ppl.forEach(function(r,i){ if(rels[i]===g){ p+=rdV(r[cP])||0; nms.push(r[0]); } }); if(!(p>0)) return;
+    var nmd=HASC&&g==='기타'&&nms.length<=2&&!nms.some(function(n){ return /기타|자기주식|미상/.test(String(n)); });
+    grp.push({g:g,p:p,nms:nms,lab:nmd?nms.map(cN).join(', '):g}); });
   return [{title:u.title,conclRuns:runs,lite:1,build:function(K,top0,opt){
     var W=RD_W, cols=[];
     
     var gbar={h:1.18,draw:function(x,y){
       rdCap(K,W,'주주 구성 (관계별)',sumR?'발행 '+sumR[1]:'').draw(x,y);
       var yy=y+0.36, xx=x, cs=G6?[RDC.ink,RDC.mid,RDC.bar2,RDC.sub,RDC.line,RDC.ink2]:[RDC.ink,RDC.mid,RDC.bar2,RDC.line,RDC.ink2];
-      grp.forEach(function(q){ var w=Math.max(0.02,W*q.p/100), ci=GRP.indexOf(q.g); K.rect(xx,yy,w,0.34,cs[ci]);
-        var lab=q.g+' '+q.p.toFixed(2)+'%'; if(K.w(lab,12.5,true)<w-0.15) K.t(lab,xx+0.1,yy+0.05,12.5,true,(ci===0||ci===GRP.length-1||(G6&&ci===3))?RDC.w:RDC.ink);
+      var cOf=function(g){ return g==='법인'?RDC.sub:cs[GRP0.indexOf(g)]; };   
+      grp.forEach(function(q){ var w=Math.max(0.02,W*q.p/100), ci=GRP0.indexOf(q.g); K.rect(xx,yy,w,0.34,cOf(q.g));
+        var lab=q.lab+' '+q.p.toFixed(2)+'%'; if(K.w(lab,12.5,true)<w-0.15) K.t(lab,xx+0.1,yy+0.05,12.5,true,(q.g==='법인'||ci===0||ci===GRP0.length-1||(G6&&ci===3))?RDC.w:RDC.ink);
         xx+=w; });
       
       var lx=x, ly=yy+0.48;
-      grp.forEach(function(q){ var ci=GRP.indexOf(q.g), t=q.g+' '+q.p.toFixed(2)+'% ('+q.nms.length+'명)';
-        K.rect(lx,ly+0.03,0.13,0.13,cs[ci]); K.t(t,lx+0.19,ly,12,false,RDC.body); lx+=0.19+K.w(t,12,false)+0.32; });
+      grp.forEach(function(q){ var t=q.lab!==q.g?q.lab+' '+q.p.toFixed(2)+'%':q.g+' '+q.p.toFixed(2)+'% ('+((HASC&&q.g==='기타')&&q.nms.length<=2?q.nms.map(cN).join(', '):q.nms.length+'명')+')';      
+        K.rect(lx,ly+0.03,0.13,0.13,cOf(q.g)); K.t(t,lx+0.19,ly,12,false,RDC.body); lx+=0.19+K.w(t,12,false)+0.32; });
     }};
     var bar={h:0.95,draw:function(x,y){
       rdCap(K,W,'지분 구성',sumR?'발행 '+sumR[1]:'').draw(x,y);
       var yy=y+0.36, xx=x, tw=W, cs=[RDC.ink,RDC.mid,RDC.bar2,RDC.line,RDC.ink2];
       ppl.forEach(function(r,i){ var p=rdV(r[cP])/100, w=Math.max(0.02,tw*p); K.rect(xx,yy,w,0.32,cs[i%cs.length]);
-        var lab=r[0]+' '+r[cP]; if(K.w(lab,12.5,true)<w-0.15) K.t(lab,xx+0.1,yy+0.04,12.5,true,i===0?RDC.w:RDC.ink);
+        var lab=cN(r[0])+' '+r[cP]; if(K.w(lab,12.5,true)<w-0.15) K.t(lab,xx+0.1,yy+0.04,12.5,true,i===0?RDC.w:RDC.ink);
         xx+=w; });
-      var small=ppl.slice(1).map(function(r){ return r[0]+' '+r[cP]; }).join(', ');
+      var small=ppl.slice(1).map(function(r){ return cN(r[0])+' '+r[cP]; }).join(', ');
       if(small) K.t(small,x+W,yy+0.38,12,false,RDC.sub,'right');
     }};
     var head=H.filter(function(h,i){ return !(noX&&i===cX); }).map(function(h){ return h.replace(/\n/g,' '); });
     var rows=body.map(function(r){ return r.filter(function(c,i){ return !(noX&&i===cX); }); });
+    var rows0=rows; rows=rows0.map(function(r){ return [cN(r[0])].concat(r.slice(1)); });   
     var sum={}; rows.forEach(function(r,i){ if(/합 *계/.test(r[0])) sum[i]=1; });
     
     if(hasRel){ head=[head[0],'관계'].concat(head.slice(1));
-      rows=rows.map(function(r){ var k=ppl.indexOf(body[rows.indexOf(r)]); var dt=(window.__shRelDet||{})[String(r[0]).trim()]; return [r[0],/합 *계/.test(r[0])?'':(dt||(k>=0?rels[k]:''))].concat(r.slice(1)); }); }   
+      rows=rows.map(function(r,ri){ var k=ppl.indexOf(body[ri]); var dt=(window.__shRelDet||{})[String(r[0]).trim()]; var rg=k>=0?rels[k]:''; return [r[0],/합 *계/.test(r[0])?'':(dt||(rg==='법인'?cN(ppl[k][0]):rg))].concat(r.slice(1)); }); }      
     var tbl=rdTable(K,W,{head:head,rows:rows,fs:opt.fs,sum:sum});
     var items=opt.lite?[tbl]:[gbar,tbl];
     if(noX) items.push(rdNote(K,W,'평가금액 (할증평가 적용) : 해당없음 (최대주주 할증평가 미적용 법인)'));
@@ -31461,10 +31488,17 @@ function rdSpReqPage(ctx,u){
   return [{title:u.title,conclRuns:runs,build:function(K,top,opt){
     var W=RD_W;
     var items=R.slice(1).map(function(r){ return {ok:okRe.test(r[cJ]),mk:okRe.test(r[cJ])?'✓':'!',b:r[0]+'  '+(r[cC]&&r[cC]!=='—'?r[cC]:''),s:r[cB],st:r[cJ].replace(/ · /,'\n').replace(/·/g,', ')}; });
-    var card=rdCheck(K,W*0.62,{title:'요건 점검',sub:'조특법 §30의6',items:items,stw:2.0});
+    
+    var stw=Math.min(W*0.62*0.42,Math.max(1.05,items.reduce(function(a,it){ return Math.max(a,String(it.st||'').split('\n').reduce(function(m,l){ return Math.max(m,K.w(rdTx(l),12,true)); },0)); },0)+0.14));
+    var card=rdCheck(K,W*0.62,{title:'요건 점검',sub:'조특법 §30의6',items:items,stw:stw});
+    var avail=RD_BOT-(top||RD_TOP)-0.08;
+    if(items.length&&card.h<avail*0.85){ var mh=Math.min(1.05,(avail-0.32)/items.length); card=rdCheck(K,W*0.62,{title:'요건 점검',sub:'조특법 §30의6',items:items,stw:stw,minH:mh}); }
     var D=rdData(ctx), tot=rdRowOf(D.tm,/^특례 플랜 증여세 합계/), gen=rdRowOf(D.tm,/^일반 증여 시/), sav=rdRowOf(D.tm,/^특례 절감액/), c1=rdColOf(D.tm,/①/);
     var note=rdStack(K,W*0.35,[function(w){ return (tot&&c1>0)?rdKpi(K,w,{t:'특례 플랜 증여세 ('+(rdGate(ctx).sp.st==='ok'?'지금 실행':'요건 충족 시')+')',v:tot[c1],s:gen?'일반 증여 시 '+gen[c1]:''}):null; },
       function(w){ return (sav&&c1>0)?rdKpi(K,w,{t:'특례 절감액',v:sav[c1],s:gen?'일반 증여 '+gen[c1]+' 대비':''}):null; }],0.14);
+    
+    var kH=(card.h-0.14)/2; if(tot&&sav&&c1>0&&kH>note.h/2) note=rdStack(K,W*0.35,[function(w){ return rdKpi(K,w,{t:'특례 플랜 증여세 ('+(rdGate(ctx).sp.st==='ok'?'지금 실행':'요건 충족 시')+')',v:tot[c1],s:gen?'일반 증여 시 '+gen[c1]:'',minH:kH}); },
+      function(w){ return rdKpi(K,w,{t:'특례 절감액',v:sav[c1],s:gen?'일반 증여 '+gen[c1]+' 대비':'',minH:kH}); }],0.14);   
     return [{h:Math.max(card.h,note.h),draw:function(x,y){ card.draw(x,y); note.draw(x+W*0.65,y); }}];
   }}];
 }
@@ -38482,6 +38516,8 @@ function selGet(m){ if(MOD_ALWAYS[m.id]) return false;
         if(vr2&&vc.eff>0){
           var parV=0; try{ parV=TE.num($('parValue').value)||0; }catch(e){DIAG(e)}
           
+          try{ if(!(normCo(vc.name)===normCo((document.getElementById('corpName')||{}).value||''))){ var pM=0; try{ if(window.MULTI&&MULTI.on) pM=MULTI.parOf(vc.name)||0; }catch(x){} parV=pM||(+(vc.slot&&vc.slot.par)||0); } }catch(e){DIAG(e,'deck.parSlot')}
+          
           
           
           var liaV=(+vc.liaBook||0), naV=(+vpp.netAsset||0)+((vc.cons&&vc.cons.add)||0), gw=(+vr2.goodwill||0);
@@ -38588,9 +38624,10 @@ function selGet(m){ if(MOD_ALWAYS[m.id]) return false;
               var sc=+y.shares||0, rt=(+y.ratio||0);
               if(!sc&&rt&&vc.tot) sc=Math.round(vc.tot*(rt>1?rt/100:rt));
               var pct=(rt>1)?rt:rt*100;
+              if(window.MULTI&&MULTI.on&&sc>0&&vc.tot>0) pct=sc/vc.tot*100;   
               var pv=sc*parV, vv=sc*base1;
               sS+=sc; sP+=pv; sV+=vv;
-              B.push([CH.rh(plain(y.name||'미상')+(y.treasury?' (자기주식)':''),{align:'left'}),
+              B.push([CH.rh(plain(y.name||'미상')+(y.treasury?' (자기주식)':'')+((y.isCorp&&window.MULTI&&MULTI.on&&!/\(법인\)/.test(String(y.name||'')))?' (법인)':''),{align:'left'}),   
                       CH.n(fmt(sc)+' 주'),CH.c(pct.toFixed(2)+'%'),
                       CH.n(parV?fmt(pv):'—'),CH.n(fmt(vv)),
                       CH.n(vr2.premiumApplied?fmt(sc*Math.round(vr2.finalValue)):'해당없음')]);
@@ -42943,6 +42980,7 @@ var MULTI=(function(){
       if(k!=='tax'){ var __sk=''; try{ __sk=sniffPages(o.pages)||(kindFromName(nm)==='tx'?'tx':''); }catch(e){} if(__sk==='tx'){ c.notes.push(nm+' — '+PUB_ONLY+'(이 파일은 읽지 않음)'); return; } }
       if(k==='cretop'&&FSExtract.isDart&&FSExtract.isDart(o.pages)) k='dart';
       var FP=k==='cretop'?FSExtract.parse(o.pages):null, x=k==='cretop'?SEV.cretopRead(FP,o.pages,nm):SEV.dartRead(o.pages,nm);
+      if(FP) c.aff=((FP.meta||{}).affiliates||[]).filter(function(a){ return a&&a.name&&+a.ratio>0; }).map(function(a){ return {name:a.name, rel:String(a.relation||''), ratio:+a.ratio, file:nm}; });   
       if(FP) c.cmeta=cmetaOf(FP);   
       if(FP) c.pctHolders=((FP.meta||{}).shareholders||[]).filter(function(h){ return h&&!h.isTreasury&&!(h.shares>0)&&h.ratio>0; }).map(function(h){ return {name:h.name, ratio:+h.ratio}; });   
       if(!x||!x.ok) c.notes.push(nm+' — 재무제표 판독 못 함 [확인 필요]');
@@ -43050,10 +43088,26 @@ var MULTI=(function(){
     return {key:X.name+'>'+Y.name, from:X.name, to:Y.name, shares:l.shares, value:ln?ln.value:null, book:l.bookHand?l.book:null, unk:!!l.bookUnk}; }); }
   function setBook(k,v){ st.bookFix=st.bookFix||{}; if(v===''||v==null) delete st.bookFix[k]; else st.bookFix[k]=v==='unk'?'unk':(+String(v).replace(/[^\d.]/g,'')||0); st.on=false; st.imp=null; if(st.sol) redo(); return bookAsk(); }
   function bookNotes(){ return (st.links||[]).filter(function(l){ return l.bookUnk||l.noBook; }).map(function(l){ var X=byId(l.from), Y=byId(l.to); return '가정 : '+X.name+'이 가진 '+Y.name+' 주식 장부가 = 0(재무상태표 투자주식 장부가 못 찾음'+(l.bookUnk?' · 질문 흐름 「모름」':'')+') → 평가액 전액을 순자산에 더함 · 재무상태표 투자주식 금액 정본 필요 [확인 필요]'; }); }
+  
+  function etcToCo(C){ st.etcCo=st.etcCo||[];
+    st.cos.forEach(function(Y){ if(!Y.inp||!Y.rows) return;
+      Y.rows.forEach(function(r){ if(r.co||r.etcDone||!/^기타( ?주주)?$/.test(String(r.name||'').trim())||!(nn(r.shares)>0)||(r.hand&&r.hand.co)) return; r.etcDone=true;
+        var cand=st.cos.filter(function(X){ if(X===Y||!X.inp||Y.rows.some(function(q){ return q.co===X.id; })) return false;
+          var ev=affOf(X,Y); if(ev){ X.__ev=ev; return true; }
+          try{ var CC=C.map(coObj), cy=CC.filter(function(q){ return q.id===Y.id; })[0], cx=CC.filter(function(q){ return q.id===X.id; })[0]; var L=SEVG.findLink(cx,cy,CC); if(L&&L.inv&&((+L.inv.pct||0)>0||(+L.inv.shares||0)>0)){ X.__ev=X.name+' '+(String(L.inv.src||'').indexOf('DART')===0?'감사보고서':'재무제표')+' 투자주식 주석 '+Y.name+(+L.inv.pct>0?' '+(+L.inv.pct).toFixed(2)+'%':''); return true; } }catch(e){} return false; });
+        if(cand.length!==1) return; var X=cand[0];
+        r.co=X.id; r.name=X.name; r.rel=''; r.etcAuto=true;
+        st.etcCo.push('판독 : '+Y.name+' 주주 「기타」 '+won(r.shares)+'주 = '+X.name+' (법인) — 근거 '+X.__ev+' · 주주명부(별지54호)로 확인 [확인 필요]'); }); }); }
+  
+  function affOf(X,Y){ var ky=[key(Y.name),key((Y.inp&&Y.inp.corp||{}).name)].filter(Boolean), kx=[key(X.name),key((X.inp&&X.inp.corp||{}).name)].filter(Boolean);
+    var a=(X.aff||[]).filter(function(q){ return ky.indexOf(key(q.name))>=0&&!/모회사|지배|최대주주/.test(q.rel); })[0]; if(!a) return '';
+    var rev=(Y.aff||[]).some(function(q){ return kx.indexOf(key(q.name))>=0&&Math.abs(+q.ratio-a.ratio)<=0.5; })&&(X.rows||[]).some(function(r){ return r.co===Y.id||ky.indexOf(key(r.name))>=0; }); if(rev) return '';
+    return X.name+' 크레탑 관계회사현황 '+a.name+(a.rel?' '+a.rel:'')+' '+a.ratio.toFixed(2)+'%'; }
   function solve(){
     var C=st.cos.filter(function(c){ return c.inp; });
     if(!C.length){ st.sol=null; return null; }
     C.forEach(function(c){ initRows(c); try{ c.R0=SEV.compute(cp(inpOf(c)),TaxEngine).result; }catch(e){ c.R0=null; } });
+    try{ etcToCo(C); }catch(e){ try{ DIAG(e,'multi.etcToCo'); }catch(x){} }
     st.links=links();
     try{ st.sol=SEVG.solve(C.map(coObj),st.links,{x10:st.x10,TE:TaxEngine}); st.err=''; }catch(e){ st.sol=null; st.err=e.message; }
     if(!st.plan||!C.some(function(c){ return c.id===st.plan; })) st.plan=C[0].id;
@@ -43327,7 +43381,7 @@ var MULTI=(function(){
     if(u!=null&&Math.abs((+r.finalValue||0)-u)>0.5&&st.sol.inps&&st.sol.inps[plan.id]&&$('run')){ try{ window.__sevInp=cp(st.sol.inps[plan.id]); $('run').click(); r=S.result||{}; }catch(e){ DIAG(e,'multi.rerun'); } }
     if(u!=null&&Math.abs((+r.finalValue||0)-u)>0.5) st.warn=['[확인 필요] 화면 1주 '+won(r.finalValue)+'원 ≠ 묶어 계산 '+won(u)+'원 — 플랜 회사 1주 입력이 묶은 입력이 아님'];
     st.on=true;
-    st.warn=(st.warn||[]).filter(function(w){ return !/^\[여러 회사 (주주|지분)\]/.test(w); }).concat(st.cos.filter(function(c){ return c.inp&&afTxt(c); }).map(function(c){ return '[여러 회사 주주] '+c.name+' '+afTxt(c); })).concat(bookNotes().map(function(t){ return '[여러 회사 지분] '+t; }));   
+    st.warn=(st.warn||[]).filter(function(w){ return !/^\[여러 회사 (주주|지분)\]/.test(w); }).concat(st.cos.filter(function(c){ return c.inp&&afTxt(c); }).map(function(c){ return '[여러 회사 주주] '+c.name+' '+afTxt(c); })).concat(bookNotes().map(function(t){ return '[여러 회사 지분] '+t; })).concat((st.etcCo||[]).map(function(t){ return '[여러 회사 주주] '+t; }));   
     var self=(PORT.list||[]).filter(function(x){ return key(x.name)===pn; })[0];
     
     if(self){ self.sh=shRows(plan); self.shEdited=true; }
@@ -43489,7 +43543,7 @@ var MULTI=(function(){
       return [x.co?((byId(x.co)||{}).name||x.name)+' (법인)':(x.name+(ts&&!/자기주식/.test(x.name)?' (자기주식)':'')), won(s)+' 주', iss>0?pctS(s/iss):'-', par?won(s*par):'—', won(s*base)].concat(prem?[won(s*(u||0))]:[]); });
     var sm=['합 계', won(sS)+' 주', iss>0?pctS(sS/iss):'100.00%', par?won(sP):'—', won(sV)].concat(prem?[won(sX)]:[]); sm.__b=1; rows.push(sm);
     var top=(c.rows||[]).filter(function(x){ return nn(x.shares)>0&&x.rel!=='자기주식'; }).sort(function(a,b){ return nn(b.shares)-nn(a.shares); })[0];
-    var S3=slide('Ⅱ. 자산가치평가 — '+nm+' — 주주 현황','주주 '+(rows.length-1)+'명 · 지분율, 평가금액 · 단위: 원',[tbl(head,rows),{t:'note', keep:true, text:'법인 주주 = 회사끼리 지분(묶어 계산) / 평가금액 = 1주 평가액 '+won(u)+'원 × 주식 수'+(prem?'':' / 평가금액 (할증평가 적용) : 해당없음 (최대주주 할증평가 미적용 법인)')}]);
+    var S3=slide('Ⅱ. 자산가치평가 — '+nm+' — 주주 현황','주주 '+(rows.length-1)+'명 · 지분율, 평가금액 · 단위: 원',[tbl(head,rows),{t:'note', keep:true, text:'법인 주주 = 회사끼리 지분(묶어 계산) / 평가금액 = 1주 평가액 '+won(u)+'원 × 주식 수'+(prem?'':' / 평가금액 (할증평가 적용) : 해당없음 (최대주주 할증평가 미적용 법인)')}].concat((function(){ var t=parNote(c.name); return t?[{t:'note', keep:true, text:t}]:[]; })()));   
     return S3;
   }
   function nowSlides(){ return [totalSlide(),govSlide2()]; }   
@@ -43522,7 +43576,16 @@ var MULTI=(function(){
     if(ig>=0){ deck.splice(ig,1); if(ig<i1) i1--; }
     Array.prototype.splice.apply(deck,[i1>=0?i1:Math.max(0,ig),0].concat(NS));
     var lastII=-1; deck.forEach(function(s,i){ if(isK(s,/^Ⅱ[.\-]/)) lastII=i; });
-    var add=[]; st.cos.forEach(function(c){ if(c===plan||!c.inp) return; coSlides(c).forEach(function(s){ add.push(s); }); });
+    
+    
+    var toolSh=function(c){ var nn0=[key(c.name),key((c.inp.corp||{}).name)].filter(Boolean), nmOf=function(s){ return String(s.key).replace(/^Ⅱ[.\-]\s*자산가치평가 — /,'').replace(/ — .*$/,''); };
+      var ib=deck.findIndex(function(s){ return isK(s,/^Ⅱ[.\-]\s*자산가치평가 — /)&&!/ — 주주 현황$/.test(String(s.key))&&nn0.indexOf(key(nmOf(s)))>=0; }); if(ib<0) return;
+      var nm=nmOf(deck[ib]), S3=shSlide(c,nm), ish=deck.findIndex(function(s){ return isK(s,/^Ⅱ[.\-]\s*자산가치평가 — .* — 주주 현황$/)&&key(nmOf(s))===key(nm); });
+      if(ish>=0){ deck.splice(ish,1,S3); return; }
+      var bl=deck[ib].blocks||[]; deck[ib].blocks=bl.filter(function(b){ var r0=b&&b.t==='table'&&b.rows&&b.rows[0]; return !(r0&&/주주명/.test(String((r0[0]&&r0[0].text!=null)?r0[0].text:r0[0]))); });
+      deck.splice(ib+1,0,S3); };
+    var tsNm=function(c){ var nn0=[key(c.name),key((c.inp.corp||{}).name),key((st.toolSlot||{})[c.id]||'')].filter(Boolean); return deck.some(function(s){ var m=isK(s,/^Ⅱ[.\-]\s*자산가치평가 — /)&&String(s.key).replace(/^Ⅱ[.\-]\s*자산가치평가 — /,'').replace(/ — .*$/,''); return m&&nn0.indexOf(key(m))>=0; }); };
+    var add=[]; st.cos.forEach(function(c){ if(c===plan||!c.inp) return; if(tsNm(c)){ toolSh(c); return; } coSlides(c).forEach(function(s){ add.push(s); }); });
     if(add.length){ var at=lastII>=0?lastII+1:(i1>=0?i1+1:deck.length); Array.prototype.splice.apply(deck,[at,0].concat(add)); }
     var i3=deck.findIndex(function(s){ return isK(s,/^Ⅲ\.\s*상속세/); });
     if(i3>=0) deck.splice(i3,0,assetSlide());
@@ -43535,9 +43598,15 @@ var MULTI=(function(){
   function init(){ if(st.cos.length<2){ st.cos=[newCo(0),newCo(1)]; } if(window.__multiPending){ try{ setPending(window.__multiPending); }catch(e){ st.err=e.message; } } render(); }
   if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',init); else setTimeout(init,0);
   function rowsOf(id){ var c=byId(id); if(!c) return null; initRows(c); return {name:c.name, from:c.rowsFrom, issued:c.inp?issued(c):0, total:c.inp?totalIss(c):0, autoFill:afTxt(c), maxNote:c.maxNote, sum:rowsSum(c), rows:(c.rows||[]).map(function(r){ return [r.name, r.shares, r.rel, r.co, !!r.est]; })}; }
-  return {pctBasis:pctBasis, syncPct:syncPct, liveCard:liveCard, cmetaOf:cmetaOf, govSlide2:function(){ return govSlide2(); }, exMulti:function(){ return exMulti(); }, people:people, redo:redo, feedPlan:feedPlan, bookAsk:bookAsk, setBook:setBook, bookNotes:bookNotes, many:many, rowsOf:rowsOf, gateMsg:gateMsg, gate:gate, get on(){ return st.on; }, st:st, init:init, setN:setN, setPending:setPending, solve:solve, readCo:readCo, applyPlan:applyPlan, consol:consol, deckPost:deckPost, dump:dump, totals:totals, render:render};
+  
+  function coByName(n){ var k=key(n); return st.cos.filter(function(c){ return c.inp&&(key(c.name)===k||key((c.inp.corp||{}).name)===k||key((st.toolSlot||{})[c.id]||'')===k); })[0]; }
+  function parOf(n){ var c=coByName(n); return c?(nn((c.inp.shares||{}).par)||nn((c.inp.corp||{}).par)):0; }
+  function parNote(n){ var c=coByName(n), a=c&&(c.inp.shares||{}).assume; if(!a||!(a.parAssumed||a.shares)) return '';
+    return '가정 : 발행주식총수를 자료에서 못 읽어 액면가 '+won(a.par)+'원('+(a.parAssumed?'가정':'자료에서 읽은 값')+')으로 자본금 '+won(a.cap)+'원 ÷ 액면 '+won(a.par)+'원 = '+won(a.shares)+'주로 계산 — 법인등기부등본, 주주명부의 실제 주식수 확인 [확인 필요]'; }
+  return {parOf:parOf, parNote:parNote, pctBasis:pctBasis, syncPct:syncPct, liveCard:liveCard, cmetaOf:cmetaOf, govSlide2:function(){ return govSlide2(); }, exMulti:function(){ return exMulti(); }, people:people, redo:redo, feedPlan:feedPlan, bookAsk:bookAsk, setBook:setBook, bookNotes:bookNotes, many:many, rowsOf:rowsOf, gateMsg:gateMsg, gate:gate, get on(){ return st.on; }, st:st, init:init, setN:setN, setPending:setPending, solve:solve, readCo:readCo, applyPlan:applyPlan, consol:consol, deckPost:deckPost, dump:dump, totals:totals, render:render};
 })();
 window.MULTI=MULTI;
+
 
 
 
@@ -43648,9 +43717,14 @@ var QFLOW=(function(){
     ckList().forEach(function(it){ L.push({k:'ck:'+it.key, from:'평가 — 확인 필요', ck:{key:it.key, kind:it.kind, line:it.line, why:it.why, input:it.input||'', opts:ckOpts(it)}}); });   
     on.forEach(function(d){ (SEC_Q[d.id]||[]).forEach(function(k){ if(!want[k]) want[k]=d.name; }); });
     COMMON.forEach(function(k){ if(want[k]) add(k,'공통 · '+want[k]); });
-    on.forEach(function(d){ (SEC_Q[d.id]||[]).forEach(function(k){ if(k==='spOther'||k==='spCash'||k==='sec2Gap'||k==='spousePct'){ if((st.ans.spouse||(el('spouse')||{}).value)==='no') return; } add(k,d.name); }); });
+    on.forEach(function(d){ (SEC_Q[d.id]||[]).forEach(function(k){ if(spSkip(k)) return; add(k,d.name); }); });
     return L;
   }
+  
+  var SP_Q=['spousePct','spOther','spCash','sec2Gap'];
+  function spOff(){ var sp=st.ans.spouse!==undefined?st.ans.spouse:(el('spouse')||{}).value; return !(st.secs&&st.secs.indexOf('sec2')>=0)||sp==='no'; }
+  function spSkip(k){ return SP_Q.indexOf(k)>=0&&spOff(); }
+  function spPrune(){ if(!st.list||!st.list.length) return; var cur=st.list[st.qi]; st.list=st.list.filter(function(it,i){ return i<=st.qi||!spSkip(it.k); }); if(cur) st.qi=Math.max(0,st.list.indexOf(cur)); }
   
   function shAsm(){ try{ return typeof shAssumeInfo==='function'?shAssumeInfo():null; }catch(e){ return null; } }
   function reRun(){ try{ $('run').click(); }catch(e){ DIAG(e,'qflow.rerun'); } try{ if(typeof portAutoAdd==='function'&&S.result&&!(PORT.has&&PORT.has())) portAutoAdd(); }catch(e){} }
@@ -43663,6 +43737,132 @@ var QFLOW=(function(){
   function spAns(it){ var k=it.k; if(it.inv){ var v=st.inv[it.inv.key]; return v==='unk'?'모름 — 장부가 0 가정(평가액 전액 순자산 가산)':(v!=null?won(v)+'원':''); }
     if(it.ck){ var a=st.ck[it.ck.key]; if(!a) return ''; if(a.c==='unk') return '모름 — 기본값 그대로(가정)'; var o=(it.ck.opts||[]).filter(function(x){ return x.c===a.c; })[0]; return (o?o.label:a.c)+Object.keys(a.vals||{}).map(function(f){ return ' '+(String(a.vals[f]).match(/^[\d.]+$/)?won(a.vals[f]):a.vals[f]); }).join(''); } return ''; }
   function valLabel(k,v){ var q=Q[k], c=cur(k); if(v===''||v==null) return '-'; if(c.opts){ var o=c.opts.filter(function(x){ return x[0]===String(v); })[0]; if(o) return o[1]; } return String(v)+(q.t==='eok'?'억':(q.u||'')); }
+  
+  var HNO=/^(기타|기타주주|기타\(미상\)|소액주주|그외|그외주주|우리사주|우리사주조합|미상|자기주식)$/;
+  var HORG=/(공단|기금|조합|재단|협회|은행|증권|보험|캐피탈|투자|펀드|공사$|주식회사|\(주\)|㈜|유한회사|법인|inc\.?$|ltd\.?$|corp\.?$|co\.,)/i;   
+  var relT=function(x){ return String(x||'').replace(/COPYRIGHT.*$/i,'').replace(/^최대주주의특수관계인$/,'특수관계인').trim(); };
+  var nmK=function(x){ return String(x||'').replace(/\s|\(주\)|㈜|주식회사/g,''); };
+  function many(){ var M=window.MULTI&&MULTI.st; return !!(M&&M.sol&&M.cos.filter(function(c){ return c.inp; }).length>1); }
+  function holderOpts(){
+    var out=[];
+    try{ if(many()){ var M=MULTI.st, L=M.cos.filter(function(c){ return c.inp; }); L.sort(function(a,b){ return (b.id===M.plan)-(a.id===M.plan); });
+        L.forEach(function(c){ var R=MULTI.rowsOf(c.id); if(!R) return; var iss=+R.issued||0;
+          var rows=R.rows.filter(function(r){ return r[0]&&!r[3]&&r[2]!=='자기주식'&&!/^법인/.test(r[2]||'')&&!HNO.test(String(r[0]).replace(/\s/g,''))&&!HORG.test(String(r[0]))&&+r[1]>0; })
+            .map(function(r){ return {name:String(r[0]).trim(), shares:+r[1], pct:iss>0?+r[1]/iss*100:null, rel:relT(r[2])}; });
+          out.push({co:c.name, plan:c.id===M.plan, from:R.from||'', issued:iss, rows:rows}); }); return out; }
+      var r=S.result; if(!r) return out; var tot=+r.shares||TE.num($('shares').value)||0;
+      var rows=shareholderRows(r).filter(function(x){ return x.name&&!x.treasury&&!x.unknown&&!x.isCorp&&!HNO.test(String(x.name).replace(/\s/g,''))&&!HORG.test(String(x.name))&&(x.shares>0||x.ratio>0); })
+        .map(function(x){ return {name:String(x.name).trim(), shares:x.shares, pct:x.ratio*100, rel:relT(x.rel)}   ; });
+      out.push({co:(S.meta||{}).name||'', plan:true, from:'주주 구성(1단계 · '+(S.sharesSource||'판독')+')', issued:tot, rows:rows});
+    }catch(e){ DIAG(e,'qflow.holderOpts'); }
+    return out;
+  }
+  function holderDef(){ try{ if(many()) return MULTI.st.client||''; var O=(holderOpts()[0]||{}).rows||[], ow=String((CK&&CK.p&&CK.p.owner)||'').trim();
+      if(ow&&O.some(function(x){ return x.name===ow; })) return ow; var b=O.slice().sort(function(a,c){ return (c.pct||0)-(a.pct||0); })[0]; return b?b.name:''; }catch(e){ return ''; } }
+  function holderName(){ return st.holder||holderDef(); }
+  function holderRow(nm){ var hit=null; holderOpts().forEach(function(g){ if(hit||!g.plan) return; g.rows.forEach(function(x){ if(!hit&&x.name===nm) hit={g:g, x:x}; }); }); return hit; }
+  function pctS(v){ return v==null||!isFinite(v)?'-':(Math.round(v*100)/100).toFixed(2)+'%'; }
+  
+  function applyHolder(){
+    var nm=st.holder; if(!nm) return '';
+    try{ if(many()&&MULTI.st.client!==nm){ MULTI.st.client=nm; MULTI.st.on=false; try{ MULTI.redo(); }catch(e){} } }catch(e){ DIAG(e,'qflow.holder.multi'); }
+    try{ if(typeof CK==='object'&&CK.p){ CK.p.owner=nm; CK.p.kin=String(CK.p.kin||'').split(/[,\n;]+/).map(function(x){ return x.trim(); }).filter(function(x){ return x&&x!==nm; }).join(', '); } }catch(e){}
+    try{ (S.meta&&S.meta.shareholders||[]).forEach(function(x){ x.me=!x.isTreasury&&nmK(x.name)===nmK(nm); }); }catch(e){}
+    try{ if(typeof shPortSync==='function') shPortSync(); }catch(e){ DIAG(e,'qflow.holder.port'); }
+    try{ if(typeof CK==='object'&&CK.coSave) CK.coSave(); }catch(e){}
+    
+    try{ if(!many()&&st.ans.pct===undefined){ var h=holderRow(nm), e=el('pct'); if(h&&e&&h.x.pct>0){ e.value=String(Math.round(h.x.pct*1e4)/1e4);    e.dispatchEvent(new Event('change',{bubbles:true})); } } else if(many()&&MULTI.syncPct) MULTI.syncPct(true); }catch(e){ DIAG(e,'qflow.holder.pct'); }
+    return nm; }
+  function holderHtml(){
+    var G=holderOpts(), cur0=holderName(), h=[];
+    h.push('<div class="qhq"><div style="margin:12px 0 4px;font-size:17px;font-weight:800">어느 주주 기준으로 보고서를 만들까요?</div><div class="qn">· 고른 주주 = 표지 고객명, 현황 지배구조, 상속 대상 지분율, 가족 질문(배우자·자녀), 상속세 장의 기준 · 기본 = '+esc(holderDef()||'-')+'(지금 툴 규칙)</div>');
+    var any=false;
+    G.forEach(function(g){ h.push('<div class="qn" style="margin-top:8px"><b>'+esc(g.co)+'</b>'+(g.plan&&G.length>1?' (플랜 회사)':'')+' · 발행주식 '+won(g.issued)+'주 · '+esc(g.from)+'</div>');
+      if(!g.rows.length) h.push('<div class="qw">개인 주주 없음 — 주주표 정본 필요(주주명부, 별지54호)</div>');
+      g.rows.forEach(function(x){ any=true; h.push('<label class="qhr"><input type="radio" name="qhold" data-qhold="'+esc(x.name)+'"'+(x.name===cur0?' checked':'')+'><span><b>'+esc(x.name)+'</b> '+won(x.shares)+'주 ('+pctS(x.pct)+')'+(x.rel?' <span class="qn">'+esc(x.rel)+'</span>':'')+'</span></label>'); }); });
+    if(!any) h.push('<div class="qw">고를 개인 주주가 없어 지금 툴 규칙대로 둠 [확인 필요]</div>');
+    var c0=(S.meta||{}).ceo||''; if(cur0&&c0&&nmK(c0)!==nmK(cur0)) h.push('<div class="qw">· '+esc(cur0)+' = 대표이사('+esc(c0)+') 아님 → 가업상속공제 대표이사 재직 요건(상증령 §15③1호) 확인 필요 · 나이 질문의 크레탑 생년월일은 대표 것</div>');
+    h.push('</div>'); return h.join(''); }
+  var HQ={spouse:1,kids:1,donorAge:1,pct:1,spousePct:1,spOther:1,spCash:1,cash:1,other:1,prior:1,nonRes:1,sec2Gap:1};   
+  function qTitle(k){ var l=(Q[k]||{}).l||k, n=holderName(); return HQ[k]&&n?l+' — '+n+' 기준':l; }
+
+  
+  var AL={capitalStock:'자본금',sharesIssued:'발행주식수',parValue:'1주당 액면금액',severanceLiab:'퇴직급여충당부채',pensionAsset:'퇴직연금운용자산 (국민연금전환금 포함 합, 부채 차감 항목)',severance:'퇴직급여(비용)',revenue:'매출액',totalAssets:'자산총계',totalLiab:'부채총계',incomeTaxPayable:'미지급법인세',otherReceivable:'미수금',
+    land:'토지',building:'건물 (순장부가 = 취득가 − 감가상각누계액)',structure:'구축물 (순장부가 = 취득가 − 감가상각누계액)',investRealEstate:'투자부동산',inventoryRE:'재고자산 내 부동산',equityMethodInv:'지분법적용투자주식',otherSecurities:'장기투자증권',investAssets:'투자자산',salary:'급여',execSalary:'임원급여',provisionalPay:'가지급금',shortTermDebt:'단기차입금',netIncome:'당기순이익',prepaid:'선급금·선급비용',allowanceBad:'대손충당금',depreciation:'감가상각비',treasuryStock:'자기주식'};
+  var ISK={revenue:1,salary:1,execSalary:1,severance:1,netIncome:1,depreciation:1,corpTax:1};
+  function evInp(co){ try{ if(co&&window.MULTI&&MULTI.st){ var c=MULTI.st.cos.filter(function(x){ return x.inp&&(nmK(x.name)===nmK(co)||nmK((x.inp.corp||{}).name)===nmK(co)); })[0]; if(c) return c.inp; } }catch(e){} try{ return (window.__sevCk&&__sevCk.inp)||null; }catch(e){ return null; } }
+  
+  function fKind(file,inp){ var f=String(file||''); try{ var x=((inp&&inp.extFiles)||[]).filter(function(e){ return e.file===f; })[0]; if(x) return x.kind==='dart'?'DART 감사보고서':'크레탑'; }catch(e){} return /세무조정/.test(f)?'법인세 신고서':/DART|감사보고서/i.test(f)?'DART 감사보고서':/크레탑|기업종합|cretop/i.test(f)?'크레탑':'법인세 신고서'; }
+  function EvB(){ this.items=[]; this.files=[]; this.notes=[]; }
+  EvB.prototype.f=function(kind,file,extra){ file=String(file||'').replace(/^(크레탑|DART)\s+/,''); if(!file) return kind.replace(' 감사보고서','')+(extra?' '+extra:''); var k=kind+'|'+file, i=this.files.map(function(x){ return x.k; }).indexOf(k); if(i<0){ this.files.push({k:k, kind:kind, file:file}); i=this.files.length-1; } return kind.replace(' 감사보고서','')+' '+'①②③④⑤⑥⑦⑧⑨⑩⑪⑫'.charAt(i)+(extra?' '+extra:''); };
+  EvB.prototype.add=function(lab,rows,note){ this.items.push({lab:lab, rows:rows||[], note:note||''}); return this; };
+  EvB.prototype.acct=function(inp,key,lab){ var self=this, rows=[], B=(inp&&inp.bsYears)||{}, E=(inp&&inp.extBs)||{}, isI=!!ISK[key];
+    Object.keys(B).sort().reverse().slice(0,3).forEach(function(ye){ var y=B[ye]||{}, v=y[key]; if(v===undefined||v===null||v==='') return; var sp=((y.__src||{})[key]||'').match(/p\.\d+/); rows.push({y:ye.slice(0,4), v:won(v)+'원', s:self.f('법인세 신고서',y.__file,(isI?'표준손익계산서':'표준재무상태표')+(sp?' '+sp[0]:''))+(y.__ocr?' (OCR)':'')}); });
+    Object.keys(E).sort().reverse().slice(0,3).forEach(function(ye){ var e=E[ye]||{}, v=(e.v||{})[key]; if(v===undefined||v===null||v==='') return; var kd=/^DART/.test(e.file||'')?'DART 감사보고서':'크레탑'; rows.push({y:ye.slice(0,4), v:won(v)+'원', s:self.f(kd,e.file,isI?'손익계산서':'재무상태표')}); });
+    
+    try{ if(inp&&inp===evInp((S.meta||{}).name||'')&&S.rows&&S.periods){ var tr=S.rows.filter(function(x){ return x.key===key; })[0], u=+(($('unit')||{}).value)||1, P=S.parsed||{}, cf=((inp.extFiles||[]).filter(function(x){ return x.kind==='cretop'; })[0]||{}).file||'';
+        if(tr) S.periods.forEach(function(pd,i){ var v=(tr.values||[])[i]; if(v===undefined||v===null||v===''||!isFinite(+v)) return; var df=null; if(P.source==='dart') (P.dartFiles||[]).forEach(function(f){ if(!df&&(f.periods||[])[0]===pd) df=f; }); if(P.source==='dart'&&!df) (P.dartFiles||[]).forEach(function(f){ if(!df&&(f.periods||[]).indexOf(pd)>=0) df=f; });
+          rows.push({y:String(pd).slice(0,4), v:won(Math.round(+v*u))+'원', s:df?self.f('DART 감사보고서',df.name,isI?'손익계산서':'재무상태표'):self.f('크레탑',cf,isI?'손익계산서':'재무상태표')}); }); } }catch(e){}
+    var seen={}; rows=rows.filter(function(r){ var k2=r.y+'|'+r.v+'|'+r.s; if(seen[k2]) return false; seen[k2]=1; return true; }).sort(function(a,b){ return String(b.y).localeCompare(String(a.y)); });
+    var y3=rows.map(function(r){ return r.y; }).filter(function(y,i,A){ return A.indexOf(y)===i; }).slice(0,3); rows=rows.filter(function(r){ return y3.indexOf(r.y)>=0; });   
+    return this.add(lab||AL[key]||key, rows); };
+  EvB.prototype.holders=function(inp,co){ var self=this;
+    try{ if(many()){ var c=MULTI.st.cos.filter(function(x){ return x.inp&&nmK(x.name)===nmK(co||''); })[0]||MULTI.st.cos.filter(function(x){ return x.id===MULTI.st.plan; })[0]; var R=c&&MULTI.rowsOf(c.id);
+        if(R) this.add(R.name+' 주주표 (보고서에 쓰는 표)', R.rows.filter(function(r){ return +r[1]>0; }).map(function(r){ return {y:r[0]+(r[3]?' (법인)':''), v:won(r[1])+'주 '+pctS(R.issued>0?+r[1]/R.issued*100:null), s:(r[2]||'')+(r[4]?' 추정':'')}; }), '발행주식 '+won(R.issued)+'주 · '+(R.from||'')); }
+      else if(S.result){ var tot=+S.result.shares||0; this.add('주주 구성 (보고서에 쓰는 표)', shareholderRows(S.result).map(function(x){ return {y:x.name+(x.treasury?' (자기주식)':x.isCorp?' (법인)':''), v:(x.shares>0?won(x.shares)+'주 ':'')+pctS(x.ratio*100), s:x.unknown?'잔여(미상)':relT(x.rel)}; }), '발행주식 '+won(tot)+'주 · '+(S.sharesSource||'')); } }catch(e){}
+    var Y=((inp&&inp.signals&&inp.signals.years)||[])[0];
+    if(Y&&(Y.holders54||[]).length) this.add(Y.fy+'년 별지54호 주식등변동상황명세서', Y.holders54.map(function(h){ return {y:h.name, v:won(h.shares)+'주 '+pctS(Y.shares54>0?h.shares/Y.shares54*100:null), s:self.f('법인세 신고서',Y.file,'별지54호')}; }), '발행주식 '+won(Y.shares54)+'주');
+    else this.add('별지54호 주식등변동상황명세서',[]);
+    if(inp&&(inp.holders||[]).some(function(h){ return h.rel||h.birth; })) this.add('주주 관계·생년월일 ('+(inp.holdersFrom||'판독 주주명부')+')', inp.holders.map(function(h){ return {y:h.name, v:(h.rel||'관계 없음')+(h.relCode?' ('+h.relCode+')':''), s:h.birth||''}; }));
+    return this; };
+  EvB.prototype.html=function(title){ var self=this; if(!this.items.length) return '';
+    var o=['<details class="qev"'+(evWide()?' open':'')+'><summary>근거 숫자 보기 — 크레탑, DART, 법인세 신고서</summary><div class="qevh">'+esc(title||'판단에 쓰는 원본 값')+'</div>'];
+    this.items.forEach(function(it){ o.push('<div class="qevi"><b>'+esc(it.lab)+'</b>'+(it.rows.length?'<table>'+it.rows.map(function(r){ return r.y===''?'<tr><td colspan="3">'+esc(r.v)+(r.s?' <span class="qevs">'+esc(r.s)+'</span>':'')+'</td></tr>':'<tr><td>'+esc(r.y)+'</td><td class="qevv">'+esc(r.v)+'</td><td class="qevs">'+esc(r.s||'')+'</td></tr>'; }).join('')+'</table>':'<div class="qevx">자료에 없음</div>')+(it.note?'<div class="qevn">'+esc(it.note)+'</div>':'')+'</div>'); });
+    this.notes.forEach(function(n){ o.push('<div class="qevn">· '+esc(n)+'</div>'); });
+    if(this.files.length) o.push('<div class="qevf">'+this.files.map(function(f,i){ return '<div>'+'①②③④⑤⑥⑦⑧⑨⑩⑪⑫'.charAt(i)+' '+esc(f.kind)+' — '+esc(f.file)+'</div>'; }).join('')+'</div>');
+    o.push('</details>'); return o.join(''); };
+  function evWide(){ try{ return window.matchMedia('(min-width:900px)').matches; }catch(e){ return true; } }
+  
+  function evFor(it){
+    var k=it.k, co=(S.meta||{}).name||'', inp=evInp(co), B=new EvB(), m=S.meta||{};
+    var shares=function(){ var Y=((inp&&inp.signals&&inp.signals.years)||[]);
+      B.add('발행주식총수 (별지54호)', Y.filter(function(y){ return y.shares54>0; }).map(function(y){ return {y:String(y.fy), v:won(y.shares54)+'주', s:B.f('법인세 신고서',y.file,'별지54호')}; }));
+      B.acct(inp,'capitalStock'); B.acct(inp,'sharesIssued'); B.acct(inp,'parValue');
+      B.add('그 밖 판독값', [{y:'주주표 주식 합계', v:m.sharesFromShareholders>0?won(m.sharesFromShareholders)+'주':'자료에 없음', s:'크레탑 주요주주'},{y:'액면 (엔진)', v:inp&&inp.shares&&inp.shares.par>0?won(inp.shares.par)+'원':'자료에 없음', s:String((inp&&inp.src||{})['shares.par']||'')}]); };
+    if(k==='shAsm'){ shares(); return B.html('발행주식총수 판단'); }
+    if(it.inv){ var iv=it.inv, xi=evInp(iv.from); ['equityMethodInv','otherSecurities','investAssets'].forEach(function(a){ B.acct(xi,a,iv.from+' '+AL[a]); });
+      try{ var Lk=(MULTI.st.links||[]).filter(function(l){ var X=MULTI.st.cos.filter(function(c){ return c.id===l.from; })[0], Yc=MULTI.st.cos.filter(function(c){ return c.id===l.to; })[0]; return X&&Yc&&X.name===iv.from&&Yc.name===iv.to; })[0];
+        if(Lk) B.add('지분 연결 판독', [{y:'투자주식 표 이름', v:Lk.invName||'자료에 없음', s:Lk.bookSrc||''},{y:'취득가', v:Lk.cost>0?won(Lk.cost)+'원':'자료에 없음', s:''},{y:'보유 주식', v:won(iv.shares)+'주', s:'주주표'},{y:'평가액(묶어 계산)', v:iv.value>0?won(iv.value)+'원':'-', s:'툴 계산'}]); }catch(e){}
+      return B.html(iv.from+' → '+iv.to+' 투자주식 장부가'); }
+    if(it.ck){ var c=it.ck, kd=c.kind, raw=null; try{ raw=(window.__sevCk&&SEV.ckItems(__sevCk.inp,__sevCk.res,true)||[]).filter(function(x){ return x.key===c.key; })[0]||null; }catch(e){}
+      if(kd==='retireShort'||kd==='retireEst'){ B.acct(inp,'severanceLiab'); B.acct(inp,'pensionAsset'); B.acct(inp,'severance');
+        var ra=inp&&inp.asset&&inp.asset.liabAdd||{}; B.add('엔진 칸', [{y:'퇴직급여추계액(별지32호)', v:ra.retireEst!==''&&ra.retireEst!=null?won(ra.retireEst)+'원':'자료에 없음', s:'법인세 신고서'}].concat(((inp&&inp.income)||[]).slice(0,3).map(function(q){ var v=(q.minus||{}).retireShort; return {y:String(q.yearEnd||'').slice(0,4)+' 과소계상액', v:v>0?won(v)+'원':'0', s:B.f(fKind(q.file,inp),q.file,'')}; }).filter(function(r){ return /세무조정/.test(r.s); })));
+        if(inp&&inp.signals&&inp.signals.dcOnly) B.notes.push('DART 주석 = 확정기여형(DC)만 — '+inp.signals.dcOnly.file+' p.'+inp.signals.dcOnly.page); }
+      else if(kd==='size'){ B.acct(inp,'revenue'); B.acct(inp,'totalAssets');
+        var F=inp&&inp.f51; B.add('기업 규모 표시', [{y:'크레탑 기업규모', v:m.corpSize||'자료에 없음', s:'크레탑'},{y:'별지51호 적정 여부', v:F&&F.mark?String(F.mark):'자료에 없음', s:F&&F.file?B.f('법인세 신고서',F.file,'별지51호'+(F.page?' p.'+F.page:'')):''},{y:'엔진 판정', v:String((inp&&inp.corp||{}).size||'-'), s:String((inp&&inp.corp||{}).sizeAuto||'').slice(0,60)}]); }
+      else if(kd==='refund'){ B.add('법인세 환급세액 (판독)', [{y:'금액', v:raw&&raw.amt>0?won(raw.amt)+'원':'자료에 없음', s:'법인세 신고서'}]); B.acct(inp,'incomeTaxPayable'); B.acct(inp,'otherReceivable'); }
+      else if(kd==='srcDiff'){ var lb=String(c.line||'').replace(/ 자료마다 다름.*$/,''), row=((inp&&inp.srcCompare)||[]).filter(function(q){ return q.label===lb; })[0];
+        B.add(lb, row?[['tx','법인세 신고서'],['dart','DART 감사보고서'],['cretop','크레탑']].filter(function(p){ return row[p[0]]!==undefined&&row[p[0]]!==null; }).map(function(p){ return {y:p[1], v:won(row[p[0]])+'원', s:row.used===p[0]?'지금 씀':''}; }):[]); }
+      else if(kd==='reason15'){ var y15=raw&&raw.y, q15=((inp&&inp.income)||[]).filter(function(q){ return String(q.yearEnd||'').slice(0,4)===String(y15); })[0];
+        B.add('별지15호 소득금액조정합계표', [{y:(y15||'')+'년 「'+(raw&&raw.label15||'')+'」', v:raw&&raw.amt>0?won(raw.amt)+'원':'자료에 없음', s:q15?B.f(fKind(q15.file,inp),q15.file,'별지15호'):'법인세 신고서'}]); }
+      else if(kd==='rel54'||ckMax(raw||c)||/최대주주/.test(String(c.line||''))){ B.holders(inp,co); }
+      else if(kd==='shares'||kd==='sharesAssume'){ shares(); }
+      if(raw&&(raw.full||[]).length&&String(raw.full.join(' ')).replace(/\s/g,'')!==String(c.line||'').replace(/\s/g,'')) B.add('판독 글 (툴이 남긴 원문)', raw.full.slice(0,4).map(function(t){ return {y:'', v:String(t).slice(0,240), s:raw.file?B.f(fKind(raw.file,inp),raw.file,raw.page?'p.'+raw.page:''):''}; }));
+      return B.html('판단에 쓰는 원본 값'); }
+    if(k==='pct'){ B.holders(inp,co); return B.html('상속 대상 지분율 — 주주표'); }
+    if(k==='re'||k==='reStd'){ ['land','building','structure','investRealEstate','inventoryRE','totalAssets'].forEach(function(a){ B.acct(inp,a); });
+      var R=S.result||{}; B.add('툴 계산', [{y:'부동산 등 비율(지금)', v:R.realEstateRatio!=null&&isFinite(+R.realEstateRatio)?pctS(+R.realEstateRatio*(+R.realEstateRatio<=1?100:1)):'-', s:'상증령 §54④3호 판정'}]); return B.html('법인 부동산 — 재무상태표 장부가'); }
+    if(k==='evalDate'||k==='execStart'||k==='mgmtStart'){ var I0=((inp&&inp.income)||[])[0]||{};
+      B.add('설립·결산', [{y:'설립일 (크레탑)', v:m.foundedAt||'자료에 없음', s:(m.foundType||'')},{y:'사업개시일 (엔진)', v:String((inp&&inp.corp||{}).startDate||(inp&&inp.corp||{}).bizSince||'자료에 없음'), s:String((inp&&inp.src||{})['corp.startDate']||'')},{y:'직전 결산일', v:String(I0.yearEnd||S.periods&&S.periods[S.baseCol]||'자료에 없음'), s:I0.file?B.f(fKind(I0.file,inp),I0.file,fKind(I0.file,inp)==='법인세 신고서'?'별지3호':'재무제표'):'재무제표'},{y:'업력', v:m.foundedYear?(new Date().getFullYear()-m.foundedYear)+'년차':'자료에 없음', s:'크레탑 설립연도 기준'},{y:'대표자', v:m.ceo||'자료에 없음', s:'크레탑'}]);
+      return B.html(k==='evalDate'?'평가기준일 — 사업개시 3년 판정':'경영기간 — 설립·대표'); }
+    if(k==='donorAge'){ var hn=holderName(), hb=((inp&&inp.holders)||[]).filter(function(h){ return nmK(h.name)===nmK(hn); })[0];
+      B.add('생년월일', [{y:'대표 '+(m.ceo||''), v:m.ceoBirth||'자료에 없음', s:'크레탑 대표자'},{y:'기준 주주 '+(hn||''), v:hb&&hb.birth?hb.birth:'자료에 없음', s:hb&&hb.birth?(inp.holdersFrom||'별지54호'):''}]); return B.html('나이 — 생년월일'); }
+    if(k==='curPay'||k==='execPay'||k==='execPay2019'){ B.acct(inp,'execSalary'); B.acct(inp,'salary'); B.notes.push('급여 = 직원 급여 합계(대표 한 사람 몫 아님) · 대표 급여 정본 = 근로소득 원천징수영수증'); return B.html('급여 — 손익계산서'); }
+    if(k==='costPS'){ B.acct(inp,'capitalStock'); B.add('액면·증감자', [{y:'1주당 액면 (엔진)', v:inp&&inp.shares&&inp.shares.par>0?won(inp.shares.par)+'원':'자료에 없음', s:String((inp&&inp.src||{})['shares.par']||'')},{y:'증감자 기록', v:((inp&&inp.shares&&inp.shares.events)||[]).length+'건', s:'별지54호·DART 자본금 변동'}]); return B.html('주당 취득가액 — 액면·자본금'); }
+    if(k==='psimLend'){ B.acct(inp,'shortTermDebt'); B.acct(inp,'provisionalPay'); B.notes.push('가수금 = 단기차입금(대표자) 안에 있을 수 있음 — 계정별원장 정본'); return B.html('가수금·가지급금 — 재무상태표'); }
+    return '';
+  }
+  var EV_Q=['shAsm','pct','re','reStd','evalDate','execStart','mgmtStart','donorAge','curPay','execPay','execPay2019','costPS','psimLend'];   
   
   function box(){ var b=document.getElementById('qflowBox'); if(b){ var m0=document.getElementById('multiBox'); if(m0&&m0.parentNode===b.parentNode&&(b.compareDocumentPosition(m0)&Node.DOCUMENT_POSITION_FOLLOWING)) m0.parentNode.insertBefore(b,m0.nextSibling); return b; }   
     b=document.createElement('details'); b.id='qflowBox';
@@ -43677,7 +43877,13 @@ var QFLOW=(function(){
       +'#qflowBox .qlink{display:block;width:100%;max-width:560px;min-height:48px;box-sizing:border-box;margin:12px 0 0;padding:12px 14px;border:1.5px solid #7A848F;border-radius:12px;background:#FFF1E6;color:#191F28;cursor:pointer;text-align:center;font-size:16px;font-weight:700;line-height:1.3;box-shadow:none;text-decoration:none}#qflowBox .qlink:active{background:#E5E1DA}'
       +'#qflowBox .qform{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:6px 0 4px;max-width:560px}#qflowBox .qform .qb{margin:0;min-height:48px;font-weight:700;border-radius:12px;width:100%}#qflowBox .qform .qsl{background:#0A1C4E;border-color:#0A1C4E;color:#fff}'
       +'#qflowBox .qauth{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:10px 0;max-width:560px}#qflowBox .qauth input{flex:1 1 180px;min-height:44px;box-sizing:border-box;font-size:16px;padding:8px 10px;border:1px solid #C9C4BC;border-radius:10px}'
-      +'#qflowBox .qnav{display:grid;grid-template-columns:1fr 2fr;gap:8px;margin-top:10px;max-width:560px}#qflowBox .qnav .qb{margin:0;padding:13px;font-weight:700;border-radius:12px;width:100%}#qflowBox .qshr{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:center}#qflowBox .qshr .qu{margin:4px 0}';
+      +'#qflowBox .qnav{display:grid;grid-template-columns:1fr 2fr;gap:8px;margin-top:10px;max-width:560px}#qflowBox .qnav .qb{margin:0;padding:13px;font-weight:700;border-radius:12px;width:100%}#qflowBox .qshr{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:center}#qflowBox .qshr .qu{margin:4px 0}'
+      
+      +'#qflowBox .qhr{display:flex;gap:8px;align-items:flex-start;padding:8px 6px;border:1px solid #E5E1DA;border-radius:10px;margin:6px 0;max-width:560px;cursor:pointer}#qflowBox .qhr input{width:20px;height:20px;flex:none;margin-top:1px}'
+      +'#qflowBox .qgrid{display:block}#qflowBox .qev{margin:12px 0 4px;border:1.5px solid #7A848F;border-radius:12px;background:#FFF1E6;padding:8px 10px;max-width:560px;box-sizing:border-box}#qflowBox .qev>summary{font-weight:800;font-size:16px;color:#191F28;cursor:pointer;min-height:32px;line-height:32px}'
+      +'#qflowBox .qevh{font-weight:800;color:#191F28;margin:4px 0 6px}#qflowBox .qevi{margin:8px 0}#qflowBox .qevi table{font-size:16px;margin-top:3px;background:#fff}#qflowBox .qevi td{vertical-align:top}#qflowBox .qevv{text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}#qflowBox .qevs{color:#4E5968;font-size:16px}'
+      +'#qflowBox .qevx{color:#E4572E;font-size:16px;font-weight:700;margin:3px 0}#qflowBox .qevn{color:#4E5968;font-size:16px;margin-top:3px}#qflowBox .qevf{border-top:1px solid #E5E1DA;margin-top:8px;padding-top:6px;font-size:16px;color:#4E5968;word-break:break-all}'
+      +'@media (min-width:900px){#qflowBox .qgrid{display:grid;grid-template-columns:minmax(0,1fr) minmax(300px,400px);gap:18px;align-items:start}#qflowBox .qgrid .qev{margin-top:8px;max-width:none;position:sticky;top:8px;max-height:80vh;overflow:auto}#qflowBox .qgrid .qev>summary{display:none}}';
     document.head.appendChild(css);
     var mb=document.getElementById('multiBox'); if(mb&&mb.parentNode) mb.parentNode.insertBefore(b,mb.nextSibling); else document.body.insertBefore(b,document.body.firstChild);
     b.open=true; xpInit(); return b; }
@@ -43693,7 +43899,9 @@ var QFLOW=(function(){
     bar.querySelector('button').addEventListener('click',function(){ xp(!XP); if(XP){ try{ (document.querySelector('.wrap')||bar).scrollIntoView({block:'start'}); }catch(e){} } });
     xp(/[?&]full=1/.test(location.search)); }
   function xp(on){ XP=!!on; document.body.classList.toggle('qfx-off',!XP); document.documentElement.classList.add('qfx-set'); var x=document.getElementById('qfxBtn'); if(x) x.textContent=XP?'간단히 보기(질문 카드만)':'전체 입력 보기(전문가)'; }
-  var STEPS=['자료·평가','플랜 회사','장 체크','질문','확인'];
+  
+  function evWrap(h,from,it){ var x=''; try{ if(it&&(it.ck||it.inv||EV_Q.indexOf(it.k)>=0)) x=evFor(it); }catch(e){ DIAG(e,'qflow.ev'); x=''; } if(!x) return; var q=h.splice(from,h.length-from).join(''); h.push('<div class="qgrid"><div class="qmain">'+q+'</div>'+x+'</div>'); }
+  var STEPS=['자료·평가','플랜 회사·기준 주주','장 체크','질문','확인'];
   function head(){ return '<div class="qn">'+STEPS.map(function(s,i){ return (i===st.step?'<b style="color:#513528">':'')+(i+1)+' '+s+(i===st.step?'</b>':''); }).join(' → ')+'</div>'; }
   function render(){
     if(st.step>0&&gateNow()) st.step=0;   
@@ -43716,9 +43924,11 @@ var QFLOW=(function(){
       h.push('<div style="margin:8px 0">② 주력(플랜) 회사 = 가업상속공제 · 급여~납세재원 장을 만드는 회사</div>');
       if(L2.length>1){ L2.forEach(function(c){ h.push('<label style="display:block;margin:4px 0"><input type="radio" name="qplan" data-qplan="'+c.id+'"'+(M2.plan===c.id?' checked':'')+'> '+esc(c.name)+'</label>'); });
         
-        var PP=(window.MULTI&&MULTI.people)?MULTI.people():{}; if(Object.keys(PP).length) h.push('<label style="display:block;margin:8px 0 4px"><span class="qn">고객(피상속인)</span><select data-qcl="1">'+Object.keys(PP).map(function(k){ return '<option'+(k===M2.client?' selected':'')+'>'+esc(k)+'</option>'; }).join('')+'</select></label>');
+        
         h.push('<div class="qn">· 플랜 회사를 바꾸면 그 회사 자료로 다시 평가해요(위 회사 자료 카드에 넣은 PDF) · 다른 회사는 3장(자산가치평가, 주주 현황, 가치평가 추이)</div>'); }   
       else h.push('<div><b>'+esc((S.meta||{}).name||'')+'</b> (회사 1곳)</div>');
+      var hb=new EvB(); hb.holders(evInp((S.meta||{}).name||''),(S.meta||{}).name||'');   
+      h.push('<div class="qgrid"><div class="qmain">'+holderHtml()+'</div>'+hb.html('주주 — 보고서 표, 별지54호')+'</div>');
       h.push('<div><button class="qb" data-qback="1">뒤로</button><button class="qb qgo" data-qnext="1">다음</button></div>');
     } else if(st.step===2){
       var R=recommend(); if(!st.secs) st.secs=Object.keys(R).filter(function(k){ return R[k].on; });
@@ -43728,7 +43938,7 @@ var QFLOW=(function(){
     } else if(st.step===3){
       if(!st.list.length){ h.push('<div style="margin:8px 0">체크한 장에 더 물을 것 없음</div><div><button class="qb" data-qback="1">뒤로</button><button class="qb qgo" data-qnext="1">확인 화면</button></div>'); }
       else if(st.list[st.qi].k==='shAsm'){
-        var sa=shAsm();
+        var sa=shAsm(), h1=h.length;
         h.push('<div class="qbar"><i style="width:'+Math.round((st.qi+1)/st.list.length*100)+'%"></i></div><div class="qn">질문 '+(st.qi+1)+' / '+st.list.length+' · 평가</div>');
         if(sa){
           h.push('<div style="margin:8px 0;font-size:17px;font-weight:800">발행주식총수 : 가정 '+won(sa.shares)+'주 (자본금 '+won(sa.cap)+'원 ÷ 액면 '+won(sa.par)+'원'+(sa.parAssumed?' 가정':'')+'), 맞나요?</div>');
@@ -43738,9 +43948,10 @@ var QFLOW=(function(){
           h.push('<div class="qn" style="margin-top:6px">액면가 입력 (주식수 = 자본금 ÷ 액면)</div><div class="qshr"><label class="qu"><input class="qnum" data-dec="1" data-qshp="1" type="text" inputmode="decimal" placeholder="예 '+esc(won(sa.par))+'"><i>원</i></label><button class="qb" data-qsh="p">액면가로 다시 평가</button></div>');
         } else h.push('<div style="margin:8px 0">발행주식총수 확정 — '+esc(String(S.sharesSource||''))+' '+won(TE.num($('shares').value))+'주 · 1주 '+won(S.result&&S.result.finalValue)+'원</div><div><button class="qb qgo" data-qsh="ok">다음</button></div>');
         h.push('<div><button class="qb" data-qback="1">뒤로</button></div>');
+        evWrap(h,h1,st.list[st.qi]);
       }
       else if(st.list[st.qi].inv||st.list[st.qi].ck){
-        var sx=st.list[st.qi];
+        var sx=st.list[st.qi], h0=h.length;
         h.push('<div class="qbar"><i style="width:'+Math.round((st.qi+1)/st.list.length*100)+'%"></i></div><div class="qn">질문 '+(st.qi+1)+' / '+st.list.length+' · '+esc(sx.from)+'</div>');
         if(sx.inv){ var iv=sx.inv, v0=st.inv[iv.key];
           h.push('<div style="margin:8px 0;font-size:17px;font-weight:800">'+esc(iv.from)+'이 가진 '+esc(iv.to)+' 주식 '+won(iv.shares)+'주 — 재무상태표 장부가(투자주식)는 얼마예요?</div>');
@@ -43758,17 +43969,20 @@ var QFLOW=(function(){
             else h.push('<button class="qb'+(ca.c===o.c?' qgo':'')+'" style="margin-top:8px" data-qcko="'+oi+'">'+esc(o.label)+'</button>'); });
           h.push('<button type="button" class="qlink" data-qckunk="1">모름 — 기본값으로 진행(가정 표시)</button>');
           h.push('<div class="qnav"><button class="qb" data-qback="1">뒤로</button><button class="qb" data-qcknext="1">'+(ca.c?'다음':'건너뛰기(모름)')+'</button></div>'); }
+        evWrap(h,h0,sx);
       }
       else {
-        var it=st.list[st.qi], k=it.k, q=Q[k], c=cur(k), a=st.ans[k]!==undefined?st.ans[k]:c.v;
+        var it=st.list[st.qi], k=it.k, q=Q[k], c=cur(k), a=st.ans[k]!==undefined?st.ans[k]:c.v, h2=h.length;
         h.push('<div class="qbar"><i style="width:'+Math.round((st.qi+1)/st.list.length*100)+'%"></i></div><div class="qn">질문 '+(st.qi+1)+' / '+st.list.length+' · '+esc(it.from)+'</div>');
-        h.push('<div style="margin:8px 0;font-size:17px;font-weight:800">'+esc(q.l)+'</div><div class="qn">'+esc(q.why||'')+'</div>');
+        h.push('<div style="margin:8px 0;font-size:17px;font-weight:800">'+esc(qTitle(k))+'</div><div class="qn">'+esc(q.why||'')+'</div>');
+        if(k==='donorAge'){ var hn0=holderName(), c00=(S.meta||{}).ceo||''; if(hn0&&c00&&nmK(hn0)!==nmK(c00)) h.push('<div class="qw">· 읽은 값 = 크레탑 대표 '+esc(c00)+' 생년월일 — 기준 주주 '+esc(hn0)+'와 다름(옆 근거 상자 별지54호 생년월일)</div>'); }
         if(c.read&&st.ans[k]===undefined) h.push('<div style="margin:6px 0">읽은 값 : <b>'+esc(c.read)+'</b>, 맞나요? <button class="qb" data-qok="1">맞아요</button></div>');
         if(c.opts) h.push('<select data-qin="1">'+c.opts.map(function(o){ return '<option value="'+esc(o[0])+'"'+(String(a)===o[0]?' selected':'')+'>'+esc(o[1])+'</option>'; }).join('')+'</select>');
         else if(q.t==='date'||q.t==='text') h.push('<label class="qu qtxt"><input data-qin="1" type="'+(q.t==='date'?'date':'text')+'" value="'+esc(a)+'" placeholder="'+esc(c.ph?'비우면 = '+c.ph:'')+'"></label>');
         else { var un=q.t==='eok'?'억':(q.u||''), nc=q.u==='년'; h.push('<label class="qu"><input class="qnum" data-dec="1"'+(nc?' data-nc="1"':'')+' data-qin="1" type="text" inputmode="decimal" value="'+esc(fmtN(a,true,nc))+'" placeholder="'+esc(c.ph?'비우면 = '+c.ph:'')+'">'+(un?'<i>'+esc(un)+'</i>':'')+'</label>'); }
         h.push('<button type="button" class="qlink" data-qdef="1">기본값으로 두기'+(c.ph?' ('+esc(c.ph.slice(0,24))+')':'')+'</button>');
         h.push('<div class="qnav"><button class="qb" data-qback="1">뒤로</button><button class="qb qgo" data-qans="1">다음</button></div>');
+        evWrap(h,h2,it);
       }
     } else if(st.step===4){
       var A=[], D=[], C=[];
@@ -43777,6 +43991,7 @@ var QFLOW=(function(){
       try{ var vi=window.SIMAPI&&SIMAPI.valInfo?SIMAPI.valInfo():null; (vi&&vi.checks||[]).slice(0,6).forEach(function(x){ C.push(x); }); }catch(e){}
       C=C.filter(function(x,i){ return C.indexOf(x)===i; });
       var tb=function(t,rows){ return '<div style="margin-top:8px"><b>'+t+' '+rows.length+'</b>'+(rows.length?'<table>'+rows.map(function(r){ return '<tr><td>'+esc(r[0])+'</td><td>'+esc(r[1])+'</td></tr>'; }).join('')+'</table>':'')+'</div>'; };
+      var hn5=holderName(); if(hn5){ var hr5=holderRow(hn5); A.unshift(['기준 주주', hn5+(hr5?' '+won(hr5.x.shares)+'주 ('+pctS(hr5.x.pct)+', '+hr5.g.co+')':'')+(st.holder?'':' — 기본(툴 규칙)')]); }   
       h.push('<div style="margin:8px 0">⑤ 만들기 전 확인 — 장 '+st.secs.length+'개</div>'+tb('답한 것',A)+tb('기본값으로 둔 것',D)+'<div style="margin-top:8px"><b>확인 필요 '+C.length+'</b>'+C.map(function(x){ return '<div class="qw">· '+esc(x)+'</div>'; }).join('')+'</div>');
       
       h.push('<label class="qauth"><b>보고서 작성자</b><input data-qauth="1" type="text" maxlength="20" placeholder="이름 (비우면 표지·꼬리말에 안 넣음)" value="'+esc(repAuthor())+'"></label>');
@@ -43795,9 +44010,10 @@ var QFLOW=(function(){
     on('[data-qnext]','click',function(){ var gq=gateNow(); if(gq){ st.msg='오류 — '+gq; go(0); return; } st.used=true; if(st.step===2){ st.list=buildList(); st.qi=0; } go(st.step+1); });
     on('[data-qback]','click',function(){ if(st.step===3&&st.qi>0){ st.qi--; render(); return; } go(st.step-1); });
     on('[data-qplan]','change',function(x){ if(window.MULTI&&MULTI.st){ MULTI.st.plan=x.dataset.qplan; MULTI.st.on=false; try{ MULTI.feedPlan(); }catch(e){} } });
+    on('[data-qhold]','change',function(x){ st.holder=x.dataset.qhold; st.used=true; var hn=applyHolder(); st.msg='기준 주주 = '+hn+' — 표지, 지분율, 가족 질문, 상속세가 이 사람 기준'; render(); });   
     on('[data-qcl]','change',function(x){ if(window.MULTI&&MULTI.st){ MULTI.st.client=x.value; MULTI.st.on=false; try{ MULTI.redo(); }catch(e){} } });   
     on('[data-qsec]','change',function(x){ var id=x.dataset.qsec, i=st.secs.indexOf(id); if(x.checked&&i<0) st.secs.push(id); if(!x.checked&&i>=0) st.secs.splice(i,1); });
-    var next=function(){ if(st.qi<st.list.length-1){ st.qi++; render(); } else go(4); };
+    var next=function(){ spPrune(); if(st.qi<st.list.length-1){ st.qi++; render(); } else go(4); };   
     [].forEach.call(b.querySelectorAll('input.qnum'),function(x){ var dec=x.hasAttribute('data-dec'), nc=x.hasAttribute('data-nc'); x.addEventListener('input',function(){ var p=x.selectionStart||0, left=x.value.slice(0,p).replace(/[^\d.]/g,'').length, v=fmtN(x.value,dec,nc); if(v===x.value) return; x.value=v; var i=0,c=0; while(i<v.length&&c<left){ if(/[\d.]/.test(v[i])) c++; i++; } try{ x.setSelectionRange(i,i); }catch(e){} }); });
     on('[data-qans]','click',function(){ var k=st.list[st.qi].k, inp=b.querySelector('[data-qin]'), v=inp?String(inp.value).trim():''; if(inp&&inp.classList.contains('qnum')) v=v.replace(/,/g,''); if(v===''){ st.how[k]='def'; delete st.ans[k]; } else { st.ans[k]=v; st.how[k]='ans'; } next(); });
     on('[data-qdef]','click',function(){ var k=st.list[st.qi].k; delete st.ans[k]; st.how[k]='def'; next(); });
@@ -43846,16 +44062,17 @@ var QFLOW=(function(){
   }
   function build(pdf,form){
     try{ var gm=window.MULTI&&MULTI.gateMsg?MULTI.gateMsg():''; if(gm){ st.msg='오류 — '+gm; render(); return null; } }catch(x){}   
+    try{ if(st.holder) applyHolder(); }catch(x){ DIAG(x,'qflow.holder.build'); }   
     try{ var M=window.MULTI; if(M&&M.st&&M.st.sol&&M.st.cos.filter(function(c){ return c.inp; }).length>1&&!M.on){ var r=M.applyPlan(); if(r&&r.err){ st.msg='오류 — 여러 회사 반영 : '+r.err; render(); return null; } } }catch(x){}
-    var set=apply(); st.built={at:new Date().toISOString(), set:set, secs:st.secs.slice()};
+    var set=apply(); if(st.holder) set.unshift('기준 주주 '+st.holder); st.built={at:new Date().toISOString(), set:set, secs:st.secs.slice()};
     save(true);
     if(pdf){ try{ var sl=form==='sl', b2=document.getElementById(sl?'v8PdfSL':'v8Pdf2'); if(b2) b2.click(); st.msg='보고서 만드는 중 — '+(sl?'삼성생명양식':'FO센터양식')+' PDF 받기 · 기본값으로 둔 것 '+window.__qaDefaults.length+'개'; }catch(x){ st.msg='오류 — '+x.message; } }
     render(); return set;
   }
   function defaults(){ return st.list.filter(function(it){ return it.k!=='shAsm'&&st.how[it.k]!=='ans'&&st.how[it.k]!=='read'; }).map(function(it){ if(it.inv) return '가정 : '+qLab(it)+' = 0(모름 — 평가액 전액 순자산 가산 · 재무상태표 투자주식 정본 필요)'; if(it.ck) return '가정 : '+qLab(it)+' — 모름, 툴 기본값 그대로'; return Q[it.k].l+' = '+(cur(it.k).ph||'툴 기본'); }); }   
   
-  function pack(){ return {v:1, kind:'크레탑 질문 답', key:coKey(), name:(S.meta||{}).name||'', at:new Date().toISOString(), ans:st.ans, how:st.how, secs:st.secs, defaults:defaults(), ck:st.ck, inv:st.inv}; }
-  function load(o){ if(!o||!o.ans) throw new Error('답 파일 아님'); st.ans=o.ans||{}; st.how=o.how||{}; st.ck=o.ck||{}; st.inv=o.inv||{}; st.ckFor=coKey(); try{ invSync(); if(ckSync()) reRun(); }catch(e){}    Object.keys(st.ans).forEach(function(k){ if(!st.how[k]) st.how[k]='ans'; }); if(Array.isArray(o.secs)) st.secs=o.secs; st.list=[]; }
+  function pack(){ return {v:1, kind:'크레탑 질문 답', key:coKey(), name:(S.meta||{}).name||'', at:new Date().toISOString(), ans:st.ans, how:st.how, secs:st.secs, defaults:defaults(), ck:st.ck, inv:st.inv, holder:st.holder||''}; }
+  function load(o){ if(!o||!o.ans) throw new Error('답 파일 아님'); st.ans=o.ans||{}; st.how=o.how||{}; st.ck=o.ck||{}; st.inv=o.inv||{}; st.holder=o.holder||o.ans.holder||''; st.ckFor=coKey(); try{ invSync(); if(ckSync()) reRun(); }catch(e){}    Object.keys(st.ans).forEach(function(k){ if(!st.how[k]) st.how[k]='ans'; }); if(Array.isArray(o.secs)) st.secs=o.secs; st.list=[]; }
   function server(){ return !!QA_API&&/^https?:$/.test(location.protocol); }
   function save(quiet){
     var o=pack(); if(!o.key) return;
@@ -43880,7 +44097,7 @@ var QFLOW=(function(){
     var M=window.MULTI&&MULTI.st; if(w&&!st.autoGo&&M&&M.n>=2&&M.sol&&!gateNow()){ var pc=(M.cos||[]).filter(function(c){ return c.id===M.plan; })[0], kk=function(x){ return String(x||'').replace(/\s|\(주\)|㈜|주식회사/g,''); };
       if(pc&&(kk(pc.name)===kk((S.meta||{}).name)||kk((pc.inp&&pc.inp.corp||{}).name)===kk((S.meta||{}).name))){ st.autoGo=true; go(1); } } } autoLoad(); }catch(e){} },1500); }
   if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',init); else setTimeout(init,0);
-  return {ckList:ckList, CK_NO:CK_NO, st:st, render:render, go:go, recommend:recommend, buildList:buildList, apply:apply, build:build, defaults:defaults, pack:pack, load:load, deckPost:deckPost, SEC_Q:SEC_Q, Q:Q, shAsm:shAsm, setShares:setShares, setPar:setPar, xp:xp, get used(){ return st.used; }};
+  return {ckList:ckList, CK_NO:CK_NO, st:st, render:render, go:go, recommend:recommend, buildList:buildList, apply:apply, build:build, defaults:defaults, pack:pack, load:load, deckPost:deckPost, SEC_Q:SEC_Q, Q:Q, shAsm:shAsm, setShares:setShares, setPar:setPar, xp:xp, holderOpts:holderOpts, holderDef:holderDef, applyHolder:applyHolder, evFor:evFor, EV_Q:EV_Q, get used(){ return st.used; }};
 })();
 window.QFLOW=QFLOW;
 
@@ -45251,7 +45468,13 @@ window.__diag.blk.b3=1;
     var L=shList();
     h.textContent=(yes&&L.length&&!has)?'주주 현황에서 배우자를 고르세요 (배우자 지분이 없으면 그대로 두세요)':'';
     h.style.display=h.textContent?'':'none';
+    spAssetVis();
   }
+  
+  function spAssetOn(){ var c=$('stratCard'); if(!c) return true; var b=c.querySelector('input[data-sec="sec2"]'), sel=c.querySelector('[data-sc="spouse"]');
+    return !!(b&&b.checked)&&!(sel&&sel.value==='no'); }
+  function spAssetVis(){ var c=$('stratCard'); if(!c) return; var on=spAssetOn();
+    ['spCash','spOther'].forEach(function(k){ var f=c.querySelector('[data-scf="'+k+'"]'); if(f) f.style.display=on?'':'none'; }); }
   function relApply(){
     var L=shList(), R=relLoad(), sp=0, ks=[], note=[];
     L.forEach(function(x){ var r=R[String(x.name||'')]; if(r==='spouse') sp+=num(x.ratio); if(r==='kid') ks.push(Math.max(0,num(x.shares))); });
@@ -45360,11 +45583,11 @@ window.__diag.blk.b3=1;
         edited.rel=1; markEdited();
       } else if(t.hasAttribute('data-sec')){
         var st=secState(); st[t.getAttribute('data-sec')]=t.checked; try{ localStorage.setItem(LS_SEC,JSON.stringify(st)); }catch(x2){}
-        edited.secs=1; markEdited();
+        edited.secs=1; markEdited(); spAssetVis();   
       }
     });
     c.addEventListener('click',function(e){
-      if(e.target.hasAttribute('data-secreset')){ try{ localStorage.removeItem(LS_SEC); }catch(x){} var df2=secDefaults(); Array.prototype.forEach.call(c.querySelectorAll('input[data-sec]'),function(i){ if(!i.disabled) i.checked=!!df2[i.getAttribute('data-sec')]; }); edited.secs=1; markEdited(); return; }
+      if(e.target.hasAttribute('data-secreset')){ try{ localStorage.removeItem(LS_SEC); }catch(x){} var df2=secDefaults(); Array.prototype.forEach.call(c.querySelectorAll('input[data-sec]'),function(i){ if(!i.disabled) i.checked=!!df2[i.getAttribute('data-sec')]; }); edited.secs=1; markEdited(); spAssetVis(); return; }
       if(e.target.hasAttribute('data-addp')){ var p=c.querySelector('.sc-parts'); p.insertAdjacentHTML('beforeend',partRow('',0)); }
       else if(e.target.classList.contains('sc-go')) apply();
     });
@@ -45400,8 +45623,10 @@ window.__diag.blk.b3=1;
       var co={};
       ['re','reStd'].forEach(function(k){ if(!edited[k]) return; var el=c.querySelector('[data-sc="'+k+'"]'); var v=String(el.value).trim(); co[k==='re'?'reMarket':'reStd']=v===''?0:num(v); });
       if(Object.keys(co).length){ try{ window.SIMAPI.setCorp(co); }catch(x){} }
+      var spA=spAssetOn();   
       REQ.concat(OPT).forEach(function(f){
         if(f.k==='re'||f.k==='reStd'||!edited[f.k]) return;
+        if(!spA&&(f.k==='spCash'||f.k==='spOther')) return;
         var el=c.querySelector('[data-sc="'+f.k+'"]'); var v=el.value;
         if(f.k!=='spouse'&&v===''&&/^(kids|cash|other)$/.test(f.k)) v='0';
         if(v===''&&f.dv) v=f.dv;   
@@ -46211,6 +46436,6 @@ window.__diag.blk.b3=1;
 
 
 </script>
-<div id="pubFoot" style="margin:28px auto 0;padding:14px 16px 22px;max-width:1100px;font:14px/1.6 Freesentation,-apple-system,BlinkMacSystemFont,'Apple SD Gothic Neo','Malgun Gothic','Noto Sans KR',sans-serif;color:#6B7684;text-align:center;border-top:1px solid #E5E8EB">본 자료 = 일반적 정보 제공 목적, 실제 적용 시 개별 사안별 법률적 검토 및 전문가 자문 필수<br>계산은 이 기기 안에서만 하며 입력값은 보내지 않습니다(「주소로 찾기」에 넣은 주소만 공시가격, 조정대상지역 확인을 위해 브이월드로 보냄). · 판 2026-11-23<br>오류를 찾으시면 <a href="mailto:jeongkh86@gmail.com?subject=%EC%84%B8%EA%B8%88%20%EA%B3%84%EC%82%B0%EA%B8%B0%20%EC%98%A4%EB%A5%98" style="color:inherit;text-decoration:underline">jeongkh86@gmail.com</a> 으로 알려 주세요</div><script>try{if(window.self!==window.top)document.getElementById("pubFoot").style.display="none";}catch(e){}</script>
+<div id="pubFoot" style="margin:28px auto 0;padding:14px 16px 22px;max-width:1100px;font:14px/1.6 Freesentation,-apple-system,BlinkMacSystemFont,'Apple SD Gothic Neo','Malgun Gothic','Noto Sans KR',sans-serif;color:#6B7684;text-align:center;border-top:1px solid #E5E8EB">본 자료 = 일반적 정보 제공 목적, 실제 적용 시 개별 사안별 법률적 검토 및 전문가 자문 필수<br>계산은 이 기기 안에서만 하며 입력값은 보내지 않습니다(「주소로 찾기」에 넣은 주소만 공시가격, 조정대상지역 확인을 위해 브이월드로 보냄). · 판 2026-11-24<br>오류를 찾으시면 <a href="mailto:jeongkh86@gmail.com?subject=%EC%84%B8%EA%B8%88%20%EA%B3%84%EC%82%B0%EA%B8%B0%20%EC%98%A4%EB%A5%98" style="color:inherit;text-decoration:underline">jeongkh86@gmail.com</a> 으로 알려 주세요</div><script>try{if(window.self!==window.top)document.getElementById("pubFoot").style.display="none";}catch(e){}</script>
 </body>
 </html>
