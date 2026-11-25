@@ -7623,6 +7623,11 @@ https://github.com/nodeca/pako/blob/main/LICENSE
         if (P.f === 'CvS' && /^[lb]$/.test(t)) return { want: 'any', year: pubYear(D), at: D || '', why: this._w[t] + ' 현재 고시된 기준시가(소득세법 §99①)' };
         return null; } },
     /* 2026-11-22 스스로 풀 질문 ㉯ — 건강보험료 탭 재산 질문(aHp · bHp 주택 공시가격, aLb · bLb 토지·건물 시가표준액)에도 찾기 · 계산(재산세 과세표준 → 점수)은 탭 엔진 GBR 그대로 */
+    /* 2026-11-25 「보충적 평가액 칸」 — 세무조정 주식평가 탭(stockbiz · 손잡이 SBZUI) 적용가액 질문의 토지, 건물 줄 「보충적 평가액」 칸
+       [주소로 공시가격 찾기]를 누른 줄만 그 칸이 data-pkwi="0"(억) · 상속개시일 현재 고시된 값(4월 말 전이면 전년도) · 땅 + 건물 = [더하기] · 계산 = 탭 SBZ.run(IGT.securedValue) 그대로 */
+    stockbiz: { h: function () { var U = window.SBZUI; if (!U || !U.S) return null; var S = U.S; return { W: { cur: !S.done && S.cur === 'adj' && S.gsgRow ? 'sup' + S.gsgRow : '', a: {}, done: !!S.done } }; },
+      pick: function (id) { if (!/^sup/.test(id)) return null; var U = window.SBZUI, lab = U && U.gsgLabel ? U.gsgLabel(id.slice(3)) : '', ed = U && U.evalDate ? U.evalDate() : '';
+        return { want: /토지/.test(lab) && !/건물/.test(lab) ? 'land' : 'any', year: pubYear(ed) || NOW, add: 1, why: '보충적 평가액(상증법 §61①) = 상속개시일 현재 고시된 값 · 토지 = 개별공시지가 × 면적, 건물 = 국세청 기준시가(홈택스) · 회사 땅이 여러 필지면 [더하기]' }; } },
     gbr: { h: function () { return window.GBRWZ; },
       pick: function (id) { if (/^[ab]Hp$/.test(id)) return { want: 'house', year: NOW, add: 1, why: '건강보험료 재산 = 그 해 6월 1일 재산세 과세표준의 기준 공시가격 · 집이 여럿이면 [더하기]' };
         if (/^[ab]Lb$/.test(id)) return { want: 'land', year: NOW, add: 1, why: '토지 = 개별공시지가 × 면적 · 상가 등 건물 시가표준액은 홈택스, 위택스에서 따로 더해요' }; return null; } },
@@ -7717,11 +7722,11 @@ https://github.com/nodeca/pako/blob/main/LICENSE
   var HTX_URL = 'https://hometax.go.kr/websquare/websquare.html?w2xPath=/ui/pp/index_pp.xml&tmIdx=47&tm2lIdx=4712090000&tm3lIdx=';
   function goLinks(k, it, a) {
     var seoul = /^11/.test(String(it.id || '')), L = [], burden = (TAB === 'igt' || TAB === 'igx') && a && a.mode === 'burden';
-    var nat = TAB === 'igt' || TAB === 'cgt' || TAB === 'igx';
+    var nat = TAB === 'igt' || TAB === 'cgt' || TAB === 'igx' || TAB === 'stockbiz';   /* 2026-11-25 stockbiz = 상속 기준시가(국세) */
     /* 2026-11-20 통합 세금 = 거래에 든 세금만 : 증여 끼면 상속·증여 기준시가, 양도 끼면 양도 기준시가, 취득세는 늘(지방세 시가표준액) */
     var xg = TAB === 'igx' && a && /^(ngift|low|burden|gsell)$/.test(a.mode), xs = TAB === 'igx' && a && /^(low|burden|swap|divorce|gsell)$/.test(a.mode);
     if (k === 'ot') { if (nat) L.push(['홈택스 오피스텔 및 상업용 건물 기준시가 조회', HTX_URL + '4712090300']); }
-    else { if (TAB === 'igt' || xg) L.push(['홈택스 건물 기준시가(상속, 증여) 계산', HTX_URL + '4712090600']); if (TAB === 'cgt' || burden || xs) L.push(['홈택스 건물 기준시가(양도) 계산', HTX_URL + '4712090500']); }
+    else { if (TAB === 'igt' || TAB === 'stockbiz' || xg) L.push(['홈택스 건물 기준시가(상속, 증여) 계산', HTX_URL + '4712090600']); if (TAB === 'cgt' || burden || xs) L.push(['홈택스 건물 기준시가(양도) 계산', HTX_URL + '4712090500']); }
     /* 2026-11-20 지적 6 — 환산취득가액 칸(*CvA·*CvS) = 소득세법 기준시가(§99 · 건물 = 국세청 고시)만 · 지방세 시가표준액(건물분)은 취득세 칸에서만 */
     var cvStep = false; try { var H0 = CFG.h(); cvStep = !!(H0 && H0.W && /Cv[AS]$/.test(String(H0.W.cur || ''))); } catch (z) {}
     if ((!nat || burden || TAB === 'igx') && !cvStep) L.push(seoul ? ['서울시 이택스 주택외 건물 시가표준액 조회', 'https://etax.seoul.go.kr/jsp/BldnStndAmtLstAction.view?gnb_id=0709&lnb_id=0709&gl_gubun=g'] : ['위택스 건축물 시가표준액 조회', 'https://www.wetax.go.kr/tcp/loi/J030401M01.do']);
