@@ -8205,7 +8205,9 @@ https://github.com/nodeca/pako/blob/main/LICENSE
        [주소로 공시가격 찾기]를 누른 줄만 그 칸이 data-pkwi="0"(억) · 상속개시일 현재 고시된 값(4월 말 전이면 전년도) · 땅 + 건물 = [더하기] · 계산 = 탭 SBZ.run(IGT.securedValue) 그대로 */
     stockbiz: { h: function () { var U = window.SBZUI; if (!U || !U.S) return null; var S = U.S; return { W: { cur: !S.done && S.cur === 'adj' && S.gsgRow ? 'sup' + S.gsgRow : '', a: {}, done: !!S.done } }; },
       pick: function (id) { if (!/^sup/.test(id)) return null; var U = window.SBZUI, lab = U && U.gsgLabel ? U.gsgLabel(id.slice(3)) : '', ed = U && U.evalDate ? U.evalDate() : '';
-        return { want: /토지/.test(lab) && !/건물/.test(lab) ? 'land' : 'any', year: pubYear(ed) || NOW, add: 1, why: '보충적 평가액(상증법 §61①) = 상속개시일 현재 고시된 값 · 토지 = 개별공시지가 × 면적, 건물 = 국세청 기준시가(홈택스) · 회사 땅이 여러 필지면 [더하기]' }; } },
+        /* 2026-11-26 평가기준일 기본값 = 오늘(엔진 pdDefault) — 비었으면 오늘 · 땅만 = 개별공시지가 공시일 5월 31일 전이면 전년(맥 property_value·landPrice 규칙과 같음) · 그 밖 = 주택가격 4월 30일 */
+        var ed0 = /^\d{4}-\d{2}-\d{2}$/.test(ed) ? ed : TODAY, isLand = /토지/.test(lab) && !/건물/.test(lab), yy = isLand ? (+ed0.slice(0, 4) - (ed0.slice(5) < '05-31' ? 1 : 0)) : pubYear(ed0);
+        return { want: isLand ? 'land' : 'any', year: yy || NOW, add: 1, why: '보충적 평가액(상증법 §61①) = 평가기준일(' + ed0 + ') 현재 고시된 값 · 토지 = 개별공시지가 × 면적, 건물 = 국세청 기준시가(홈택스) · 회사 땅이 여러 필지면 [더하기]' }; } },
     gbr: { h: function () { return window.GBRWZ; },
       pick: function (id) { if (/^[ab]Hp$/.test(id)) return { want: 'house', year: NOW, add: 1, why: '건강보험료 재산 = 그 해 6월 1일 재산세 과세표준의 기준 공시가격 · 집이 여럿이면 [더하기]' };
         if (/^[ab]Lb$/.test(id)) return { want: 'land', year: NOW, add: 1, why: '토지 = 개별공시지가 × 면적 · 상가 등 건물 시가표준액은 홈택스, 위택스에서 따로 더해요' }; return null; } },

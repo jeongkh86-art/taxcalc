@@ -1749,7 +1749,7 @@ summary:hover{background:var(--pd-acc-soft)}
         <div class="fld"><label>부동산 등 보유비율 (%)<br><span class="sublab">자동 산정 · 50%↑ 2:3 · 80%↑ 순자산 100% 하한</span></label>
           <input type="number" id="reRatio" value="0" step="0.01"></div>
         
-        <div class="fld"><label>평가기준일 (증여·양도 예정일)<br><span class="sublab">공란 = 직전 결산일 다음날 (결산일 모르면 오늘) · 사업개시 3년 판정 기준</span></label>
+        <div class="fld"><label>평가기준일 (증여·양도 예정일)<br><span class="sublab">공란 = 오늘 (결산일 다음날 ~ 오늘 = 직전 해와 같은 이익 가정) · 사업개시 3년 판정 기준</span></label>
           <input type="date" id="evalDate"></div>
       </div>
 
@@ -5393,7 +5393,13 @@ if (__SEV_NODE) {
     ['severance',     /^퇴직급여$/],
     ['incomeTaxPayable',/^미지급법인세$|^미지급세금$/],
     ['development',   /^개발비$/],
-    ['prepaidExpense', /^선급비용$/]   
+    ['prepaidExpense', /^선급비용$/],   
+    
+    ['isBadDebt',     /^대손상각비$/],
+    ['isWarranty',    /^(?:판매보증비|하자보수비|(?:판매보증|하자보수|제품보증|공사손실)충당(?:금|부채)전입액?)$/],
+    ['isProvRev',     /^(?:대손|판매보증|하자보수|제품보증|공사손실)충당(?:금|부채)환입액?$/],
+    ['isFxGain',      /^외화환산이익$/],
+    ['isFxLoss',      /^외화환산손실$/]
   ];
   
   var LOAN_RE = [
@@ -9982,6 +9988,198 @@ var SEV = (function () {
     hs.forEach(function (h) { var v = vs(h); if (h.special !== false && h.relCode !== '09') sp += v; else oth = Math.max(oth, v); });
     return { yes: sp >= oth, sp: sp, oth: oth, prefCut: cut };
   }
+  
+  var PD = { def: 'today' };
+  
+  function pdMode() { var g = null; try { g = (typeof globalThis !== 'undefined' ? globalThis : (typeof window !== 'undefined' ? window : {})).SEV_EVAL_DEFAULT; } catch (e) { g = null; } return g === 'nextDay' || g === 'today' ? g : PD.def; }
+  var PD_DEP = /^(A32|A40|A42|A44|A49)$/, PD_PRE = /^(A61|A62)$/, PD_LAND = /^(A33|A34|A35|A36|E08)$/, PD_STOCK = /^(A14|A15|A16|A17|A18|A19|A21|A23|A68)$/;
+  function pdYmd(d) { return d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2); }
+  function pdIso(s) { return /^\d{4}-\d\d-\d\d/.test(String(s || '')) ? String(s).slice(0, 10) : ''; }
+  function pdAdd(s, n) { var d = new Date(s + 'T00:00:00Z'); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); }
+  function pdAddM(s, m) { var d = new Date(s + 'T00:00:00Z'), day = d.getUTCDate(); d.setUTCDate(1); d.setUTCMonth(d.getUTCMonth() + m); var last = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 0)).getUTCDate(); d.setUTCDate(Math.min(day, last)); return d.toISOString().slice(0, 10); }
+  function pdDays(a, b) { return Math.round((Date.parse(b + 'T00:00:00Z') - Date.parse(a + 'T00:00:00Z')) / 864e5); }
+  function pdDefault(inp) { var ye = pdIso((((inp || {}).income || [])[0] || {}).yearEnd), nx = ye ? pdAdd(ye, 1) : ''; if (pdMode() === 'nextDay') return nx; var t = pdYmd(new Date()); return nx && (t < nx || pdStale(inp, t)) ? nx : t; }
+  
+  function pdStale(inp, t) { var ye = pdIso((((inp || {}).income || [])[0] || {}).yearEnd); t = t || pdYmd(new Date()); return !!ye && t > pdAddM(ye, 12); }
+  
+  function pdGiven(inp) { var C = (inp && inp.corp) || {}, v = pdIso(C.evalDate); if (!v) return ''; if (!C.evalDateAuto) return v;
+    var ye = pdIso((((inp || {}).income || [])[0] || {}).yearEnd); if (v === pdIso(C.evalDateAutoV) || (ye && v === pdAdd(ye, 1))) return ''; return v; }
+  function pdEval(inp) { return pdGiven(inp) || pdDefault(inp); }
+  function pdKor(s) { s = pdIso(s); return s ? (+s.slice(0, 4)) + '년 ' + (+s.slice(5, 7)) + '월 ' + (+s.slice(8, 10)) + '일' : ''; }
+  function pdW(v) { return (v < 0 ? '△' : '') + Math.round(Math.abs(+v || 0)).toLocaleString('ko-KR'); }
+  function pdYubo(A, re) { return (A.yuboItems || []).map(function (q, i) { return { q: q, i: i }; }).filter(function (z) { var q = z.q; return q && !q.out && num(has(q.yAmt) ? q.yAmt : q.end) && re.test(String((q.rule || {}).id || '')); }); }
+  function pdAmt(z) { return num(has(z.q.yAmt) ? z.q.yAmt : z.q.end); }
+  
+  function pdElim(inp) {   
+    var A = inp.asset || {}, ls = A.liabSub || {}, pend = A.pend || {}, pv = num(ls.provisions), pt = ((inp.parts || {})['asset.liabSub.provisions']) || [];
+    var bad0 = sum(pt.filter(function (q) { return /대손/.test(q.label || ''); }), function (q) { return num(q.v); }), sev0 = sum(pt.filter(function (q) { return /퇴직/.test(q.label || ''); }), function (q) { return num(q.v); }), ex = num(pend.provExtra);
+    return { bad: bad0 > 0 && pv + 0.5 >= bad0, other: ex > 0 && pv - bad0 - sev0 > 0.5 };
+  }
+  function periodCalc(inp, ev) {
+    inp = inp || {}; var A = inp.asset || {}, I0 = (inp.income || [])[0] || {}, ye = pdIso(I0.yearEnd), P = A.period || {}, sb = A.sub || {};
+    var o = { on: false, evalDate: pdIso(ev), yearEnd: ye, aAdd: 0, aSub: 0, yCut: 0, lAdd: 0, lines: [], assume: [], check: [], need: [], items: {} };
+    if (!ye || !o.evalDate) return o;
+    var ys = pdIso(I0.yearStart) || pdAdd(pdAddM(ye, -12), 1), fy = pdDays(ys, ye) + 1, el = pdDays(ye, o.evalDate) - 1;
+    o.nextDay = pdAdd(ye, 1); o.yearStart = ys; o.fyDays = fy; o.el = el;
+    if (!(el > 0) || !(fy > 0)) return o;
+    if (P.off) { o.off = true; o.lines.push('기간분 끔(asset.period.off) — ' + (P.why || '결산 재무상태표 그대로')); return o; }   
+    var r = el / fy; o.on = true; o.ratio = r;
+    var rT = el + '일 ÷ ' + fy + '일';
+    o.lines.push('기간 = 결산일 다음날 ' + o.nextDay + ' ~ 평가기준일 전날 ' + pdAdd(o.evalDate, -1) + ' ' + el + '일 ÷ 직전 사업연도(' + ys + ' ~ ' + ye + ') ' + fy + '일 = ' + (r * 100).toFixed(2) + '% (날짜로 셈 · 월할 아님)');
+    if (o.evalDate > pdAddM(ye, 12)) o.check.push('평가기준일 ' + o.evalDate + ' 이 직전 사업연도 끝 ' + ye + ' 에서 1년 넘게 지남 — 그 사이 끝난 사업연도의 결산 자료(법인세 신고서)를 넣어야 순손익가치 3개 사업연도·순자산 재무상태표가 맞음(상증령 §54①·§56①) [확인 필요]');
+    
+    var IT = P.interim || {}, yr = +o.evalDate.slice(0, 4), bs = ((inp.bsYears || {})[ye]) || {};
+    var bookPre = has(bs.netIncome) ? num(bs.netIncome) + num(bs.corpTax) : null;
+    var tBase = num(I0.taxBase) > 0 ? num(I0.taxBase) : (has(I0.taxIncome) ? num(I0.taxIncome) : null), tCred = Math.max(0, num(I0.taxCredit));   
+    var taxOf = function (tb, rr) { var ct = CIT.tax(Math.max(0, tb), { year: yr }); return tCred ? Math.floor((Math.max(0, ct - tCred) + ct * 0.1) * rr) : Math.floor(ct * 1.1 * rr); };
+    if (IT.mode !== 'none' && (has(IT.pretax) || has(IT.ni))) {
+      var pt = has(IT.pretax) ? num(IT.pretax) : num(IT.ni) + num(IT.tax), tx, txHow = '(가결산 값)';
+      if (has(IT.tax)) tx = num(IT.tax);
+      else {   
+        var adjR = (bookPre > 0 && num(I0.taxIncome) > 0) ? num(I0.taxIncome) / bookPre : 1;
+        tx = taxOf(Math.max(0, pt) * adjR * fy / el, el / fy);
+        txHow = '(세전이익' + (adjR !== 1 ? ' × 조정 비율 ' + adjR.toFixed(4) + '(직전 해 각사업연도소득 ' + pdW(I0.taxIncome) + ' ÷ 세전이익 ' + pdW(bookPre) + ')' : '') + ' 연환산 × ' + yr + '년 법인세율' + (tCred ? ' − 공제·감면 ' + pdW(tCred) : '') + ' × 1.1 × ' + rT + ')';
+        o.check.push('기간분 법인세 — 가결산 법인세를 비워 조정 비율로 셈' + (adjR !== 1 ? '' : '(직전 해 비율을 못 구해 장부 세전이익 그대로)') + ' · 가결산 조정(기부금·접대비 한도 등)이 다르면 법인세 칸을 넣으세요 [확인 필요]');
+      }
+      o.mode = 'interim'; o.aAdd += pt; o.lAdd += tx; o.profit = pt; o.tax = tx;
+      o.lines.push('가결산 자료 : 경과분 세전이익 ' + pdW(pt) + '원 자산 가산 · 법인세·지방소득세 ' + pdW(tx) + '원 부채 가산' + txHow + ' (상증칙 §17의2 3호가)');
+    } else {
+      var base = null, how = '', adj = [];
+      if (bookPre !== null) {
+        base = bookPre; how = '직전 해 세전이익 ' + pdW(base) + '원(당기순이익 ' + pdW(bs.netIncome) + ' + 법인세비용 ' + pdW(num(bs.corpTax)) + ')';
+        
+        var eq = num(bs.equityMethodGain) - num(bs.equityMethodLoss);
+        if (eq) { base -= eq; adj.push('지분법손익 ' + pdW(eq) + '원 뺌(지분법이익 ' + pdW(num(bs.equityMethodGain)) + ' − 지분법손실 ' + pdW(num(bs.equityMethodLoss)) + ' · 지분법 주식은 취득가·유보로 묶여 이익으로 또 늘리면 두 번 셈 · 기준-2020-법령해석재산-0031)'); }
+        
+        var I1 = (inp.income || [])[1] || {}, bsP = ((inp.bsYears || {})[pdIso(I1.yearEnd)]) || {};
+        var EL = pdElim(inp), pv2 = 0, pvT = [], sp = function (L) { return sum(L || [], function (q) { return num(q.v); }); };
+        if (EL.bad) { if (has(bs.allowanceBad) && has(bsP.allowanceBad)) { var dB = Math.abs(num(bs.allowanceBad)) - Math.abs(num(bsP.allowanceBad)); if (dB) { pv2 += dB; pvT.push('대손충당금 잔액 ' + pdW(Math.abs(num(bsP.allowanceBad))) + ' → ' + pdW(Math.abs(num(bs.allowanceBad))) + ' 증감 ' + pdW(dB)); } }
+          else { var bd = has(bs.isBadDebt) ? num(bs.isBadDebt) : num(bs.badDebtExpense); if (bd) { pv2 += bd; pvT.push('대손상각비 ' + pdW(bd)); o.check.push('기간분 — 전기 대손충당금 잔액을 못 읽어 대손상각비 전체를 되살림(실제 떼인 채권이 섞였으면 과대) [확인 필요]'); } } }
+        if (EL.other) { if (bs.__prov && bsP.__prov) { var dO = sp(bs.__prov) - sp(bsP.__prov); if (dO) { pv2 += dO; pvT.push('그 밖 충당부채(' + bs.__prov.map(function (q) { return q.name; }).join(', ') + ') 잔액 ' + pdW(sp(bsP.__prov)) + ' → ' + pdW(sp(bs.__prov)) + ' 증감 ' + pdW(dO)); } }
+          else { var wr = num(bs.isWarranty) - num(bs.isProvRev); if (wr) { pv2 += wr; pvT.push('판매보증·하자보수 충당 전입 − 환입 ' + pdW(wr)); o.check.push('기간분 — 전기 충당부채 잔액을 못 읽어 손익계산서 전입·환입으로 셈 [확인 필요]'); } } }
+        if (pv2) { base += pv2; adj.push('⑰ 로 없앤 충당금 몫 ' + (pv2 > 0 ? '+' : '') + pdW(pv2) + '원(' + pvT.join(', ') + ' · 상증 순자산은 충당금 잔액을 없애므로 기간 중 잔액 증감도 순자산에 안 들어감 · 퇴직급여 제외 · 「2026 비상장주식평가실무」 p.300 ⑰ · 상증칙 §17의2 4호)'); }
+        
+        var bdec = has(bsP.building) && has(bs.building) ? num(bsP.building) - num(bs.building) : 0;
+        var bEv = (A.realEstate || []).filter(function (p) { return p && /건물/.test(p.kind || '') && ((has(p.market) && num(p.market) > 0) || has(p.baseValue) || (has(p.unitPrice) && has(p.area)) || (has(p.rentValue) && num(p.rentValue) > 0)); });
+        if (bEv.length && bdec > 0 && num(bs.building) > 0) {
+          var bShare = Math.min(1, sum(bEv, function (p) { return num(p.book); }) / num(bs.building)), dAdd = Math.floor(bdec * (bShare > 0 ? bShare : 1));
+          if (dAdd > 0) { base += dAdd; adj.push('기준시가·시가로 평가한 건물 ' + bEv.length + '줄의 감가상각비 +' + pdW(dAdd) + '원 되살림(직전 해 건물 장부 감소 ' + pdW(bdec) + '원' + (bShare > 0 && bShare < 1 ? ' × 평가한 건물 장부 비중 ' + (bShare * 100).toFixed(1) + '%' : '') + ' · 건물 값은 평가기준일 평가액으로 정해져 기간 감가상각만큼 또 줄이면 두 번 셈 · 상증령 §55①)');
+            o.check.push('기간분 — 건물 감가상각비를 직전 해 장부 감소분 ' + pdW(bdec) + '원으로 셈(취득·처분이 섞였으면 감가상각비조정명세서 별지20호 금액으로) [확인 필요]'); }
+        }
+        
+        var fxN = num(bs.isFxGain) - num(bs.isFxLoss);
+        if (has(bs.isFxGain) || has(bs.isFxLoss)) o.assume.push('가정 : 외화환산 순손익 ' + (fxN < 0 ? '△' : '') + pdW(Math.abs(fxN)) + '원(외화환산이익 ' + pdW(num(bs.isFxGain)) + ' − 외화환산손실 ' + pdW(num(bs.isFxLoss)) + ')도 직전 해와 같다고 보고 경과분 이익에 포함 — 환율이 바뀌면 다를 수 있음 ⚠');
+        o.fxNet = fxN;
+      }
+      else if (has(I0.taxIncome)) { base = num(I0.taxIncome); how = '직전 해 각사업연도소득 ' + pdW(base) + '원(재무제표 당기순이익 못 읽음)'; o.check.push('기간분 이익 — 직전 해 재무제표 당기순이익을 못 읽어 각사업연도소득으로 셈 [확인 필요]'); }
+      if (base !== null) {
+        var pf = Math.floor(base * r), tb = tBase !== null ? tBase : base, tx2 = taxOf(tb, r);
+        o.mode = 'assume'; o.aAdd += pf; o.lAdd += tx2; o.profit = pf; o.tax = tx2; o.baseProfit = base; o.baseTax = tb; o.adj = adj;
+        o.lines.push('경과분 이익 = ' + how + (adj.length ? ' · ' + adj.join(' · ') + ' → 바탕 ' + pdW(base) + '원' : '') + ' × ' + rT + ' = ' + pdW(pf) + '원 자산 가산');
+        o.lines.push('경과분 법인세·지방소득세 = 직전 해 ' + (num(I0.taxBase) > 0 ? '과세표준' : '각사업연도소득') + ' ' + pdW(tb) + '원에 ' + yr + '년 법인세율(법인세법 §55①)' + (tCred ? ' 산출세액 − 공제·감면세액 ' + pdW(tCred) + '원 + 지방소득세(산출세액 10%)' : ' × 1.1') + ' × ' + rT + ' = ' + pdW(tx2) + '원 부채 가산(상증칙 §17의2 3호가)');
+        if (tCred) o.check.push('기간분 법인세 — 직전 해 공제·감면세액 ' + pdW(tCred) + '원이 올해도 같다고 봄 · 최저한세(조특법 §132)에 걸리는지 확인 [확인 필요]');
+        o.assume.push('가정 : 직전 해 매출·순이익 동일 — 결산일 다음날 ~ 평가기준일 경과분 이익 ' + pdW(pf) + '원, 법인세 ' + pdW(tx2) + '원을 날짜 비율(' + rT + ')로 셈 · 가결산 자료가 있으면 그 값');
+      } else o.check.push('기간분 이익 — 직전 해 이익을 못 읽어 0 [확인 필요]');
+      if (!IT.mode) o.need.push('int');
+    }
+    
+    var pr = num((A.pend || {}).prepaidRead), PR = P.pre || {}, preY = pdYubo(A, PD_PRE), preYt = sum(preY, pdAmt), useBs = pr > 0 && !has(sb.prepaid);
+    var isInt = o.mode === 'interim', pinNo = isInt && P.pin === 'no', pdCutOn = pinNo;
+    if ((useBs || preYt) && isInt && !P.pin) o.need.push('pin');
+    if ((useBs || preYt) && !pdCutOn) { o.items.preSkip = { amt: pr, yubo: preYt, interim: isInt }; o.lines.push('선급비용' + (pr > 0 ? ' ' + pdW(pr) + '원' : '') + (preYt ? '(유보 ' + pdW(preYt) + '원)' : '') + ' 경과분은 빼지 않음 — ' + (isInt ? '가결산 손익에 선급비용 상각비가 이미 비용으로 들어 있다고 봄(답 「반영함」 기본 · 시산표만이면 「아니오」)' : '직전 해와 같은 이익 가정이라 그 이익에 선급비용 상각비가 이미 비용으로 빠져 있음') + '(두 번 빠짐 방지 · 2026-11-26)'); }
+    if ((useBs || preYt) && pdCutOn) {
+      var md = PR.mode || 'assume', end = pdIso(PR.end), f = 0, how2 = '', e12 = pdAddM(ye, 12);
+      if (md === 'none') { f = 0; how2 = '답 : 평가기준일까지 비용으로 확정된 몫 없음'; }
+      else if (md === 'all') { f = 1; how2 = '답 : 평가기준일까지 전부 비용으로 확정'; }
+      else if (md === 'amt' && has(PR.amt)) { f = pr > 0 ? Math.min(1, num(PR.amt) / pr) : 0; how2 = '답 : 비용 확정 금액 ' + pdW(PR.amt) + '원'; }
+      else if (md === 'end' && end && end > ye) { var rm = pdDays(ye, end); f = Math.min(1, el / rm); how2 = '계약 끝나는 날 ' + end + ' — 남은 ' + rm + '일 중 ' + Math.min(el, rm) + '일 지남'; }
+      else { md = 'assume'; var rm2 = pdDays(ye, e12); f = Math.min(1, el / rm2); how2 = '가정 : 남은 계약 기간 12개월(' + o.nextDay + ' ~ ' + e12 + ' ' + rm2 + '일) 중 ' + Math.min(el, rm2) + '일 지남'; }
+      var pc = useBs ? (md === 'amt' && has(PR.amt) ? Math.min(pr, num(PR.amt)) : Math.floor(pr * f)) : 0, yc = Math.round(preYt * f);
+      o.aSub += pc; o.yCut += yc; o.items.pre = { amt: pr, cut: pc, yubo: preYt, yCut: yc, mode: md, f: f };
+      if (useBs) o.lines.push('선급비용 경과분 = 결산 선급비용 ' + pdW(pr) + '원 × ' + (f * 100).toFixed(2) + '%(' + how2 + ') = ' + pdW(pc) + '원 자산 차감(가결산이 시산표만이라 상각 안 됨 · 상증칙 §17의2 2호 · 재삼46014-2524 · 「2026 비상장주식평가실무」 p.341)');
+      if (preYt) o.lines.push('선급비용 유보(' + preY.map(function (z) { return '「' + z.q.label + '」'; }).join(', ') + ') ' + pdW(preYt) + '원 × 같은 몫 = ' + pdW(yc) + '원 ③ 에서 줄임(비용으로 확정된 만큼 세무상 선급비용도 없어짐)');
+      if (md === 'assume') o.assume.push('가정 : 선급비용 계약 기간을 몰라 남은 기간 12개월로 셈 — 끝나는 날을 넣으면 그 날짜로 다시 셈');
+      if (!PR.mode) o.need.push('pre');
+    }
+    
+    var dep = pdYubo(A, PD_DEP), dt = sum(dep, pdAmt), DP = P.dep || {}, dm = DP.mode === 'amt' || DP.mode === 'sold' ? DP.mode : 'keep';
+    if (dt && (!isInt || dm === 'keep')) { o.items.depSkip = { amt: dt, n: dep.length, interim: isInt }; o.lines.push('감가상각 부인 유보 ' + dep.length + '줄 ' + pdW(dt) + '원은 그대로 둠 — ' + (isInt ? '시간이 지난다고 줄지 않음(시인부족·처분 때만 손금추인 · 법인령 §32①) · 줄었으면 답에 금액' : '직전 해와 같은 이익 가정이라 그 이익에 감가상각비가 이미 비용으로 빠져 있음') + '(두 번 빠짐 방지 · 2026-11-26)'); }
+    if (dt && isInt) {
+      var dc = dm === 'sold' ? dt : (dm === 'amt' && has(DP.amt)) ? (dt < 0 ? -1 : 1) * Math.min(Math.abs(num(DP.amt)), Math.abs(dt)) : 0;
+      o.yCut += dc; o.items.dep = { amt: dt, cut: dc, mode: dm, n: dep.length };
+      if (dc) o.lines.push('감가상각 부인 유보 ' + dep.length + '줄 ' + pdW(dt) + '원 → ' + pdW(dc) + '원 ③ 에서 줄임(' + (dm === 'sold' ? '답 : 결산 뒤 그 자산 처분 — 전부 뺌' : '답 : 줄어든 금액') + ')');
+      if (!DP.mode) o.need.push('dep');
+    }
+    if (o.items.preSkip || o.items.depSkip) o.assume.push('가정 : ' + (isInt ? '가결산 손익에 상각비가 들어 있다고 보고 ' : '직전 해와 같은 이익이라 ') + [o.items.preSkip ? '선급비용 경과분' : '', o.items.depSkip ? '감가상각 부인 유보 기간분' : ''].filter(Boolean).join('·') + '은 빼지 않음 — 이미 비용으로 빠져 있음(두 번 빠짐 방지)');
+    
+    [['land', PD_LAND, '땅·건물', num(bs.land) + num(bs.building) + num(bs.structure) + num(bs.investRealEstate)], ['stock', PD_STOCK, '주식', num(bs.equityMethodInv) + num(bs.otherSecurities)]].forEach(function (g) {
+      var L = pdYubo(A, g[1]), t = sum(L, pdAmt); if (!t) return;
+      var S0 = ((P.sold || {})[g[0]]) || {}, sm = S0.mode || 'no', yc2 = sm === 'all' ? t : (sm === 'amt' && has(S0.amt)) ? (t < 0 ? -1 : 1) * Math.min(Math.abs(num(S0.amt)), Math.abs(t)) : 0;   
+      var it = o.items[g[0]] = { amt: t, cut: 0, mode: sm, n: L.length };
+      if (!S0.mode) o.need.push(g[0]);
+      if (sm === 'no' || (sm === 'amt' && !yc2)) return;
+      var price = has(S0.price) ? num(S0.price) : null, bk = has(S0.book) ? num(S0.book) : (sm === 'all' && g[3] > 0 ? g[3] : null);
+      if (price === null) { o.check.push('결산 뒤 처분한 ' + g[2] + ' — 처분가액을 몰라 세무상 장부가로 판 것으로 보고 순자산 그대로 둠(유보도 그대로) · 처분가액을 넣으면 다시 셈 [확인 필요]'); it.noPrice = true; return; }
+      if (bk === null) { o.check.push('결산 뒤 처분한 ' + g[2] + ' — 처분한 자산의 장부가액을 넣어야 셈 · 지금은 순자산 그대로 [확인 필요]'); it.noBook = true; return; }
+      var gain = price - bk - yc2, gt = Math.floor((CIT.tax(Math.max(0, (tBase || 0) + gain), { year: yr }) - CIT.tax(Math.max(0, tBase || 0), { year: yr })) * 1.1);
+      o.aAdd += price - bk; o.yCut += yc2; o.lAdd += gt; it.cut = yc2; it.price = price; it.book = bk; it.gain = gain; it.tax = gt;
+      o.lines.push('결산 뒤 처분한 ' + g[2] + ' : 처분가액 ' + pdW(price) + ' − 장부가 ' + pdW(bk) + (has(S0.book) ? '' : '(결산 재무상태표 ' + g[2] + ' 합)') + ' 자산 가산 · 유보 ' + pdW(yc2) + '원 ③ 에서 뺌 · 처분이익 ' + pdW(gain) + '원 법인세·지방소득세 ' + pdW(gt) + '원 부채 가산(평가기준일 현재 · 상증령 §55① · 상증칙 §17의2 3호가)');
+      if (!has(S0.book)) o.check.push('결산 뒤 처분한 ' + g[2] + ' — 장부가를 결산 재무상태표 ' + g[2] + ' 합 ' + pdW(bk) + '원으로 둠(일부만 팔았으면 그 자산 장부가를 넣으세요) [확인 필요]');
+      o.check.push('결산 뒤 처분한 ' + g[2] + ' — 그 자산에 평가액 줄(기준시가·시가)이 있으면 지워야 두 번 안 셈' + (g[0] === 'land' ? ' · 비사업용 토지면 토지등 양도소득 법인세(법인세법 §55의2) 추가' : '') + ' [확인 필요]');
+    });
+    
+    var CP = P.cap || {};
+    if (CP.mode === 'given') {
+      var cin = Math.max(0, num(CP.inc)), cout = Math.max(0, num(CP.out));
+      o.aAdd += cin; o.aSub += cout; o.items.cap = { inc: cin, out: cout, mode: 'given' };
+      o.lines.push('결산 뒤 자본거래 : 증자 대금 ' + pdW(cin) + '원 자산 가산 · 감자·자기주식 취득·중간배당 지급 ' + pdW(cout) + '원 자산 차감(답 · 「2026 비상장주식평가실무」 p.330~331 · 상증칙 §17의2 3호나)');
+      o.check.push('결산 뒤 자본거래 — 주식 수가 바뀌었으면 발행주식총수·자기주식 칸을 평가기준일 주식 수로 고치세요 · 증자·감자 표나 결산일 뒤 자본거래 칸에도 넣었으면 한 곳만 [확인 필요]');
+    } else { o.items.cap = { mode: CP.mode || '' }; if (!CP.mode) o.need.push('cap'); }
+    return o;
+  }
+  
+  function pdQs(inp) {
+    inp = inp || {}; var ev = pdEval(inp), o = periodCalc(inp, ev), ans = inp.ckAns || {}, out = [];
+    if (!o.on) return out;
+    var rT = o.el + '일 ÷ ' + o.fyDays + '일', mo = function (d) { return ['이런 경우 : 서류를 아직 못 봤거나 사실을 잘 모를 때', '계산 : 기본값 = 「' + d + '」와 같은 처리', '결과에 [확인 필요]로 남음 — 나중에 확인되면 다시 고르면 바로 다시 계산']; };
+    var mk = function (key, sub, line, why, opts, d) { out.push({ key: key, kind: 'yuboPeriod', sub: sub, ans: ans[key] || null, line: line, why: why, opts: opts, moDesc: mo(d) }); };
+    var adjT = (o.adj && o.adj.length) ? ' · 바탕에서 ' + o.adj.map(function (t) { return t.split('(')[0]; }).join(', ') : '';
+    mk('p:ybpd:int', 'int', '평가기준일 ' + ev + ' 이 사업연도 중간 — 결산일(' + o.yearEnd + ') 뒤 가결산 자료가 있나요?',
+      '· 평가기준일 현재 순자산 = 직전 결산 재무상태표 + 결산일 다음날 ~ 평가기준일 경과분(' + rT + ')\n· 없음 = 직전 해와 같은 이익 가정(평가파트 §6.1 · 2026-11-26 기준 결정) — 그 이익에 선급비용 상각비·감가상각비가 이미 빠져 있어 따로 빼지 않음 · 지분법손익·없앤 충당금 전입/환입은 바탕에서 뺌(두 번 셈 막음)\n· 있음 = 가결산 이익을 더함\n· 근거 : 상증령 §55①(평가기준일 현재) · 상증칙 §17의2 3호가(평가기준일까지 발생한 법인세)',
+      [{ c: 'pn', label: '없음 — 직전 해와 같은 이익 가정 (기본)', def: true, dl: '없음', desc: ['이런 경우 : 결산 뒤 따로 만든 손익계산서(가결산)가 없을 때', '계산 : 직전 해 세전이익' + adjT + ' × ' + rT + ' = ' + pdW(o.mode === 'assume' ? o.profit : 0) + '원 자산 가산, 법인세·지방소득세 ' + pdW(o.mode === 'assume' ? o.tax : 0) + '원 부채 가산', '선급비용 경과분·감가상각 부인 유보 기간분 = 빼지 않음(그 이익에 이미 비용으로 빠져 있어 두 번 빠짐 방지)', '근거 : 상증칙 §17의2 3호가 · 평가파트 §6.1(2026-11-26 기준 결정)'] },
+       { c: 'py', label: '있음 — 경과분 세전이익·법인세 넣기', dl: '있음', f: [{ k: 'pretax', t: 'm', neg: true, label: '결산일 다음날 ~ 평가기준일 세전이익(손실이면 −)' }, { k: 'tax', t: 'm', opt: true, label: '그 기간 법인세·지방소득세(비우면 계산)' }],
+         desc: ['이런 경우 : 회사가 평가기준일까지 가결산(월별 손익계산서·시산표)을 만들어 둔 때', '계산 : 넣은 세전이익 자산 가산, 법인세 부채 가산(비우면 세전이익 × 직전 해 조정 비율 연환산 × 법인세율 × 1.1 × 경과 비율)', '근거 : 상증령 §55① · 상증칙 §17의2 3호가'] }], '없음');
+    var I = o.items;
+    if (o.mode === 'interim' && (I.preSkip || I.pre)) mk('p:ybpd:pin', 'pin', '가결산에 선급비용 상각(보험료 등 기간 지난 몫 비용 처리)을 반영했나요?',
+      '· 월별 결산을 했으면 선급비용 상각비가 가결산 손익에 이미 비용으로 들어 있음 → 또 빼면 두 번 빠짐\n· 시산표만 뽑아 상각 전이면 선급비용 경과분을 따로 뺌(상증칙 §17의2 2호)',
+      [{ c: 'iy', label: '반영함 — 따로 빼지 않음 (기본)', def: true, dl: '반영함', desc: ['이런 경우 : 회사가 월별 결산(상각 포함)을 한 가결산일 때', '계산 : 선급비용 경과분 차감 안 함', '근거 : 상증칙 §17의2 2호(이미 비용으로 확정된 몫은 가결산 재무상태표에 안 남음)'] },
+       { c: 'in', label: '아니오 — 시산표만(상각 전)', dl: '아니오', desc: ['이런 경우 : 결산 전 시산표만 있을 때', '계산 : 다음 질문(계약 끝나는 날 등)대로 선급비용 경과분을 자산에서 뺌', '근거 : 상증칙 §17의2 2호 · 재삼46014-2524'] }], '반영함');
+    if (I.pre) mk('p:ybpd:pre', 'pre', '선급비용·보험료 ' + pdW(I.pre.amt + 0) + '원' + (I.pre.yubo ? '(유보 ' + pdW(I.pre.yubo) + '원)' : '') + ' — 계약이 끝나는 날을 아나요?',
+      '· 평가기준일까지 기간이 지나 비용으로 확정된 몫만 자산에서 뺌(상증칙 §17의2 2호 · 재삼46014-2524 · 「2026 비상장주식평가실무」 p.341)\n· 몫 = 지난 일수 ÷ 남은 계약 일수(결산일 다음날 ~ 끝나는 날) — 항목마다 실제 날짜로\n· 모름 = 남은 기간 12개월 가정',
+      [{ c: 'pa', label: '모름 — 남은 기간 12개월 가정 (기본)', def: true, dl: '12개월 가정', desc: ['이런 경우 : 보험증권·계약서를 아직 못 봤을 때', '계산 : 선급비용 × 지난 일수 ÷ 365일 안팎(결산일 다음날부터 12개월) 만큼 자산 차감', '근거 : 상증칙 §17의2 2호 · 재삼46014-2524'] },
+       { c: 'pe', label: '끝나는 날 넣기', dl: '끝나는 날', f: [{ k: 'end', t: 'd', label: '계약(보험) 끝나는 날' }], desc: ['이런 경우 : 보험증권·임차 계약서에 기간이 적혀 있을 때', '계산 : 선급비용 × 지난 일수 ÷ (결산일 다음날 ~ 끝나는 날 일수) 만큼 자산 차감', '근거 : 상증칙 §17의2 2호 · 재삼46014-2524'] },
+       { c: 'pm', label: '비용 확정 금액 넣기', dl: '금액', f: [{ k: 'amt', t: 'm', label: '평가기준일까지 비용으로 확정된 금액' }], desc: ['이런 경우 : 항목이 여러 개라 따로 계산한 금액이 있을 때', '계산 : 넣은 금액만큼 자산 차감', '근거 : 상증칙 §17의2 2호'] },
+       { c: 'pl', label: '평가기준일까지 전부 비용 확정', dl: '전부', desc: ['이런 경우 : 계약이 평가기준일 전에 끝났을 때', '계산 : 선급비용 전액 자산 차감', '근거 : 상증칙 §17의2 2호'] },
+       { c: 'p0', label: '비용 확정 몫 없음', dl: '없음', desc: ['이런 경우 : 아직 서비스 기간이 시작 안 했을 때(예 : 다음 해 보험료를 미리 냄)', '계산 : 자산 차감 안 함', '근거 : 상증칙 §17의2 2호 문언'] }], '12개월 가정');
+    var dz = I.dep || (I.depSkip && I.depSkip.interim ? I.depSkip : null);
+    if (dz) mk('p:ybpd:dep', 'dep', '감가상각 부인 유보 ' + dz.n + '줄 ' + pdW(dz.amt) + '원 — 결산 뒤 평가기준일까지 줄었나요?',
+      '· 부인액은 시간이 지난다고 줄지 않음 — 그 뒤 상각 시인부족액 범위에서 손금추인되거나 자산을 처분할 때만 줄어듦(법인령 §32①)\n· 모름 = 그대로',
+      [{ c: 'dk', label: '그대로 남아 있음 (기본)', def: true, dl: '그대로', desc: ['이런 경우 : 자산을 그대로 쓰고 있고 상각 시인부족이 없을 때, 또는 모를 때', '계산 : ③ 그대로', '근거 : 법인령 §32①'] },
+       { c: 'dm', label: '줄어든 금액 넣기', dl: '금액', f: [{ k: 'amt', t: 'm', label: '평가기준일까지 줄어든(손금추인된) 금액' }], desc: ['이런 경우 : 세무대리인이 추인액을 계산해 준 때', '계산 : 넣은 금액만큼 ③ 에서 줄임', '근거 : 법인령 §32①'] },
+       { c: 'ds', label: '결산 뒤 그 자산 처분함', dl: '처분', desc: ['이런 경우 : 기계·차량 등을 팔거나 버렸을 때', '계산 : 유보 전부 ③ 에서 뺌', '근거 : 상증령 §55①(평가기준일 현재 자산)'] }], '그대로');
+    [['land', '땅·건물'], ['stock', '주식']].forEach(function (g) { var z = I[g[0]]; if (!z) return;
+      var pf2 = [{ k: 'price', t: 'm', opt: true, label: '처분가액(받은 돈 · 모르면 비움)' }, { k: 'book', t: 'm', opt: true, label: '처분한 자산의 장부가액(비우면 결산 재무상태표 ' + g[1] + ' 합)' }];
+      mk('p:ybpd:' + g[0], g[0], '결산 뒤 평가기준일까지 ' + g[1] + '을 처분했나요? — 유보 ' + z.n + '줄 ' + pdW(z.amt) + '원',
+        '· 처분했으면 그 자산(장부가 + 유보)이 빠지고 받은 돈이 들어옴 → 순자산 += 처분가액 − 장부가 − 유보 − 처분이익 법인세(상증령 §55① · 상증칙 §17의2 3호가)\n· 처분가액을 모르면 세무상 장부가로 판 것으로 보고 순자산 그대로 [확인 필요]\n· 모름 = 처분 안 함(지금 계산)',
+        [{ c: 'sn', label: '처분 안 함 (기본)', def: true, dl: '처분 안 함', desc: ['이런 경우 : 평가기준일에도 그대로 가지고 있을 때', '계산 : 그대로', '근거 : 상증령 §55①'] },
+         { c: 'sa', label: '전부 처분 — 처분가액 넣기', dl: '전부 처분', f: pf2, desc: ['이런 경우 : 결산 뒤 매매계약·등기(양도)가 끝났을 때', '계산 : 처분가액 − 장부가 자산 가산, 유보 ' + pdW(z.amt) + '원 ③ 에서 뺌, 처분이익 법인세 부채 가산 · 처분가액을 비우면 순자산 그대로', '근거 : 상증령 §55① · 상증칙 §17의2 3호가'] },
+         { c: 'sm', label: '일부 처분 — 유보·처분가액·장부가 넣기', dl: '일부', f: [{ k: 'amt', t: 'm', label: '처분한 자산의 유보 금액' }].concat(pf2), desc: ['이런 경우 : 여러 필지·여러 회사 주식 중 일부만 팔았을 때', '계산 : 처분가액 − 장부가 자산 가산, 넣은 유보 ③ 에서 뺌, 처분이익 법인세 부채 가산', '근거 : 상증령 §55①'] }], '처분 안 함'); });
+    mk('p:ybpd:cap', 'cap', '결산 뒤 평가기준일까지 증자·감자·자기주식 취득·중간배당이 있었나요?',
+      '· 결산 재무상태표에는 결산일까지 거래만 있음 → 그 뒤 들어온 증자 대금은 더하고, 나간 감자 대가·자기주식 취득 대금·중간배당(상법 §462의3)은 뺌(「2026 비상장주식평가실무」 p.330~331 · 상증칙 §17의2 3호나)\n· 모름 = 없음',
+      [{ c: 'cn', label: '없음 (기본)', def: true, dl: '없음', desc: ['이런 경우 : 결산 뒤 주식·배당 거래가 없을 때', '계산 : 그대로', '근거 : 상증령 §55①'] },
+       { c: 'cy', label: '있음 — 금액 넣기', dl: '있음', f: [{ k: 'inc', t: 'm', opt: true, label: '증자로 들어온 돈' }, { k: 'out', t: 'm', opt: true, label: '감자·자기주식 취득·중간배당으로 나간 돈' }], desc: ['이런 경우 : 결산 뒤 등기·이사회 결의로 자본거래가 있었을 때', '계산 : 들어온 돈 자산 가산, 나간 돈 자산 차감 · 주식 수가 바뀌었으면 발행주식총수 칸도 고침', '근거 : 「2026 비상장주식평가실무」 p.330~331 · 상증칙 §17의2 3호나'] }], '없음');
+    return out;
+  }
   function compute(inp, TE) {
     inp = inp || {};
     advUsed = {};
@@ -10083,7 +10281,7 @@ var SEV = (function () {
     
     var ad = A.add || {}, sb = A.sub || {}, la = A.liabAdd || {}, ls = A.liabSub || {};
     
-    var end0 = ((inp.income || [])[0] || {}).yearEnd || '', ev0 = C.evalDate || '';
+    var end0 = ((inp.income || [])[0] || {}).yearEnd || '', ev0 = pdMode() === 'nextDay' ? (C.evalDate || '') : pdEval(inp);   
     if (!ev0 && end0) { var dq = new Date(end0); if (!isNaN(dq)) { dq.setDate(dq.getDate() + 1); ev0 = dq.toISOString().slice(0, 10); } }
     var postInc = 0, postDec = 0;
     (SH.events || []).forEach(function (e) {
@@ -10114,6 +10312,21 @@ var SEV = (function () {
     };
     a.total = a.bs + a.gap + a.yubo + a.capInc + a.etc - a.prepaid - a.surplus - a.capDec - a.postCap;
     
+    var PDc = periodCalc(inp, ev0);
+    a.pdProfit = PDc.aAdd; a.pdPrepaid = PDc.aSub; a.pdYubo = PDc.yCut;
+    a.total += a.pdProfit - a.pdPrepaid - a.pdYubo;
+    if (PDc.on) {
+      PDc.lines.forEach(function (t) { chk.push('[기간분] ' + t); }); PDc.check.forEach(function (t) { chk.push('[기간분] ' + t); }); PDc.assume.forEach(function (t) { deflt.push(t); });
+      var pdQk = pdQs(inp).map(function (q) { return q.sub; }), pdMiss = PDc.need.filter(function (k) { return pdQk.indexOf(k) < 0; });
+      if (pdMiss.length) chk.push('⚠ 기간 유보가 있는데 질문이 안 뜸 — ' + pdMiss.join(', ') + ' [확인 필요]');
+      if (PDc.need.length) chk.push('[기간분] 기간 질문 ' + PDc.need.length + '개 답 없음 — 기본값(가정)으로 셈 [확인 필요]');
+      
+      (A.gapLines || []).forEach(function (g0) { if (!g0 || g0.side === 'liab') return; var nm0 = g0.label || g0.name || '평가액 줄', vd = pdIso(g0.valDate);
+        if (g0.isMarket && has(g0.value)) { if (!vd) chk.push('[기간분] 「' + nm0 + '」 시가 ' + pdW(g0.value) + '원 — 값 날짜가 없음 · 평가기준일 ' + ev0 + ' 기준(상장주식 = 전후 2개월 평균 · 상증법 §63①1호가)인지 확인 [확인 필요]');
+          else if (vd < pdAddM(ev0, -2) || vd > pdAddM(ev0, 2)) chk.push('⚠ [기간분] 「' + nm0 + '」 시가 값 날짜 ' + vd + ' 이 평가기준일 ' + ev0 + ' ± 2개월 밖 — 평가기준일 기준 값으로 고치세요(상증법 §63①1호가) [확인 필요]'); }
+        if (/미수이자|미수수익/.test(nm0) && has(g0.value)) chk.push('[기간분] 「' + nm0 + '」 — 결산일(' + PDc.yearEnd + ')까지 이자만 넣으세요 · 그 뒤 이자는 경과분 이익(이자수익)에 이미 들어 있어 평가기준일까지 넣으면 두 번 셈(상증칙 §18의2②2호)'); });
+    }
+    
     a.yuboStock = yAuto === false ? null : sum(mvQ.filter(function (q) { var k = stKind(q); return !q.out && (k === 'imp' || k === 'eq'); }), function (q) { return num(q.end); }) - stYuboMoved;
     
     var pend = A.pend || {}, retireV = num(la.retireEst);
@@ -10140,7 +10353,8 @@ var SEV = (function () {
       bs: num(A.bsLiabilities), corpTax: num(la.corpTax) + taxPend, nong: num(la.nong), local: num(la.local), divBonus: num(la.divBonus) + divAuto,
       retire: retireV, etc: num(la.etc) + ctAdd, reserves: num(ls.reserves), provisions: num(ls.provisions), deferred: num(ls.deferredTaxLiab) + num(ls.etc)
     };
-    l.total = l.bs + l.corpTax + l.nong + l.local + l.divBonus + l.retire + l.etc - l.reserves - l.provisions - l.deferred;
+    l.pdTax = PDc.lAdd;   
+    l.total = l.bs + l.corpTax + l.nong + l.local + l.divBonus + l.retire + l.etc - l.reserves - l.provisions - l.deferred + l.pdTax;
     if (!has(la.retireEst)) chk.push('퇴직급여추계액 없음 — ' + (num(pend.sevVal) > 0 ? '장부 퇴직급여충당부채 ' + num(pend.sevVal).toLocaleString() + '원을 추계액으로 둠(충당부채 차감과 상쇄 = 장부 그대로 · 크레탑 툴과 같음)' : '0 으로 둠') + ' — 별지32호·퇴직급여충당금조정명세서 확인 [확인 필요]');
     if (taxPend) chk.push('미납 법인세 ' + taxPend.toLocaleString() + '원 전액 부채 가산 — 재무상태표 미지급법인세를 못 읽음(크레탑 툴과 같은 기본값) · 장부에 이미 있으면 가산 0 [확인 필요]');
     var netAsset = a.total - l.total;
@@ -10160,7 +10374,13 @@ var SEV = (function () {
                  - num(R.devCost) - num(R.donatedUse) - num(R.cashExcl) - num(R.offset) - a.postCap;   
     
     ratioDen += stYubo;
+    
+    var pdDen = PDc.on ? a.pdProfit - a.pdPrepaid - a.pdYubo : 0, reR0 = ratioDen > 0 ? reRatioNum / ratioDen : 0;
+    ratioDen += pdDen;
     var reRatio = ratioDen > 0 ? reRatioNum / ratioDen : 0;
+    if (pdDen && !has(R.reRatioOverride)) { var crossed = [0.5, 0.8].filter(function (b) { return (reR0 >= b) !== (reRatio >= b); }), near = [0.5, 0.8].filter(function (b) { return Math.abs(reRatio - b) <= 0.01; });
+      chk.push('[기간분] 부동산 등 비율(3호) 분모에 기간분 ' + pdW(pdDen) + '원 반영(평가기준일 현재 · 5호와 같은 날짜) — 결산 재무상태표 기준 ' + (reR0 * 100).toFixed(2) + '% → ' + (reRatio * 100).toFixed(2) + '%');
+      if (crossed.length || near.length) chk.push('⚠ 부동산 등 비율이 ' + crossed.concat(near).map(function (b) { return (b * 100) + '%'; }).filter(function (v, i, z) { return z.indexOf(v) === i; }).join('·') + ' 경계 — 기간분 반영 여부로 판정이 바뀔 수 있음(상증령 §54④·소득령 §158④ 평가기준일 현재 자산총액) [확인 필요]'); }
     
     var r5 = ratio5({ R: R, A: A, gl: gl, lines: lines, mvQ: mvQ, stKind: stKind, stYuboMoved: stYuboMoved, aTotal: a.total, tBook: tBook, chk: chk });
     var stVal = r5.value, stDen = r5.den;
@@ -10220,9 +10440,11 @@ var SEV = (function () {
     if ((inp.holders || []).length && shares && Math.abs(hs + num(T.shares) - shares) > 0.5 && Math.abs(hs - shares) > 0.5)
       chk.push('주주명부 주식수 합계 ' + hs.toLocaleString() + '주 ≠ 발행주식총수 ' + shares.toLocaleString() + '주');
 
-    var evalDate = C.evalDate || '';
+    var evalDate = pdMode() === 'nextDay' ? C.evalDate || '' : ev0, pdUser = pdMode() !== 'nextDay' && !!pdGiven(inp);   
     
-    if (evalDate && C.evalDateAuto) deflt.push('평가기준일 = 직전 결산일 다음날(기본값 — 실제 상속·증여·양도일로 고침)');
+    var pdStaleOn = pdMode() !== 'nextDay' && !pdUser && pdStale(inp);   
+    if (pdMode() !== 'nextDay' && evalDate && !pdUser) deflt.push(pdStaleOn ? '평가기준일 = 직전 결산일 다음날 ' + evalDate + '(기본값 · 결산 ' + end0 + ' 뒤 사업연도가 이미 끝나 오늘 기준은 그 결산 자료를 넣어야 맞음 · ⚠ 2026-11-26 — 실제 상속·증여·양도일이 있으면 그 날짜로 고침)' : '평가기준일 = 오늘 ' + evalDate + '(기본값 · 2026-11-26 기준 — 실제 상속·증여·양도일이 있으면 그 날짜로 고침)');
+    if (pdMode() === 'nextDay' && evalDate && C.evalDateAuto) deflt.push('평가기준일 = 직전 결산일 다음날(기본값 — 실제 상속·증여·양도일로 고침)');
     if (!evalDate) { deflt.push('평가기준일 = 직전 결산일 다음날(기본값 — 실제 상속·증여·양도일로 고침)'); if (ends[0]) { var d0 = new Date(ends[0]); if (!isNaN(d0)) { d0.setDate(d0.getDate() + 1); evalDate = d0.toISOString().slice(0, 10); } } }
 
     
@@ -10313,6 +10535,7 @@ var SEV = (function () {
     
     (function () { var pr = num((A.pend || {}).prepaidRead), ye0 = String(((inp.income || [])[0] || {}).yearEnd || ''); if (!(pr > 0) || has(sb.prepaid) || !evalDate || !/^\d{4}-\d\d-\d\d$/.test(ye0)) return;
       var nx = new Date(ye0 + 'T00:00:00Z'); nx.setUTCDate(nx.getUTCDate() + 1); if (nx.toISOString().slice(0, 10) === String(evalDate).slice(0, 10)) return;
+      if (PDc.items.pre) return;   
       chk.push('선급비용 기간 경과분 [확인 필요] — 평가기준일 ' + evalDate + '이 결산일 ' + ye0 + ' 다음날이 아님 → 결산 재무상태표 선급비용 ' + pr.toLocaleString() + '원 중 평가기준일까지 기간이 지나 비용으로 확정된 몫만 선급비용 칸에 넣기(「2026 비상장주식평가실무」 p.341 · 재삼46014-2524)'); })();
     if (!startEff && fdOk) chk.push('[참고] 사업개시 3년 이상 — 법인세 신고서 기수 「제' + fd0.t + '기 ' + fd0.ye + '년」 → 설립 ' + fd0.f + '년 · 설립 해 말일 + 3년(' + (fd0.f + 3) + '-12-31) ≤ 평가기준일 ' + evalDate + ' → 사업개시일을 몰라도 3년 미만 아님(자동 확인 : 기수 역산 · 상증령 §54④2호)');
     if (!startEff && evalDate && !fdOk) { var oy = ((inp.income || []).slice(0, 3).filter(function (y) { return has(y.taxIncome); }).slice(-1)[0] || {}).yearStart; if (oy) { var o4 = new Date(oy); o4.setFullYear(o4.getFullYear() + 4); if (o4 > new Date(evalDate)) chk.push('사업개시일 확인 [확인 필요] — 3년 미만 판정 기준일 = 사업개시일(처음으로 재화·용역 공급을 개시한 날 · 재산46014-126 · 「2026 비상장주식평가실무」 p.299), 설립일·사업자등록일과 다를 수 있음 · 기간은 역(달력)으로 계산(서면4팀-687) · 개시일 + 3년 되는 날부터 3년 이상'); } }
@@ -10469,7 +10692,20 @@ var SEV = (function () {
     Object.keys(inp.qa || {}).forEach(function (id) { var a = inp.qa[id]; if (!a) return;
       if (a.state === 'unk') { qaUnk.push({ id: id, title: a.title, need: a.need, grp: a.grp }); chk.push('질문 「' + a.title + '」 = 모름 — 장부가·기본값 그대로 계산 · 받을 자료 : ' + (a.need || '-')); }
       else if (a.state === 'know') { qaKnow.push({ id: id, title: a.title, vals: a.vals }); (a.notes || []).forEach(function (t) { chk.push(t); }); } });
+    
+    var pdFin = adopted && adopted.value != null ? adopted.value : (res ? res.finalValue : null), pdRef = null;
+    if (PDc.on && !inp.__pdNoRef && !blocked) { var adv0 = advUsed; try { var px = JSON.parse(JSON.stringify(inp)); px.__pdNoRef = 1; px.corp = px.corp || {}; px.corp.evalDate = PDc.nextDay; px.corp.evalDateAuto = false;
+      var pr0 = compute(px, TE); pdRef = { date: PDc.nextDay, value: pr0.adopted && pr0.adopted.value != null ? pr0.adopted.value : (pr0.result ? pr0.result.finalValue : null), netAsset: pr0.netAsset }; } catch (e) { pdRef = null; } advUsed = adv0; }
+    var pdTodayRef = null;   
+    if (pdStaleOn && !inp.__pdNoRef && !blocked) { var adv1 = advUsed; try { var px2 = JSON.parse(JSON.stringify(inp)); px2.__pdNoRef = 1; px2.corp = px2.corp || {}; px2.corp.evalDate = pdYmd(new Date()); px2.corp.evalDateAuto = false;
+      var pr1 = compute(px2, TE); pdTodayRef = { date: px2.corp.evalDate, value: pr1.adopted && pr1.adopted.value != null ? pr1.adopted.value : (pr1.result ? pr1.result.finalValue : null), netAsset: pr1.netAsset }; } catch (e) { pdTodayRef = null; } advUsed = adv1; }
+    var period = { on: PDc.on, evalDate: evalDate, auto: !pdUser, yearEnd: PDc.yearEnd, nextDay: PDc.nextDay, el: PDc.el, fyDays: PDc.fyDays, ratio: PDc.ratio || 0, mode: PDc.mode || '',
+      profit: PDc.aAdd, tax: PDc.lAdd, prepaidCut: PDc.aSub, yuboCut: PDc.yCut, items: PDc.items, lines: PDc.lines, assume: PDc.assume, need: PDc.need, ref: pdRef,
+      title: pdKor(evalDate) + ' 기준' + (PDc.on ? (PDc.mode === 'interim' ? ' (가결산 반영)' : ' (직전 해와 같은 이익 가정 시)') : '') + ' 1주 주식가치 ' + (pdFin == null ? '-' : pdW(pdFin)) + '원',
+      refLine: pdRef && pdRef.value != null ? '참고 : 결산일 다음날(' + pdKor(PDc.nextDay) + ') 기준 1주 ' + pdW(pdRef.value) + '원 — 직전 결산 재무상태표 그대로(기간분 반영 전)' : pdTodayRef && pdTodayRef.value != null ? '참고 : 오늘(' + pdKor(pdTodayRef.date) + ') 기준 1주 ' + pdW(pdTodayRef.value) + '원 — 직전 결산(' + end0 + ') 뒤 사업연도가 끝나 ' + (+String(end0).slice(0, 4) + 1) + ' 결산 자료를 넣어야 맞음(순손익 3개 사업연도·재무상태표가 바뀜)' : '' };
+    if (pdStaleOn) { period.stale = true; period.todayRef = pdTodayRef; }   
     return {
+      period: period,
       adopted: adopted, qaUnknown: qaUnk, qaKnown: qaKnow,
       version: '1.0', income: years, parcels: parcels, gapLines: lines, assetDiff: assetDiff, liabDiff: liabDiff, evalGap: evalGap,
       assetTotal: a, liabTotal: l, netAsset: netAsset,
@@ -10505,9 +10741,9 @@ var SEV = (function () {
     if (C.evalDate && !C.evalDateAuto) return;
     var e = ((inp.income || [])[0] || {}).yearEnd; if (!e) return;
     var d = new Date(e); if (isNaN(d)) return; d.setDate(d.getDate() + 1);
-    var v = d.toISOString().slice(0, 10); if (C.evalDate === v) return;
-    C.evalDate = v; C.evalDateAuto = true;
-    inp.src = inp.src || {}; inp.src['corp.evalDate'] = '기본값 — 직전 결산일 다음날(상증령 §56①) · 거래·상속·증여일이 다르면 고침';
+    var v = d.toISOString().slice(0, 10), nd = pdMode() === 'nextDay'; if (!nd) v = pdDefault(inp); if (C.evalDate === v && C.evalDateAuto) return;   
+    C.evalDate = v; C.evalDateAuto = true; C.evalDateAutoV = v;
+    inp.src = inp.src || {}; inp.src['corp.evalDate'] = nd ? '기본값 — 직전 결산일 다음날(상증령 §56①) · 거래·상속·증여일이 다르면 고침' : '기본값 — 오늘(2026-11-26 기준 · 결산일 ~ 오늘 기간분은 직전 해와 같은 이익 가정) · 거래·상속·증여일이 있으면 고침';
   }
 
   
@@ -10556,8 +10792,36 @@ var SEV = (function () {
   }
 
   
-  var YUBO_RULES = {"ver":"2026-11-25","n":122,"order":["A55","A56","A57","A58","A48","L03","A28","A46","A47","A45","A11","A35","A34","E08","A36","A32","A33","A15","A22","L05","T08","A01","A02","A03","A04","A05","A06","A07","A08","A09","A10","A12","A13","A14","A16","A17","A18","A19","A20","A21","A23","A24","A25","A26","A27","A29","A30","A31","A37","A38","A39","A40","A41","A42","A43","A44","A49","A50","A51","A52","A53","A54","A59","A60","A61","A62","A63","A64","A65","A66","A67","A68","A69","L01","L02","L04","L06","L07","L08","L09","L10","L11","L12","L13","L14","L15","L16","L17","L18","L19","L20","L21","L22","L23","L24","L25","L26","L27","L28","L29","L30","E01","E02","E03","E04","E05","E06","E07","E09","E10","T01","T02","T03","T04","T05","T06","T07","T09","T10","T11","A70","A71"],"R":{"A55":{"a":"반영","k":"국고보조금|정부보조금|국보조조금|보조사업|스마트공장|지원사업|경쟁력향상|조성사업|베이스라인|로봇자동화|IOT|사물인터넷|진단보조","t":"국고보조금(자산 차감 표시 → 익금산입 +유보)","p":"p.342·537·546~548","s":"+","g":"R2"},"A56":{"a":"갈림","k":"일시상각충당금|공사부담금|보험차익","t":"일시상각충당금(국고보조금·공사부담금·보험차익, △유보)","p":"p.537·417~418","s":"△","g":"R2","d":"제외","v":"값 1 = 제충당금이라 가산·차감 안 함(「2026 비상장주식평가실무」 사례 p.537 · 사전-2017-0641 · 추천) / 값 2 = 공사부담금 관련 유보 포함(재삼46014-2500, 1995 — △까지 차감하면 보조금 자산 차감과 같아짐)"},"A57":{"a":"제외","k":"압축기장","t":"압축기장충당금(물적분할·현물출자·교환·조특법, △유보)","p":"p.316~317·351","s":"△","g":"R2"},"A58":{"a":"반영","k":"사용수익기부","t":"사용수익기부자산","p":"p.343~344","s":"±","g":"R3"},"A48":{"a":"반영","k":"건설중인자산(?!.*국고)|건설중","t":"건설중인자산 관련 유보(건설자금이자 외)","p":"p.534·548","s":"±","g":"R3"},"L03":{"a":"제외","k":"DC|퇴직연금미지급|퇴직연금\\(DC","t":"확정기여형(DC) 퇴직연금 미지급액(손금불산입 +유보)","p":"p.370~375","s":"+","g":"R2"},"A28":{"a":"제외","k":"퇴직연금운용자산|퇴직보험예치금|퇴직신탁|퇴직연금예치금|퇴직연금손금계상|퇴직연금운용수익|^퇴직연금$","t":"퇴직연금운용자산·퇴직보험예치금·퇴직신탁(신고조정 손금산입 △유보)","p":"p.376·407","s":"△","g":"R2"},"A46":{"a":"제외","k":"처분손실","t":"업무용승용차 처분손실 800만원 초과 이월액","p":"p.327~330","s":"+","g":"R4"},"A47":{"a":"반영","k":"감가상각방법차이|감각상각방법차이|상각방법","t":"업무용승용차 감가상각 방법 차이(5년 정액 강제상각 손금산입)","p":"p.329","s":"±","g":"R3"},"A45":{"a":"제외","k":"업무용승|업무용승옹|엄무용승|업무용승용차\\(자산\\)|업무용승용차$|벤츠|카이엔|감가상각비\\(\\d|감가상각비한도초과\\(\\d|\\d+[가-힣]\\d{4}","t":"업무용승용차 감가상각비 800만원 한도초과(+유보)","p":"p.327~330","s":"+","g":"R4"},"A11":{"a":"제외","k":"금융상품평가|금융상품.*평가|단기투자자산평가|장기성예금\\(.*평가","t":"금융상품 평가이익·손실(단기·장기 금융상품, 펀드, 파생결합 등)","p":"p.530·537·544","s":"±","g":"R1"},"A35":{"a":"하한","k":"재평가손실|유형자산평가손실|유형자산재평가손실|토지\\(자산재평가손실|건물\\(자산재평가손실","t":"토지·건물 재평가손실·손상차손(손금불산입 +유보)","p":"p.323 각주14·351~352","s":"+","g":"R1"},"A34":{"a":"하한","k":"재평가|자산재평가적립금","t":"토지·건물 재평가잉여금(임의평가증 익금불산입 △유보)","p":"p.348~351","s":"△","g":"R1"},"E08":{"a":"하한","k":"자산재평가적립금","t":"자산재평가적립금(옛 자산재평가법 · 토지분)","p":"p.351","s":"±","g":"R1"},"A36":{"a":"하한","k":"건설자금이자","t":"건설자금이자(토지·건물·건설중인자산)","p":"p.534·537·548","s":"+","g":"R1"},"A32":{"a":"하한","k":"감가상각누계액\\[건물\\]|건물감가상각|건물\\(감가상각|^건물$|학장건물|건물감가","t":"건물 감가상각비 한도초과(상각부인)","p":"p.331~332·352~353·561","s":"+","g":"R1"},"A33":{"a":"하한","k":"토지$|^토지|토지취득|취득세","t":"토지 취득세·취득부대비용 등 자본적지출 손금불산입","p":"p.352~354","s":"+","g":"R1"},"A15":{"a":"하한","k":"손상차손(?!환입)|매도가능증권\\(손상|매도가능증권손상","t":"매도가능증권·투자주식 손상차손","p":"p.183~184·349~350","s":"+","g":"R1"},"A22":{"a":"하한","k":"회원권","t":"회원권 손상차손(골프·콘도 회원권)","p":"p.354","s":"+","g":"R1"},"L05":{"a":"사실","k":"연차|미사용연차","t":"미지급 연차수당·연차수당충당부채","p":"","s":"+","g":"R2","d":"반영","v":"평가기준일 현재 미사용·청구권 발생분만 확정 채무 → 그만큼 부채 · 나머지 유보는 부채 감액 [확인 필요 — 연차 발생·소멸 명세]"},"T08":{"a":"제외","k":"지급보증정상|정상가격","t":"특수관계 법인 지급보증료 정상가격 차이(유보로 적힌 경우)","p":"","s":"+","g":"R5"},"A01":{"a":"제외","k":"대손충당금.*한도초과|대손충당금한도|대손상각비.*한도초과|대손충당금$|대손충담금|대손충당금\\(","t":"대손충당금 한도초과액","p":"p.324·331·537·561","s":"+","g":"R2"},"A02":{"a":"제외","k":"대손충당금.*환입","t":"대손충당금 과다·과소환입액","p":"p.324·503","s":"±","g":"R2"},"A03":{"a":"사실","k":"대손상각비|대손금|기타의대손","t":"대손금 부인액(대손상각비·기타의 대손상각비 손금불산입)","p":"p.398·412","s":"+","g":"R1","d":"반영","v":"채권을 령 §58②로 다시 평가 — 회수 가능하면 유보만큼 채권 가산, 회수불능이면 가산 안 함(기본 = 가산 + [확인 필요])"},"A04":{"a":"사실","k":"외상매출|매출채권|매출누락","t":"매출채권 누락(매출누락 익금산입)","p":"p.342·368","s":"+","g":"R5","d":"반영","v":"채권이 평가기준일에 실제로 남아 있으면 가산(칙 §17의2 1호 확정 권리), 회수됐으면 현금에 이미 있음"},"A05":{"a":"사실","k":"미수금","t":"미수금 누락·귀속시기 차이","p":"p.544","s":"±","g":"R5","d":"반영","v":"A04와 같음"},"A06":{"a":"사실","k":"대여금(?!이자)|단기대여금|장기대여금","t":"단기·장기 대여금(대여금 관련 조정)","p":"p.529~530","s":"+","g":"R1","d":"반영","v":"대여금 원금을 령 §58②로 다시 평가(회수불능분 제외)"},"A07":{"a":"제외","k":"미수수익|미수이자|이자수익중미수|예금이자|대여금이자","t":"미수수익·미수이자(익금불산입 △유보)","p":"p.326·530·537","s":"△","g":"R5"},"A08":{"a":"제외","k":"가지급금인정이자","t":"가지급금 인정이자 미수(유보로 적힌 경우)","p":"p.503","s":"+","g":"R5"},"A09":{"a":"사실","k":"부가세대급금","t":"부가세대급금(불공제·누락)","p":"p.530·544","s":"+","g":"R5","d":"제외","v":"평가기준일 현재 환급·공제받을 권리가 확정된 금액만 자산(칙 §17의2 1호)"},"A10":{"a":"제외","k":"보통예금|정기예금|장기성예금$|^장기성예금|예금\\)|현금\\]?|단기금융상품$|기타단기금융상품|^장기금융상품$","t":"예금·적금(보통예금·정기예금·장기성예금) 누락·조정","p":"p.326·410","s":"±","g":"R1"},"A12":{"a":"갈림","k":"보험료$|^보험료|오렌지라이프|DB생명|보험예치금(?!.*퇴직)","t":"보험상품(저축성·종신·연금보험) 납입보험료 자산 조정","p":"p.725~726","s":"+","g":"R1","d":"제외","v":"보험계약 권리를 다시 평가 — 값 1 = 평가기준일 해지환급금(유보 제외 · 추천) / 값 2 = 납입보험료 합계 + 이자(유보 포함 이상)"},"A13":{"a":"제외","k":"단기매매증권|단기매도가능","t":"단기매매증권 평가이익·손실","p":"p.303·394","s":"±","g":"R1"},"A14":{"a":"하한","k":"매도가능증권평가|매도가능증권$|단기매도가능","t":"매도가능증권 평가이익·손실(기타포괄)","p":"p.531·537·546","s":"±","g":"R1"},"A16":{"a":"하한","k":"지분법이익","t":"지분법이익(△유보)","p":"p.183~184·316·349~350","s":"△","g":"R1"},"A17":{"a":"하한","k":"지분법손실|지분법손익","t":"지분법손실(+유보)","p":"p.183~184·349~350·537","s":"+","g":"R1"},"A18":{"a":"하한","k":"지분법자본변동","t":"지분법자본변동(±)","p":"p.183~184·349~350","s":"±","g":"R1"},"A19":{"a":"하한","k":"지분법적용투자주식","t":"지분법적용투자주식(기타 조정)","p":"p.183~184·349~350","s":"±","g":"R1"},"A20":{"a":"하한","k":"출자금평가","t":"출자금 평가이익·손실","p":"p.317·350","s":"±","g":"R1"},"A21":{"a":"하한","k":"투자자산평가|투자자산손상","t":"투자자산 평가손실·손상차손환입","p":"p.349~350","s":"±","g":"R1"},"A23":{"a":"하한","k":"저가매입","t":"특수관계 개인에게서 저가매입한 유가증권(익금산입 유보)","p":"p.183~184·896","s":"+","g":"R1"},"A24":{"a":"하한","k":"자기주식","t":"자기주식(취득·처분 관련 유보)","p":"p.333~342·395·406~409","s":"±","g":"R1"},"A25":{"a":"제외","k":"외화환산|외화자산환산|외화평가","t":"외화자산 환산이익·손실","p":"p.376·412","s":"±","g":"R1"},"A26":{"a":"제외","k":"현재가치","t":"장기채권 현재가치할인차금","p":"p.356~358·406","s":"±","g":"R1"},"A27":{"a":"제외","k":"파생상품","t":"파생상품 평가이익·손실","p":"","s":"±","g":"R1"},"A29":{"a":"하한","k":"재고자산평가손실|재고자산평가충당|평가충당금|재고자산평가감","t":"재고자산 평가손실(저가법 손금불산입)","p":"p.544·647","s":"+","g":"R1"},"A30":{"a":"하한","k":"재고자산평가감|재고자산평가증","t":"재고자산 평가방법 차이(평가감·평가증)","p":"p.647","s":"±","g":"R1"},"A31":{"a":"사실","k":"재고자산누락|기말재고","t":"재고자산 누락(기말재고 과소 익금산입)","p":"p.368","s":"+","g":"R1","d":"반영","v":"실제 재고가 평가기준일에 있으면 령 §52②1호로 평가해 가산"},"A37":{"a":"하한","k":"투자부동산","t":"투자부동산 공정가치 평가손익","p":"p.351~352","s":"±","g":"R1"},"A38":{"a":"하한","k":"고가매입|시가초과","t":"특수관계인 고가매입 시가초과액(손금산입 △유보)","p":"p.421·897","s":"△","g":"R1"},"A39":{"a":"하한","k":"접대비.*자산|기업업무추진비.*자산","t":"기업업무추진비 한도초과 중 자산계상분(손금산입 △유보)","p":"","s":"△","g":"R1"},"A40":{"a":"반영","k":"감가상각비(?!.*(업무용|승용|차량|벤츠|카이엔|주\\d|보\\d|나\\d|러\\d|업종별))|감가상각비부인|상각부인|기계장치|구축|공구|비품|감가상각누계액$|가설재|시설장치|실내인테리어|자이언트팬","t":"기계장치·구축물·공구·비품 감가상각비 한도초과(상각부인)","p":"p.304·328~329","s":"+","g":"R3"},"A41":{"a":"반영","k":"시인부족|손금추인|상각비추인","t":"감가상각비 시인부족·전기 상각부인액 손금추인(△)","p":"p.328~329","s":"△","g":"R3"},"A42":{"a":"반영","k":"즉시상각|자본적지출|수선비","t":"즉시상각의제(자본적지출 비용처리 손금불산입)","p":"p.352~353","s":"+","g":"R3"},"A43":{"a":"반영","k":"신고조정|감가상각의제|의제상각","t":"감가상각비 신고조정 손금산입(K-IFRS·감가상각 의제 △유보)","p":"p.304·329","s":"△","g":"R3"},"A44":{"a":"반영","k":"차량감가상각|감가상각비\\(차량\\)|차량운반구","t":"차량(업무용승용차 아닌 차량) 감가상각 상각부인","p":"p.328","s":"+","g":"R3"},"A49":{"a":"반영","k":"특허권|무형고정자산상각|무형자산상각|소프트웨어(?!.*보조)","t":"무형자산(특허권·소프트웨어 등) 상각부인","p":"p.328","s":"+","g":"R3"},"A50":{"a":"반영","k":"무형자산감액|무형자산손상","t":"무형자산 손상(감액)손실","p":"p.323 각주14","s":"+","g":"R3"},"A51":{"a":"제외","k":"개발비","t":"개발비 상각부인·손상","p":"p.324·331~332·343~344·548","s":"+","g":"R2"},"A52":{"a":"반영","k":"영업권(?!.*합병)","t":"영업권 상각·손상(사업양수 영업권)","p":"p.728","s":"±","g":"R3"},"A53":{"a":"갈림","k":"합병영업권|합병매수차손|합병상각|합병차손","t":"합병영업권·합병매수차손(△유보)","p":"p.414·436~439","s":"△","g":"R1","d":"반영","v":"값 1 = △유보 반영해 장부 영업권 제거(재산세제과-496 · 추천 = 기존 기본값) / 값 2 = 장부 영업권 자산 포함(사전-2022-0842)"},"A54":{"a":"반영","k":"유형자산손상|손상차손\\(유형","t":"유형자산 손상차손(기계 등)","p":"p.323 각주14·351~352","s":"+","g":"R3"},"A59":{"a":"반영","k":"사용권자산","t":"리스 사용권자산(K-IFRS 1116 · △유보)","p":"","s":"△","g":"R5"},"A60":{"a":"반영","k":"금융리스","t":"금융리스자산(리스이용자)","p":"","s":"±","g":"R3"},"A61":{"a":"반영","k":"선급비용|기간미경과|보험료기간","t":"선급비용·보험료 기간미경과분(손금불산입 +유보)","p":"p.331~332·343·757","s":"+","g":"R2"},"A62":{"a":"반영","k":"선급비용손금|선급비용\\(△","t":"선급비용 손금산입(장부 자산 → 세무상 비용, △유보)","p":"p.343·399·411·530","s":"△","g":"R2"},"A63":{"a":"제외","k":"신계약비|이연자산","t":"신계약비 등 이연자산(보험업)","p":"p.303·344","s":"±","g":"R2"},"A64":{"a":"제외","k":"이연법인세","t":"이연법인세자산","p":"p.345·377·530","s":"±","g":"R2"},"A65":{"a":"제외","k":"전기오류","t":"전기오류수정손실(손금불산입 유보)","p":"","s":"+","g":"R5"},"A66":{"a":"반영","k":"지급수수료|제세공과|세금과공과|차량유지비|지급보증료|정상가격","t":"지급수수료·제세공과금·차량유지비 등 비용 자산화(손금불산입 유보)","p":"p.328·352~354·560~561","s":"+","g":"R3"},"A67":{"a":"하한","k":"자산조정계정","t":"합병·분할 자산조정계정(적격합병·분할 ±)","p":"","s":"±","g":"R1"},"A68":{"a":"하한","k":"출자전환","t":"채무의 출자전환 주식(시가초과 채무면제익 과세이연)","p":"p.399·421","s":"△","g":"R1"},"A69":{"a":"제외","k":"생물자산","t":"생물자산·기타 공정가치 평가자산","p":"","s":"±","g":"R1"},"L01":{"a":"제외","k":"퇴직급여충당|퇴직급여충당금전입|퇴직급여$|퇴직급여충당부채","t":"퇴직급여충당금 한도초과액","p":"p.324·331~332·370~376·537·561·758","s":"+","g":"R2"},"L02":{"a":"제외","k":"퇴직연금충당|퇴직연금손금|퇴직연금한도","t":"퇴직연금 부담금 손금산입(DB, △유보)","p":"p.537","s":"△","g":"R2"},"L04":{"a":"사실","k":"미지급비용(?!.*연차)|미지급비용$|미지급비용\\(퇴직","t":"미지급비용(손금불산입 유보)","p":"p.535·550","s":"+","g":"R2","d":"반영","v":"평가기준일 지급의무가 확정된 것이면 부채 유지(유보 무시), 확정 안 된 추정치면 부채 아님(유보만큼 부채 감액) — 법인세 손금 시기와 별개로 판단"},"L06":{"a":"사실","k":"미지급상여","t":"미지급상여(잉여금처분·성과급 미확정)","p":"p.369~370·405","s":"+","g":"R2","d":"반영","v":"이익처분으로 확정됐거나 지급의무 확정이면 부채(칙 §17의2 3호나), 아니면 부채 아님"},"L07":{"a":"제외","k":"하자보수","t":"하자보수충당부채(전입액 손금불산입)","p":"p.371·535·552","s":"+","g":"R2"},"L08":{"a":"제외","k":"품질보증|판매보증","t":"품질·판매보증충당부채","p":"p.371·373","s":"+","g":"R2"},"L09":{"a":"제외","k":"공사손실","t":"공사손실충당부채","p":"p.371·373","s":"+","g":"R2"},"L10":{"a":"제외","k":"소송","t":"소송·손해배상충당부채","p":"p.371·373","s":"+","g":"R2"},"L11":{"a":"제외","k":"복구","t":"복구충당부채(원상복구)","p":"p.371·373","s":"±","g":"R2"},"L12":{"a":"제외","k":"반품|환불부채","t":"반품충당부채·환불부채","p":"p.371·373","s":"+","g":"R2"},"L13":{"a":"제외","k":"보증충당","t":"지급보증·금융보증 충당부채","p":"p.377·410~411","s":"+","g":"R2"},"L14":{"a":"갈림","k":"포인트|마일리지","t":"포인트·마일리지 충당부채","p":"","s":"+","g":"R2","d":"제외","v":"값 1 = 충당금이라 부채 아님(칙 §17의2 4호) / 값 2 = 선적립 포인트 충당부채는 부채 가산(재산세과-465) — 추천 = 고객이 이미 적립한 포인트(쓰면 줘야 할 의무)는 값 2"},"L15":{"a":"제외","k":"장기근속|장기종업원","t":"장기종업원급여(장기근속포상) 충당부채","p":"p.371·373","s":"+","g":"R2"},"L16":{"a":"제외","k":"구상채권","t":"구상채권상각충당금","p":"p.373","s":"△","g":"R2"},"L17":{"a":"제외","k":"충당부채(?!.*(퇴직|보증|하자|품질|공사|연차))|충당금전입","t":"기타 충당부채(제충당금)","p":"p.371·373","s":"+","g":"R2"},"L18":{"a":"반영","k":"이연수익|계약부채","t":"이연수익·계약부채(익금산입 +유보)","p":"p.396","s":"+","g":"R5"},"L19":{"a":"반영","k":"선수수익|선수금|용역매출","t":"선수수익·선수금 귀속시기 차이","p":"p.550","s":"±","g":"R5"},"L20":{"a":"사실","k":"상품권","t":"상품권 발행(회수 전 매출 귀속)","p":"","s":"±","g":"R5","d":"제외","v":"발행 상품권 중 회수 의무 남은 금액 = 확정 채무로 부채 [근거 못 찾음]"},"L21":{"a":"반영","k":"리스부채","t":"리스부채(K-IFRS 1116 · 손금불산입 +유보)","p":"","s":"+","g":"R5"},"L22":{"a":"제외","k":"사채할인|사채할증","t":"사채할인발행차금·사채할증발행차금","p":"p.356·409·536","s":"±","g":"R1"},"L23":{"a":"제외","k":"전환권조정|신주인수권조정","t":"전환권조정·신주인수권조정","p":"p.401~402·537·553","s":"±","g":"R1"},"L24":{"a":"반영","k":"상환할증","t":"상환할증금","p":"p.356·536·553","s":"+","g":"R1"},"L25":{"a":"제외","k":"외화부채|외화환산손실\\[부채|외화환산이익\\[부채","t":"외화부채 환산손익","p":"p.412","s":"±","g":"R1"},"L26":{"a":"제외","k":"장기미지급|현재가치할인차금\\(부채","t":"장기미지급금·장기차입금 현재가치할인차금","p":"p.356~358·404·536","s":"±","g":"R1"},"L27":{"a":"사실","k":"미지급기부|기부금.*유보|어음기부","t":"미지급 기부금(어음·미지급 → 손금불산입 +유보)","p":"","s":"+","g":"R2","d":"제외","v":"기부 약정·어음 발행으로 지급의무가 확정됐으면 부채 유지(유보 무시) [근거 못 찾음 — 칙 §17의2 3호나 문언]"},"L28":{"a":"반영","k":"기부금가지급|선급기부","t":"기부금 선지급(가지급금 계상 → 손금산입 △유보)","p":"","s":"△","g":"R5"},"L29":{"a":"반영","k":"미지급세금|미지급법인세","t":"미지급 세금·가산세(세금과공과 미지급)","p":"p.368~369","s":"+","g":"R2"},"L30":{"a":"반영","k":"부가세예수","t":"부가세예수금(매출누락 부가세)","p":"p.369","s":"+","g":"R2"},"E01":{"a":"제외","k":"중소기업투자준비금","t":"중소기업투자준비금(조특법 · 신고조정 △유보)","p":"p.323~326·331~332·373","s":"△","g":"R2"},"E02":{"a":"제외","k":"연구.*준비금|인력개발준비금","t":"연구·인력개발준비금(조특법 · △유보)","p":"p.324·373","s":"△","g":"R2"},"E03":{"a":"제외","k":"준비금(?!.*(고유목적|책임|비상위험|해약|배당))","t":"그 밖의 조특법 준비금(해외시장개척·손실보전 등 · △유보)","p":"p.373","s":"△","g":"R2"},"E04":{"a":"제외","k":"고유목적","t":"고유목적사업준비금(비영리 · △유보)","p":"p.373","s":"△","g":"R2"},"E05":{"a":"반영","k":"책임준비금|비상위험|해약환급금준비금","t":"보험업 책임준비금·비상위험준비금·해약환급금준비금 한도초과","p":"p.302·371~372·408","s":"+","g":"R2"},"E06":{"a":"제외","k":"계약자배당","t":"계약자배당준비금(보험업)","p":"p.408","s":"±","g":"R2"},"E07":{"a":"제외","k":"채무면제","t":"채무면제이익 익금불산입(조특법 · 결손보전 △유보)","p":"p.397~398","s":"△","g":"R2"},"E09":{"a":"제외","k":"감자차|자기주식처분","t":"감자차손·자기주식처분손익(유보로 적힌 경우)","p":"","s":"±","g":"R1"},"E10":{"a":"제외","k":"증자|감자","t":"증자·감자 등 자본거래 관련 유보(평가기준일 전)","p":"p.332~333","s":"±","g":"R5"},"T01":{"a":"사실","k":"공사수입|미청구|진행기준|진행률|공사미수","t":"작업진행률(진행기준) 차이 — 미청구공사·초과청구","p":"p.361~363·397·403·409","s":"±","g":"R5","d":"제외","v":"공사미수·미성공사 = 평가기준일 받을 권리로 다시 평가, 초과청구 = 이행 의무 채무 · 분양 사업 토지분은 부채 가산(서면4팀-291) [그 밖은 근거 못 찾음]"},"T02":{"a":"제외","k":"장기할부|회수기일","t":"장기할부·회수기일 기준 매출(익금불산입 △유보)","p":"p.356~357","s":"△","g":"R5"},"T03":{"a":"제외","k":"임대료|용역대가","t":"임대료·용역대가 귀속시기 차이(미수·선수)","p":"","s":"±","g":"R5"},"T04":{"a":"제외","k":"수입배당금|배당금수익","t":"수입배당금 귀속시기(미수배당금)","p":"","s":"±","g":"R5"},"T05":{"a":"사실","k":"매출(?!채권|누락)|용역매출","t":"매출 귀속시기 차이(인도기준·검수기준 등)","p":"","s":"±","g":"R5","d":"제외","v":"평가기준일 실제 채권·재고로 다시 봄"},"T06":{"a":"사실","k":"매입","t":"매입·비용 귀속시기 차이(미지급 매입 등)","p":"","s":"±","g":"R5","d":"제외","v":"확정 채무면 부채 유지"},"T07":{"a":"사실","k":"손해배상|보험금수익","t":"손해배상금·보험금 수익 귀속시기","p":"p.342","s":"±","g":"R5","d":"제외","v":"확정 권리만 자산(칙 §17의2 1호)"},"T09":{"a":"사실","k":"수정신고","t":"수정신고로 생긴 유보(과목별로 다시 분류)","p":"p.368~369","s":"±","g":"R5","d":"제외","v":"원래 과목(예 : 미수수익)으로 다시 분류해 그 규칙을 따름"},"T10":{"a":"제외","k":"기능통화|해외사업장","t":"기능통화·해외사업장 환산 차이","p":"p.418·422","s":"±","g":"R1"},"T11":{"a":"제외","k":"톤세","t":"톤세 전환 전 외화환산손익 유보","p":"p.412","s":"±","g":"R1"},"A70":{"a":"제외","k":"85조의7|수용.*익금불산입|양도차익.*익금불산입|과세이연","t":"조특법 과세이연 양도차익 익금불산입(공익수용 §85의7 등 · △유보)","p":"p.397~398","s":"△","g":"R2"},"A71":{"a":"반영","k":"소모품|저장품","t":"미사용 소모품·저장품(소모품비 손금불산입 +유보)","p":"p.560~561","s":"+","g":"R3"}},"amb":{"장기금융상품":"명세서(장기금융상품명세서)로 실체 확인 — 보험 = A12, 예금 = A10, 펀드·파생결합 = A11 · 셋 다 기본 제외","보험료":"선급(기간미경과) = A61 반영 / 저축·종신보험 납입 = A12 제외","감가상각비":"자산 이름이 부동산이면 A32 하한, 업무용승용차면 A45 제외, 그 밖은 A40 반영","지급수수료":"관련 자산을 찾아 그 규칙 — 못 찾아도 기본 가산(「2026 비상장주식평가실무」 p.352~354) + 확인 필요","사채상환할증금":"L24 — 부채에서 빼거나 유보 반영 중 하나만","퇴직연금":"DB 부담금 손금산입 = A28/L02 제외, DC 미지급 = L03 제외(부채 유지)"}};
+  var YUBO_RULES = {"ver":"2026-11-25","n":122,"order":["A55","A56","A57","A58","A48","L03","A28","A46","A47","A45","A11","A35","A34","E08","A36","A32","A33","A15","A22","L05","T08","A01","A02","A03","A04","A05","A06","A07","A08","A09","A10","A12","A13","A14","A16","A17","A18","A19","A20","A21","A23","A24","A25","A26","A27","A29","A30","A31","A37","A38","A39","A40","A41","A42","A43","A44","A49","A50","A51","A52","A53","A54","A59","A60","A61","A62","A63","A64","A65","A66","A67","A68","A69","L01","L02","L04","L06","L07","L08","L09","L10","L11","L12","L13","L14","L15","L16","L17","L18","L19","L20","L21","L22","L23","L24","L25","L26","L27","L28","L29","L30","E01","E02","E03","E04","E05","E06","E07","E09","E10","T01","T02","T03","T04","T05","T06","T07","T09","T10","T11","A70","A71"],"R":{"A55":{"a":"반영","k":"국고보조금|정부보조금|국보조조금|보조사업|스마트공장|지원사업|경쟁력향상|조성사업|베이스라인|로봇자동화|IOT|사물인터넷|진단보조","t":"국고보조금(자산 차감 표시 → 익금산입 +유보)","p":"p.342·537·546~548","s":"+","g":"R2"},"A56":{"a":"갈림","k":"일시상각충당금|공사부담금|보험차익","t":"일시상각충당금(국고보조금·공사부담금·보험차익, △유보)","p":"p.537·417~418","s":"△","g":"R2","d":"제외","v":"값 1 = 제충당금이라 가산·차감 안 함(「2026 비상장주식평가실무」 사례 p.537 · 사전-2017-0641 · 추천) / 값 2 = 공사부담금 관련 유보 포함(재삼46014-2500, 1995 — △까지 차감하면 보조금 자산 차감과 같아짐)","q":"일시상각충당금(국고보조금·공사부담금·보험차익) 유보를 순자산에 어떻게 넣을까요?","o":[{"c":"sa","l":"A안 (추천)","d":["이런 경우 : 보통은 이쪽 — 보조금 등으로 산 자산을 이미 자산 쪽에서 맞게 셌을 때","계산 : 충당금(미리 쌓아 둔 금액)이라 순자산 ③에 더하지도 빼지도 않음","어느 쪽 : 사전-2017-법령해석재산-0641(2017.12.18.) · 「2026 비상장주식평가실무」 p.537 평가 사례 쪽","추천 이유 : 책 평가 사례와 최근 해석이 이쪽","근거 : 사전-2017-법령해석재산-0641(2017.12.18.) · 「2026 비상장주식평가실무」 p.537"]},{"c":"sb","l":"B안","d":["이런 경우 : 공사부담금으로 받은 돈이 자산 쪽에서 따로 빠지지 않았을 때","계산 : 유보까지 반영 → 순자산 ③에 {금액} 반영(△면 차감)","어느 쪽 : 재삼46014-2500(1995.09.22.) 쪽","근거 : 재삼46014-2500(1995.09.22.) · 「2026 비상장주식평가실무」 p.417~418 — 30년 넘은 예규"]}]},"A57":{"a":"제외","k":"압축기장","t":"압축기장충당금(물적분할·현물출자·교환·조특법, △유보)","p":"p.316~317·351","s":"△","g":"R2"},"A58":{"a":"반영","k":"사용수익기부","t":"사용수익기부자산","p":"p.343~344","s":"±","g":"R3"},"A48":{"a":"반영","k":"건설중인자산(?!.*국고)|건설중","t":"건설중인자산 관련 유보(건설자금이자 외)","p":"p.534·548","s":"±","g":"R3"},"L03":{"a":"제외","k":"DC|퇴직연금미지급|퇴직연금\\(DC","t":"확정기여형(DC) 퇴직연금 미지급액(손금불산입 +유보)","p":"p.370~375","s":"+","g":"R2"},"A28":{"a":"제외","k":"퇴직연금운용자산|퇴직보험예치금|퇴직신탁|퇴직연금예치금|퇴직연금손금계상|퇴직연금운용수익|^퇴직연금$","t":"퇴직연금운용자산·퇴직보험예치금·퇴직신탁(신고조정 손금산입 △유보)","p":"p.376·407","s":"△","g":"R2"},"A46":{"a":"제외","k":"처분손실","t":"업무용승용차 처분손실 800만원 초과 이월액","p":"p.327~330","s":"+","g":"R4"},"A47":{"a":"반영","k":"감가상각방법차이|감각상각방법차이|상각방법","t":"업무용승용차 감가상각 방법 차이(5년 정액 강제상각 손금산입)","p":"p.329","s":"±","g":"R3"},"A45":{"a":"제외","k":"업무용승|업무용승옹|엄무용승|업무용승용차\\(자산\\)|업무용승용차$|벤츠|카이엔|감가상각비\\(\\d|감가상각비한도초과\\(\\d|\\d+[가-힣]\\d{4}","t":"업무용승용차 감가상각비 800만원 한도초과(+유보)","p":"p.327~330","s":"+","g":"R4"},"A11":{"a":"제외","k":"금융상품평가|금융상품.*평가|단기투자자산평가|장기성예금\\(.*평가","t":"금융상품 평가이익·손실(단기·장기 금융상품, 펀드, 파생결합 등)","p":"p.530·537·544","s":"±","g":"R1"},"A35":{"a":"하한","k":"재평가손실|유형자산평가손실|유형자산재평가손실|토지\\(자산재평가손실|건물\\(자산재평가손실","t":"토지·건물 재평가손실·손상차손(손금불산입 +유보)","p":"p.323 각주14·351~352","s":"+","g":"R1"},"A34":{"a":"하한","k":"재평가|자산재평가적립금","t":"토지·건물 재평가잉여금(임의평가증 익금불산입 △유보)","p":"p.348~351","s":"△","g":"R1"},"E08":{"a":"하한","k":"자산재평가적립금","t":"자산재평가적립금(옛 자산재평가법 · 토지분)","p":"p.351","s":"±","g":"R1"},"A36":{"a":"하한","k":"건설자금이자","t":"건설자금이자(토지·건물·건설중인자산)","p":"p.534·537·548","s":"+","g":"R1"},"A32":{"a":"하한","k":"감가상각누계액\\[건물\\]|건물감가상각|건물\\(감가상각|^건물$|학장건물|건물감가","t":"건물 감가상각비 한도초과(상각부인)","p":"p.331~332·352~353·561","s":"+","g":"R1"},"A33":{"a":"하한","k":"토지$|^토지|토지취득|취득세","t":"토지 취득세·취득부대비용 등 자본적지출 손금불산입","p":"p.352~354","s":"+","g":"R1"},"A15":{"a":"하한","k":"손상차손(?!환입)|매도가능증권\\(손상|매도가능증권손상","t":"매도가능증권·투자주식 손상차손","p":"p.183~184·349~350","s":"+","g":"R1"},"A22":{"a":"하한","k":"회원권","t":"회원권 손상차손(골프·콘도 회원권)","p":"p.354","s":"+","g":"R1"},"L05":{"a":"사실","k":"연차|미사용연차","t":"미지급 연차수당·연차수당충당부채","p":"","s":"+","g":"R2","d":"반영","v":"평가기준일 현재 미사용·청구권 발생분만 확정 채무 → 그만큼 부채 · 나머지 유보는 부채 감액 [확인 필요 — 연차 발생·소멸 명세]","q":"연차수당 부채는 평가기준일에 직원이 이미 받을 권리가 생긴(지급 의무가 확정된) 금액인가요?","o":[{"c":"ya","l":"예","d":["이런 경우 : 연차 발생·사용 명세(인사·급여 자료)로 보면 평가기준일에 이미 생긴 미사용 연차를 돈으로 줘야 할 때","계산 : 확정된 빚 = 장부 부채 그대로 둠 → 순자산 ③에 넣지 않음","근거 : 상증칙 §17의2 · 근거 못 찾음 — 조문 문언 기준"]},{"c":"yn","l":"아니오","d":["이런 경우 : 앞으로 생길 연차를 미리 어림해 쌓은 금액(추정치)일 때","계산 : 확정 안 된 부채 = 그만큼 부채를 줄임 → 순자산 ③에 {금액} 가산","근거 : 상증칙 §17의2 · 근거 못 찾음 — 조문 문언 기준"]}]},"T08":{"a":"제외","k":"지급보증정상|정상가격","t":"특수관계 법인 지급보증료 정상가격 차이(유보로 적힌 경우)","p":"","s":"+","g":"R5"},"A01":{"a":"제외","k":"대손충당금.*한도초과|대손충당금한도|대손상각비.*한도초과|대손충당금$|대손충담금|대손충당금\\(","t":"대손충당금 한도초과액","p":"p.324·331·537·561","s":"+","g":"R2"},"A02":{"a":"제외","k":"대손충당금.*환입","t":"대손충당금 과다·과소환입액","p":"p.324·503","s":"±","g":"R2"},"A03":{"a":"사실","k":"대손상각비|대손금|기타의대손","t":"대손금 부인액(대손상각비·기타의 대손상각비 손금불산입)","p":"p.398·412","s":"+","g":"R1","d":"반영","v":"채권을 령 §58②로 다시 평가 — 회수 가능하면 유보만큼 채권 가산, 회수불능이면 가산 안 함(기본 = 가산 + [확인 필요])","q":"대손 처리한 채권을 평가기준일에 실제로 회수할 수 있나요?","o":[{"c":"ya","l":"예","d":["이런 경우 : 거래처가 영업 중이고 갚고 있거나 갚을 수 있을 때(거래처 원장·입금 기록으로 확인)","계산 : 세무상 아직 살아 있는 채권 → 순자산 ③에 {금액} 가산","근거 : 상증령 §58② · 서면-2021-자본거래-5222(2021.09.30.) · 「2026 비상장주식평가실무」 p.398, 412"]},{"c":"yn","l":"아니오","d":["이런 경우 : 거래처 폐업·파산·연락 두절 등으로 받을 수 없을 때(폐업 사실 증명, 법원 서류 등)","계산 : 받을 수 없는 채권 = 자산 아님 → 순자산 ③에 넣지 않음","근거 : 상증령 §58② 단서 · 재삼46014-2051(1998.10.23.) · 「2026 비상장주식평가실무」 p.398, 412"]}]},"A04":{"a":"사실","k":"외상매출|매출채권|매출누락","t":"매출채권 누락(매출누락 익금산입)","p":"p.342·368","s":"+","g":"R5","d":"반영","v":"채권이 평가기준일에 실제로 남아 있으면 가산(칙 §17의2 1호 확정 권리), 회수됐으면 현금에 이미 있음","q":"누락됐던 매출채권이 평가기준일에 아직 회수되지 않고 남아 있나요?","o":[{"c":"ya","l":"예","d":["이런 경우 : 세무조사·신고로 빠졌던 매출이 잡혔는데, 그 대금을 평가기준일까지 아직 못 받았을 때(거래처 원장 확인)","계산 : 받을 돈이 남음 → 순자산 ③에 {금액} 가산","근거 : 상증칙 §17의2 · 상증령 §58② · 「2026 비상장주식평가실무」 p.342, 368"]},{"c":"yn","l":"아니오","d":["이런 경우 : 그 대금을 이미 받았을 때(통장 입금 확인)","계산 : 받은 돈은 이미 현금·예금에 들어 있음 → 순자산 ③에 넣지 않음(두 번 셈 막음)","근거 : 상증칙 §17의2 · 「2026 비상장주식평가실무」 p.342, 368"]}]},"A05":{"a":"사실","k":"미수금","t":"미수금 누락·귀속시기 차이","p":"p.544","s":"±","g":"R5","d":"반영","v":"A04와 같음","q":"누락됐던 미수금이 평가기준일에 아직 받지 않은 채로 남아 있나요?","o":[{"c":"ya","l":"예","d":["이런 경우 : 장부에서 빠졌던 미수금(물건 판 돈 외에 받을 돈)을 평가기준일까지 아직 못 받았을 때","계산 : 받을 돈이 남음 → 순자산 ③에 {금액} 반영","근거 : 상증칙 §17의2 · 「2026 비상장주식평가실무」 p.544"]},{"c":"yn","l":"아니오","d":["이런 경우 : 이미 받았을 때(통장 입금 확인)","계산 : 이미 현금에 들어 있음 → 순자산 ③에 넣지 않음","근거 : 상증칙 §17의2 · 「2026 비상장주식평가실무」 p.544"]}]},"A06":{"a":"사실","k":"대여금(?!이자)|단기대여금|장기대여금","t":"단기·장기 대여금(대여금 관련 조정)","p":"p.529~530","s":"+","g":"R1","d":"반영","v":"대여금 원금을 령 §58②로 다시 평가(회수불능분 제외)","q":"이 대여금을 평가기준일에 돌려받을 수 있나요?","o":[{"c":"ya","l":"예","d":["이런 경우 : 빌려간 사람·회사가 갚고 있거나 갚을 능력이 있을 때(대여 계약서, 상환 기록)","계산 : 원금을 받을 권리 → 순자산 ③에 {금액} 가산","근거 : 상증령 §58② · 서면-2021-자본거래-5222(2021.09.30.) · 「2026 비상장주식평가실무」 p.529~530"]},{"c":"yn","l":"아니오","d":["이런 경우 : 빌려간 쪽이 폐업·파산 등으로 갚을 수 없을 때","계산 : 받을 수 없는 돈 = 자산 아님 → 순자산 ③에 넣지 않음","근거 : 상증령 §58② 단서 · 재삼46014-2051(1998.10.23.) · 「2026 비상장주식평가실무」 p.529~530"]}]},"A07":{"a":"제외","k":"미수수익|미수이자|이자수익중미수|예금이자|대여금이자","t":"미수수익·미수이자(익금불산입 △유보)","p":"p.326·530·537","s":"△","g":"R5"},"A08":{"a":"제외","k":"가지급금인정이자","t":"가지급금 인정이자 미수(유보로 적힌 경우)","p":"p.503","s":"+","g":"R5","q":"대표이사 가지급금에 이자 약정서가 있나요?","o":[{"c":"ya","l":"예","d":["이런 경우 : 회사와 대표이사가 쓴 금전소비대차계약서(돈 빌려주는 계약서)에 이자율과 이자 받을 날이 적혀 있을 때","계산 : 약정대로 받을 이자 = 회사가 받을 권리가 확정된 돈(미수이자) → 순자산 ③에 {금액} 가산","근거 : 재산세과-699(2010.09.17.) 유추 · 「2026 비상장주식평가실무」 p.503"]},{"c":"yn","l":"아니오","d":["이런 경우 : 약정서가 없거나, 있어도 이자 이야기가 없을 때(세법이 정한 이자율로 세무서가 계산만 한 「인정이자」)","계산 : 약정 없는 인정이자 = 실제로 받을 권리가 아님 → 순자산 ③에 넣지 않음","근거 : 재산세과-699(2010.09.17.) 유추 · 「2026 비상장주식평가실무」 p.503"]}]},"A09":{"a":"사실","k":"부가세대급금","t":"부가세대급금(불공제·누락)","p":"p.530·544","s":"+","g":"R5","d":"제외","v":"평가기준일 현재 환급·공제받을 권리가 확정된 금액만 자산(칙 §17의2 1호)","q":"부가세대급금을 평가기준일에 환급·공제받을 권리가 확정됐나요?","o":[{"c":"ya","l":"예","d":["이런 경우 : 부가가치세 신고서에 매입세액 공제·환급으로 잡혀 실제로 돌려받거나 빼 받을 금액일 때","계산 : 받을 권리 확정 → 순자산 ③에 {금액} 가산","근거 : 상증칙 §17의2 · 「2026 비상장주식평가실무」 p.530, 544"]},{"c":"yn","l":"아니오","d":["이런 경우 : 공제가 안 되는 매입세액(불공제)이라 돌려받을 수 없을 때","계산 : 받을 권리 아님 → 순자산 ③에 넣지 않음","근거 : 상증칙 §17의2 · 「2026 비상장주식평가실무」 p.530, 544"]}]},"A10":{"a":"제외","k":"보통예금|정기예금|장기성예금$|^장기성예금|예금\\)|현금\\]?|단기금융상품$|기타단기금융상품|^장기금융상품$","t":"예금·적금(보통예금·정기예금·장기성예금) 누락·조정","p":"p.326·410","s":"±","g":"R1"},"A12":{"a":"갈림","k":"보험료$|^보험료|오렌지라이프|DB생명|보험예치금(?!.*퇴직)","t":"보험상품(저축성·종신·연금보험) 납입보험료 자산 조정","p":"p.725~726","s":"+","g":"R1","d":"제외","v":"보험계약 권리를 다시 평가 — 값 1 = 평가기준일 해지환급금(유보 제외 · 추천) / 값 2 = 납입보험료 합계 + 이자(유보 포함 이상)","q":"회사가 든 보험(저축성·종신·연금) 유보를 순자산에 어떻게 넣을까요?","o":[{"c":"sa","l":"A안 (추천)","d":["이런 경우 : 보험사에서 평가기준일 기준 해지환급금(지금 깨면 돌려받는 돈) 확인서를 받을 수 있을 때","계산 : 보험은 해지환급금으로 다시 평가 → 유보는 순자산 ③에 더하지 않음","어느 쪽 : 해지환급금으로 보는 예규 쪽(「2026 비상장주식평가실무」 p.725~726 예규 목록)","추천 이유 : 실제로 돌려받을 수 있는 돈이라 시가에 가까움","근거 : 「2026 비상장주식평가실무」 p.725~726 — 법인 보험 서술 없음, 개인 보험 예규가 두 갈래(문서별 결론은 원문 대조 못 함)"]},{"c":"sb","l":"B안","d":["이런 경우 : 해지환급금을 알 수 없고 낸 보험료 합계로만 볼 수 있을 때","계산 : 낸 보험료 합계 + 이자로 봄 → 순자산 ③에 {금액} 가산","어느 쪽 : 납입보험료 + 이자로 보는 예규 쪽(「2026 비상장주식평가실무」 p.725~726 예규 목록)","근거 : 「2026 비상장주식평가실무」 p.725~726 — 법인 보험 서술 없음, 개인 보험 예규가 두 갈래(문서별 결론은 원문 대조 못 함)"]}]},"A13":{"a":"제외","k":"단기매매증권|단기매도가능","t":"단기매매증권 평가이익·손실","p":"p.303·394","s":"±","g":"R1"},"A14":{"a":"하한","k":"매도가능증권평가|매도가능증권$|단기매도가능","t":"매도가능증권 평가이익·손실(기타포괄)","p":"p.531·537·546","s":"±","g":"R1"},"A16":{"a":"하한","k":"지분법이익","t":"지분법이익(△유보)","p":"p.183~184·316·349~350","s":"△","g":"R1"},"A17":{"a":"하한","k":"지분법손실|지분법손익","t":"지분법손실(+유보)","p":"p.183~184·349~350·537","s":"+","g":"R1"},"A18":{"a":"하한","k":"지분법자본변동","t":"지분법자본변동(±)","p":"p.183~184·349~350","s":"±","g":"R1"},"A19":{"a":"하한","k":"지분법적용투자주식","t":"지분법적용투자주식(기타 조정)","p":"p.183~184·349~350","s":"±","g":"R1"},"A20":{"a":"하한","k":"출자금평가","t":"출자금 평가이익·손실","p":"p.317·350","s":"±","g":"R1"},"A21":{"a":"하한","k":"투자자산평가|투자자산손상","t":"투자자산 평가손실·손상차손환입","p":"p.349~350","s":"±","g":"R1"},"A23":{"a":"하한","k":"저가매입","t":"특수관계 개인에게서 저가매입한 유가증권(익금산입 유보)","p":"p.183~184·896","s":"+","g":"R1"},"A24":{"a":"하한","k":"자기주식","t":"자기주식(취득·처분 관련 유보)","p":"p.333~342·395·406~409","s":"±","g":"R1"},"A25":{"a":"제외","k":"외화환산|외화자산환산|외화평가","t":"외화자산 환산이익·손실","p":"p.376·412","s":"±","g":"R1"},"A26":{"a":"제외","k":"현재가치","t":"장기채권 현재가치할인차금","p":"p.356~358·406","s":"±","g":"R1"},"A27":{"a":"제외","k":"파생상품","t":"파생상품 평가이익·손실","p":"","s":"±","g":"R1"},"A29":{"a":"하한","k":"재고자산평가손실|재고자산평가충당|평가충당금|재고자산평가감","t":"재고자산 평가손실(저가법 손금불산입)","p":"p.544·647","s":"+","g":"R1"},"A30":{"a":"하한","k":"재고자산평가감|재고자산평가증","t":"재고자산 평가방법 차이(평가감·평가증)","p":"p.647","s":"±","g":"R1"},"A31":{"a":"사실","k":"재고자산누락|기말재고","t":"재고자산 누락(기말재고 과소 익금산입)","p":"p.368","s":"+","g":"R1","d":"반영","v":"실제 재고가 평가기준일에 있으면 령 §52②1호로 평가해 가산","q":"누락됐던 재고가 평가기준일에 실제로 회사에 있나요?","o":[{"c":"ya","l":"예","d":["이런 경우 : 재고 실사표·창고 기록으로 그 재고가 평가기준일에 실제로 남아 있을 때","계산 : 있는 재고 = 자산 → 순자산 ③에 {금액} 가산(재고 평가 방법 = 상증령 §52②1호)","근거 : 상증령 §52②1호 · 「2026 비상장주식평가실무」 p.368"]},{"c":"yn","l":"아니오","d":["이런 경우 : 이미 팔았거나 없어졌을 때","계산 : 없는 재고 = 자산 아님 → 순자산 ③에 넣지 않음","근거 : 상증령 §52②1호 · 「2026 비상장주식평가실무」 p.368"]}]},"A37":{"a":"하한","k":"투자부동산","t":"투자부동산 공정가치 평가손익","p":"p.351~352","s":"±","g":"R1"},"A38":{"a":"하한","k":"고가매입|시가초과","t":"특수관계인 고가매입 시가초과액(손금산입 △유보)","p":"p.421·897","s":"△","g":"R1"},"A39":{"a":"하한","k":"접대비.*자산|기업업무추진비.*자산","t":"기업업무추진비 한도초과 중 자산계상분(손금산입 △유보)","p":"","s":"△","g":"R1"},"A40":{"a":"반영","k":"감가상각비(?!.*(업무용|승용|차량|벤츠|카이엔|주\\d|보\\d|나\\d|러\\d|업종별))|감가상각비부인|상각부인|기계장치|구축|공구|비품|감가상각누계액$|가설재|시설장치|실내인테리어|자이언트팬","t":"기계장치·구축물·공구·비품 감가상각비 한도초과(상각부인)","p":"p.304·328~329","s":"+","g":"R3"},"A41":{"a":"반영","k":"시인부족|손금추인|상각비추인","t":"감가상각비 시인부족·전기 상각부인액 손금추인(△)","p":"p.328~329","s":"△","g":"R3"},"A42":{"a":"반영","k":"즉시상각|자본적지출|수선비","t":"즉시상각의제(자본적지출 비용처리 손금불산입)","p":"p.352~353","s":"+","g":"R3"},"A43":{"a":"반영","k":"신고조정|감가상각의제|의제상각","t":"감가상각비 신고조정 손금산입(K-IFRS·감가상각 의제 △유보)","p":"p.304·329","s":"△","g":"R3"},"A44":{"a":"반영","k":"차량감가상각|감가상각비\\(차량\\)|차량운반구","t":"차량(업무용승용차 아닌 차량) 감가상각 상각부인","p":"p.328","s":"+","g":"R3"},"A49":{"a":"반영","k":"특허권|무형고정자산상각|무형자산상각|소프트웨어(?!.*보조)","t":"무형자산(특허권·소프트웨어 등) 상각부인","p":"p.328","s":"+","g":"R3"},"A50":{"a":"반영","k":"무형자산감액|무형자산손상","t":"무형자산 손상(감액)손실","p":"p.323 각주14","s":"+","g":"R3"},"A51":{"a":"제외","k":"개발비","t":"개발비 상각부인·손상","p":"p.324·331~332·343~344·548","s":"+","g":"R2"},"A52":{"a":"반영","k":"영업권(?!.*합병)","t":"영업권 상각·손상(사업양수 영업권)","p":"p.728","s":"±","g":"R3"},"A53":{"a":"갈림","k":"합병영업권|합병매수차손|합병상각|합병차손","t":"합병영업권·합병매수차손(△유보)","p":"p.414·436~439","s":"△","g":"R1","d":"반영","v":"값 1 = △유보 반영해 장부 영업권 제거(재산세제과-496 · 추천 = 기존 기본값) / 값 2 = 장부 영업권 자산 포함(사전-2022-0842)","q":"합병영업권·합병매수차손 △유보를 순자산에 어떻게 넣을까요?","o":[{"c":"sa","l":"A안 (추천)","d":["이런 경우 : 보통은 이쪽 — 합병 때 장부에 잡힌 영업권(웃돈)을 세무상 인정하지 않았을 때","계산 : △유보 반영 → 장부 영업권을 지움, 순자산 ③에서 {금액} 차감","어느 쪽 : 기재부 재산세제과-496(2018.06.14.) 쪽","추천 이유 : 기재부 해석이고 지금까지의 기본값과 같음","근거 : 재산세제과-496(2018.06.14.) · 「2026 비상장주식평가실무」 p.414, 436~439"]},{"c":"sb","l":"B안","d":["이런 경우 : 합병 영업권이 실제 값어치가 있는 자산이라고 볼 때","계산 : 장부 영업권을 자산에 그대로 둠 → 순자산 ③에서 빼지 않음","어느 쪽 : 사전-2022-법규재산-0842(2023.03.06.) · 조심2020서8509(2023.10.17.) 쪽","근거 : 사전-2022-법규재산-0842(2023.03.06.) · 「2026 비상장주식평가실무」 p.414, 436~439"]}]},"A54":{"a":"반영","k":"유형자산손상|손상차손\\(유형","t":"유형자산 손상차손(기계 등)","p":"p.323 각주14·351~352","s":"+","g":"R3"},"A59":{"a":"반영","k":"사용권자산","t":"리스 사용권자산(K-IFRS 1116 · △유보)","p":"","s":"△","g":"R5"},"A60":{"a":"반영","k":"금융리스","t":"금융리스자산(리스이용자)","p":"","s":"±","g":"R3"},"A61":{"a":"반영","k":"선급비용|기간미경과|보험료기간","t":"선급비용·보험료 기간미경과분(손금불산입 +유보)","p":"p.331~332·343·757","s":"+","g":"R2"},"A62":{"a":"반영","k":"선급비용손금|선급비용\\(△","t":"선급비용 손금산입(장부 자산 → 세무상 비용, △유보)","p":"p.343·399·411·530","s":"△","g":"R2"},"A63":{"a":"제외","k":"신계약비|이연자산","t":"신계약비 등 이연자산(보험업)","p":"p.303·344","s":"±","g":"R2"},"A64":{"a":"제외","k":"이연법인세","t":"이연법인세자산","p":"p.345·377·530","s":"±","g":"R2"},"A65":{"a":"제외","k":"전기오류","t":"전기오류수정손실(손금불산입 유보)","p":"","s":"+","g":"R5"},"A66":{"a":"반영","k":"지급수수료|제세공과|세금과공과|차량유지비|지급보증료|정상가격","t":"지급수수료·제세공과금·차량유지비 등 비용 자산화(손금불산입 유보)","p":"p.328·352~354·560~561","s":"+","g":"R3"},"A67":{"a":"하한","k":"자산조정계정","t":"합병·분할 자산조정계정(적격합병·분할 ±)","p":"","s":"±","g":"R1"},"A68":{"a":"하한","k":"출자전환","t":"채무의 출자전환 주식(시가초과 채무면제익 과세이연)","p":"p.399·421","s":"△","g":"R1"},"A69":{"a":"제외","k":"생물자산","t":"생물자산·기타 공정가치 평가자산","p":"","s":"±","g":"R1"},"L01":{"a":"제외","k":"퇴직급여충당|퇴직급여충당금전입|퇴직급여$|퇴직급여충당부채","t":"퇴직급여충당금 한도초과액","p":"p.324·331~332·370~376·537·561·758","s":"+","g":"R2"},"L02":{"a":"제외","k":"퇴직연금충당|퇴직연금손금|퇴직연금한도","t":"퇴직연금 부담금 손금산입(DB, △유보)","p":"p.537","s":"△","g":"R2"},"L04":{"a":"사실","k":"미지급비용(?!.*연차)|미지급비용$|미지급비용\\(퇴직","t":"미지급비용(손금불산입 유보)","p":"p.535·550","s":"+","g":"R2","d":"반영","v":"평가기준일 지급의무가 확정된 것이면 부채 유지(유보 무시), 확정 안 된 추정치면 부채 아님(유보만큼 부채 감액) — 법인세 손금 시기와 별개로 판단","q":"미지급비용은 평가기준일에 지급 의무가 확정된 비용인가요?","o":[{"c":"ya","l":"예","d":["이런 경우 : 청구서·계약서가 있어 평가기준일에 이미 줘야 할 돈으로 정해졌을 때","계산 : 확정된 빚 = 장부 부채 그대로 → 순자산 ③에 넣지 않음","근거 : 상증칙 §17의2 · 사전-2023-법규재산-0867(2024.01.24.) 유추 · 「2026 비상장주식평가실무」 p.535, 550"]},{"c":"yn","l":"아니오","d":["이런 경우 : 아직 청구도 없고 금액도 어림한 추정치일 때","계산 : 확정 안 된 부채 = 그만큼 부채를 줄임 → 순자산 ③에 {금액} 가산","근거 : 상증칙 §17의2 · 사전-2023-법규재산-0867(2024.01.24.) 유추 · 「2026 비상장주식평가실무」 p.535, 550"]}]},"L06":{"a":"사실","k":"미지급상여","t":"미지급상여(잉여금처분·성과급 미확정)","p":"p.369~370·405","s":"+","g":"R2","d":"반영","v":"이익처분으로 확정됐거나 지급의무 확정이면 부채(칙 §17의2 3호나), 아니면 부채 아님","q":"미지급상여는 평가기준일에 지급이 확정(이익처분 결의 등)됐나요?","o":[{"c":"ya","l":"예","d":["이런 경우 : 주주총회·이사회 의사록(이익처분 결의)이나 성과급 규정으로 금액과 지급이 정해졌을 때","계산 : 확정된 빚 = 장부 부채 그대로 → 순자산 ③에 넣지 않음","근거 : 상증칙 §17의2 3호 · 「2026 비상장주식평가실무」 p.369~370, 405"]},{"c":"yn","l":"아니오","d":["이런 경우 : 결의·규정 없이 회사가 미리 잡아 둔 금액일 때","계산 : 확정 안 된 부채 = 그만큼 부채를 줄임 → 순자산 ③에 {금액} 가산","근거 : 상증칙 §17의2 3호 · 「2026 비상장주식평가실무」 p.369~370, 405"]}]},"L07":{"a":"제외","k":"하자보수","t":"하자보수충당부채(전입액 손금불산입)","p":"p.371·535·552","s":"+","g":"R2"},"L08":{"a":"제외","k":"품질보증|판매보증","t":"품질·판매보증충당부채","p":"p.371·373","s":"+","g":"R2"},"L09":{"a":"제외","k":"공사손실","t":"공사손실충당부채","p":"p.371·373","s":"+","g":"R2"},"L10":{"a":"제외","k":"소송","t":"소송·손해배상충당부채","p":"p.371·373","s":"+","g":"R2"},"L11":{"a":"제외","k":"복구","t":"복구충당부채(원상복구)","p":"p.371·373","s":"±","g":"R2"},"L12":{"a":"제외","k":"반품|환불부채","t":"반품충당부채·환불부채","p":"p.371·373","s":"+","g":"R2"},"L13":{"a":"제외","k":"보증충당","t":"지급보증·금융보증 충당부채","p":"p.377·410~411","s":"+","g":"R2"},"L14":{"a":"갈림","k":"포인트|마일리지","t":"포인트·마일리지 충당부채","p":"","s":"+","g":"R2","d":"제외","v":"값 1 = 충당금이라 부채 아님(칙 §17의2 4호) / 값 2 = 선적립 포인트 충당부채는 부채 가산(재산세과-465) — 추천 = 고객이 이미 적립한 포인트(쓰면 줘야 할 의무)는 값 2","q":"포인트·마일리지 충당부채를 빚으로 볼까요?","o":[{"c":"sa","l":"A안","d":["이런 경우 : 앞으로 쌓일 포인트를 어림해 미리 잡아 둔 충당금일 때","계산 : 충당금 = 부채 아님 → 부채에서 빼서 순자산 ③에 반영","어느 쪽 : 상증칙 §17의2(제충당금은 부채 아님) 쪽","근거 : 상증칙 §17의2"]},{"c":"sb","l":"B안","d":["이런 경우 : 고객이 이미 적립해 언제든 쓸 수 있는 포인트(쓰면 줘야 할 의무)일 때 — 포인트 적립 대장으로 확인","계산 : 이미 적립된 포인트 = 확정된 빚 → 부채로 남김","어느 쪽 : 재산세과-465(2010.06.30.) 쪽","추천 이유 : 고객이 이미 적립한 포인트라면 이쪽이 추천(규칙표) — 다만 「모름」 기본값은 A안","근거 : 재산세과-465(2010.06.30.)"]}]},"L15":{"a":"제외","k":"장기근속|장기종업원","t":"장기종업원급여(장기근속포상) 충당부채","p":"p.371·373","s":"+","g":"R2"},"L16":{"a":"제외","k":"구상채권","t":"구상채권상각충당금","p":"p.373","s":"△","g":"R2"},"L17":{"a":"제외","k":"충당부채(?!.*(퇴직|보증|하자|품질|공사|연차))|충당금전입","t":"기타 충당부채(제충당금)","p":"p.371·373","s":"+","g":"R2"},"L18":{"a":"반영","k":"이연수익|계약부채","t":"이연수익·계약부채(익금산입 +유보)","p":"p.396","s":"+","g":"R5"},"L19":{"a":"반영","k":"선수수익|선수금|용역매출","t":"선수수익·선수금 귀속시기 차이","p":"p.550","s":"±","g":"R5"},"L20":{"a":"사실","k":"상품권","t":"상품권 발행(회수 전 매출 귀속)","p":"","s":"±","g":"R5","d":"제외","v":"발행 상품권 중 회수 의무 남은 금액 = 확정 채무로 부채 [근거 못 찾음]","q":"발행한 상품권 중 평가기준일에 아직 회수되지 않아 돌려줘야 할 금액이 남아 있나요?","o":[{"c":"ya","l":"예","d":["이런 경우 : 상품권 발행·회수 대장으로 보면 손님이 아직 쓰지 않은 상품권이 남아 있을 때","계산 : 물건·돈으로 바꿔 줘야 할 빚 = 장부 부채 그대로 → 순자산 ③에 넣지 않음","근거 : 근거 못 찾음 — 조문 문언 기준"]},{"c":"yn","l":"아니오","d":["이런 경우 : 다 회수됐거나 유효기간이 지나 돌려줄 의무가 없을 때","계산 : 빚 아님 → 순자산 ③에 {금액} 반영","근거 : 근거 못 찾음 — 조문 문언 기준"]}]},"L21":{"a":"반영","k":"리스부채","t":"리스부채(K-IFRS 1116 · 손금불산입 +유보)","p":"","s":"+","g":"R5"},"L22":{"a":"제외","k":"사채할인|사채할증","t":"사채할인발행차금·사채할증발행차금","p":"p.356·409·536","s":"±","g":"R1"},"L23":{"a":"제외","k":"전환권조정|신주인수권조정","t":"전환권조정·신주인수권조정","p":"p.401~402·537·553","s":"±","g":"R1"},"L24":{"a":"반영","k":"상환할증","t":"상환할증금","p":"p.356·536·553","s":"+","g":"R1"},"L25":{"a":"제외","k":"외화부채|외화환산손실\\[부채|외화환산이익\\[부채","t":"외화부채 환산손익","p":"p.412","s":"±","g":"R1"},"L26":{"a":"제외","k":"장기미지급|현재가치할인차금\\(부채","t":"장기미지급금·장기차입금 현재가치할인차금","p":"p.356~358·404·536","s":"±","g":"R1"},"L27":{"a":"사실","k":"미지급기부|기부금.*유보|어음기부","t":"미지급 기부금(어음·미지급 → 손금불산입 +유보)","p":"","s":"+","g":"R2","d":"제외","v":"기부 약정·어음 발행으로 지급의무가 확정됐으면 부채 유지(유보 무시) [근거 못 찾음 — 칙 §17의2 3호나 문언]","q":"미지급 기부금은 기부 약정·어음 발행으로 평가기준일에 지급 의무가 확정됐나요?","o":[{"c":"ya","l":"예","d":["이런 경우 : 기부 약정서나 어음(나중에 주기로 한 증서)을 이미 넘겨 꼭 줘야 할 때","계산 : 확정된 빚 = 장부 부채 그대로 → 순자산 ③에 넣지 않음","근거 : 상증칙 §17의2 · 근거 못 찾음 — 조문 문언 기준"]},{"c":"yn","l":"아니오","d":["이런 경우 : 말로만 정했거나 취소할 수 있을 때","계산 : 빚 아님 → 순자산 ③에 {금액} 가산","근거 : 상증칙 §17의2 · 근거 못 찾음 — 조문 문언 기준"]}]},"L28":{"a":"반영","k":"기부금가지급|선급기부","t":"기부금 선지급(가지급금 계상 → 손금산입 △유보)","p":"","s":"△","g":"R5"},"L29":{"a":"반영","k":"미지급세금|미지급법인세","t":"미지급 세금·가산세(세금과공과 미지급)","p":"p.368~369","s":"+","g":"R2"},"L30":{"a":"반영","k":"부가세예수","t":"부가세예수금(매출누락 부가세)","p":"p.369","s":"+","g":"R2"},"E01":{"a":"제외","k":"중소기업투자준비금","t":"중소기업투자준비금(조특법 · 신고조정 △유보)","p":"p.323~326·331~332·373","s":"△","g":"R2"},"E02":{"a":"제외","k":"연구.*준비금|인력개발준비금","t":"연구·인력개발준비금(조특법 · △유보)","p":"p.324·373","s":"△","g":"R2"},"E03":{"a":"제외","k":"준비금(?!.*(고유목적|책임|비상위험|해약|배당))","t":"그 밖의 조특법 준비금(해외시장개척·손실보전 등 · △유보)","p":"p.373","s":"△","g":"R2"},"E04":{"a":"제외","k":"고유목적","t":"고유목적사업준비금(비영리 · △유보)","p":"p.373","s":"△","g":"R2"},"E05":{"a":"반영","k":"책임준비금|비상위험|해약환급금준비금","t":"보험업 책임준비금·비상위험준비금·해약환급금준비금 한도초과","p":"p.302·371~372·408","s":"+","g":"R2"},"E06":{"a":"제외","k":"계약자배당","t":"계약자배당준비금(보험업)","p":"p.408","s":"±","g":"R2"},"E07":{"a":"제외","k":"채무면제","t":"채무면제이익 익금불산입(조특법 · 결손보전 △유보)","p":"p.397~398","s":"△","g":"R2"},"E09":{"a":"제외","k":"감자차|자기주식처분","t":"감자차손·자기주식처분손익(유보로 적힌 경우)","p":"","s":"±","g":"R1"},"E10":{"a":"제외","k":"증자|감자","t":"증자·감자 등 자본거래 관련 유보(평가기준일 전)","p":"p.332~333","s":"±","g":"R5"},"T01":{"a":"사실","k":"공사수입|미청구|진행기준|진행률|공사미수","t":"작업진행률(진행기준) 차이 — 미청구공사·초과청구","p":"p.361~363·397·403·409","s":"±","g":"R5","d":"제외","v":"공사미수·미성공사 = 평가기준일 받을 권리로 다시 평가, 초과청구 = 이행 의무 채무 · 분양 사업 토지분은 부채 가산(서면4팀-291) [그 밖은 근거 못 찾음]","q":"공사 진행률 차이 금액이 평가기준일에 실제로 받을 공사대금(공사미수)으로 남아 있나요?","o":[{"c":"ya","l":"예","d":["이런 경우 : 공사 계약서·기성(공사한 만큼 청구한) 내역으로 보면 평가기준일에 받을 공사대금이 남아 있을 때","계산 : 받을 권리 → 순자산 ③에 {금액} 반영","근거 : 서면4팀-291(2007.01.22.) · 「2026 비상장주식평가실무」 p.361~363"]},{"c":"yn","l":"아니오","d":["이런 경우 : 회계와 세무의 진행률 계산 차이일 뿐 받을 돈이 따로 없을 때","계산 : 받을 권리 아님 → 순자산 ③에 넣지 않음","근거 : 서면4팀-291(2007.01.22.) · 「2026 비상장주식평가실무」 p.361~363"]}]},"T02":{"a":"제외","k":"장기할부|회수기일","t":"장기할부·회수기일 기준 매출(익금불산입 △유보)","p":"p.356~357","s":"△","g":"R5"},"T03":{"a":"제외","k":"임대료|용역대가","t":"임대료·용역대가 귀속시기 차이(미수·선수)","p":"","s":"±","g":"R5"},"T04":{"a":"제외","k":"수입배당금|배당금수익","t":"수입배당금 귀속시기(미수배당금)","p":"","s":"±","g":"R5"},"T05":{"a":"사실","k":"매출(?!채권|누락)|용역매출","t":"매출 귀속시기 차이(인도기준·검수기준 등)","p":"","s":"±","g":"R5","d":"제외","v":"평가기준일 실제 채권·재고로 다시 봄","q":"귀속시기 차이 매출이 평가기준일에 실제로 받을 채권으로 남아 있나요?","o":[{"c":"ya","l":"예","d":["이런 경우 : 매출을 언제 잡느냐(인도·검수 기준)만 다를 뿐, 그 대금을 평가기준일에 아직 못 받았을 때(거래처 원장)","계산 : 받을 돈 → 순자산 ③에 {금액} 반영","근거 : 상증칙 §17의2 · 상증령 §52②1호"]},{"c":"yn","l":"아니오","d":["이런 경우 : 이미 받았거나 남은 채권이 없을 때","계산 : 순자산 ③에 넣지 않음","근거 : 상증칙 §17의2"]}]},"T06":{"a":"사실","k":"매입","t":"매입·비용 귀속시기 차이(미지급 매입 등)","p":"","s":"±","g":"R5","d":"제외","v":"확정 채무면 부채 유지","q":"이 매입·비용은 평가기준일에 지급 의무가 확정된 채무인가요?","o":[{"c":"ya","l":"예","d":["이런 경우 : 물건·용역을 이미 받았고 세금계산서·청구서가 있어 줘야 할 돈이 정해졌을 때","계산 : 확정된 빚 = 장부 부채 그대로 → 순자산 ③에 넣지 않음","근거 : 상증칙 §17의2"]},{"c":"yn","l":"아니오","d":["이런 경우 : 아직 받지 않았거나 금액이 정해지지 않았을 때","계산 : 확정 안 된 부채 → 순자산 ③에 {금액} 반영","근거 : 상증칙 §17의2"]}]},"T07":{"a":"사실","k":"손해배상|보험금수익","t":"손해배상금·보험금 수익 귀속시기","p":"p.342","s":"±","g":"R5","d":"제외","v":"확정 권리만 자산(칙 §17의2 1호)","q":"손해배상금·보험금을 받을 권리가 평가기준일에 확정됐나요?","o":[{"c":"ya","l":"예","d":["이런 경우 : 판결·합의서·보험사 지급 결정서로 받을 금액이 정해졌을 때","계산 : 받을 권리 확정 → 순자산 ③에 {금액} 반영","근거 : 상증칙 §17의2 · 「2026 비상장주식평가실무」 p.342"]},{"c":"yn","l":"아니오","d":["이런 경우 : 소송·심사 중이라 아직 받을지 모를 때","계산 : 확정 안 됨 → 순자산 ③에 넣지 않음","근거 : 상증칙 §17의2 · 「2026 비상장주식평가실무」 p.342"]}]},"T09":{"a":"사실","k":"수정신고","t":"수정신고로 생긴 유보(과목별로 다시 분류)","p":"p.368~369","s":"±","g":"R5","d":"제외","v":"원래 과목(예 : 미수수익)으로 다시 분류해 그 규칙을 따름","q":"수정신고로 생긴 이 유보가 평가기준일에 실제 자산·부채로 남아 있나요?","o":[{"c":"ya","l":"예","d":["이런 경우 : 수정신고서·세무조사 결과서로 보면 그 금액이 받을 돈·재고처럼 아직 회사에 남아 있을 때","계산 : 남은 자산·부채 → 순자산 ③에 {금액} 반영","근거 : 근거 못 찾음 — 조문 문언 기준 · 「2026 비상장주식평가실무」 p.368~369"]},{"c":"yn","l":"아니오","d":["이런 경우 : 이미 정리돼 남은 것이 없을 때","계산 : 순자산 ③에 넣지 않음","근거 : 근거 못 찾음 — 조문 문언 기준 · 「2026 비상장주식평가실무」 p.368~369"]}]},"T10":{"a":"제외","k":"기능통화|해외사업장","t":"기능통화·해외사업장 환산 차이","p":"p.418·422","s":"±","g":"R1"},"T11":{"a":"제외","k":"톤세","t":"톤세 전환 전 외화환산손익 유보","p":"p.412","s":"±","g":"R1"},"A70":{"a":"제외","k":"85조의7|수용.*익금불산입|양도차익.*익금불산입|과세이연","t":"조특법 과세이연 양도차익 익금불산입(공익수용 §85의7 등 · △유보)","p":"p.397~398","s":"△","g":"R2"},"A71":{"a":"반영","k":"소모품|저장품","t":"미사용 소모품·저장품(소모품비 손금불산입 +유보)","p":"p.560~561","s":"+","g":"R3"}},"amb":{"장기금융상품":"명세서(장기금융상품명세서)로 실체 확인 — 보험 = A12, 예금 = A10, 펀드·파생결합 = A11 · 셋 다 기본 제외","보험료":"선급(기간미경과) = A61 반영 / 저축·종신보험 납입 = A12 제외","감가상각비":"자산 이름이 부동산이면 A32 하한, 업무용승용차면 A45 제외, 그 밖은 A40 반영","지급수수료":"관련 자산을 찾아 그 규칙 — 못 찾아도 기본 가산(「2026 비상장주식평가실무」 p.352~354) + 확인 필요","사채상환할증금":"L24 — 부채에서 빼거나 유보 반영 중 하나만","퇴직연금":"DB 부담금 손금산입 = A28/L02 제외, DC 미지급 = L03 제외(부채 유지)"},"ask":{"mo":["이런 경우 : 서류를 아직 못 봤거나 사실을 잘 모를 때","계산 : 기본값 = 「{기본}」와 같은 처리 — {기본계산}","결과에 [확인 필요]로 남음 — 나중에 확인되면 다시 고르면 바로 다시 계산"],"none":[{"c":"add","l":"가산","d":["이런 경우 : 그 금액이 회사가 실제로 가진 재산(받을 돈, 물건)이거나 부채가 과하게 잡힌 것일 때","계산 : 순자산 ③에 {금액} 더함","근거 : 「2026 비상장주식평가실무」 p.352 「실질이 세무상 자산이면 가감」"]},{"c":"sub","l":"차감","d":["이런 경우 : 장부 자산이 실제보다 많이 잡혔거나 숨은 부채가 있을 때","계산 : 순자산 ③에서 {금액} 뺌","근거 : 「2026 비상장주식평가실무」 p.352 「실질이 세무상 자산이면 가감」"]},{"c":"ex","l":"제외","d":["이런 경우 : 세금 계산상 차이일 뿐 실제 재산·빚과 관계없을 때(충당금, 손익 시기 차이 등)","계산 : 순자산 ③에 넣지 않음","근거 : 「2026 비상장주식평가실무」 p.352 · 상증칙 §17의2"]}],"noneQ":"규칙표에 없는 유보 과목은 순자산에 어떻게 넣을까요?"}};
   
+  
+  var YUBO_ASK = {
+    fact: {
+      A08: { q: '대표이사 가지급금에 이자 약정서가 있나요?', yes: '반영', yT: '이자 받을 권리 확정 → 미수 인정이자 ③ 가산', nT: '약정 없는 인정이자 = 받을 권리 아님 → ③ 가산 안 함', law: '재산세과-699(2010.09.17.) 유추 · 「2026 비상장주식평가실무」 p.503' },
+      L05: { q: '연차수당 부채는 평가기준일에 직원이 이미 받을 권리가 생긴(지급 의무가 확정된) 금액인가요?', yes: '제외', yT: '확정 채무 → 장부 부채 그대로(③ 가산 안 함)', nT: '확정 안 된 추정치 → 유보만큼 부채 감액(③ 가산)', law: '상증칙 §17의2 3호' },
+      A03: { q: '대손 처리한 채권을 평가기준일에 실제로 회수할 수 있나요?', yes: '반영', yT: '회수 가능 → 유보만큼 채권 가산(③)', nT: '회수 불능 → ③ 가산 안 함', law: '상증령 §58② · 「2026 비상장주식평가실무」 p.398·412' },
+      A04: { q: '누락됐던 매출채권이 평가기준일에 아직 회수되지 않고 남아 있나요?', yes: '반영', yT: '채권이 남아 있음 → ③ 가산', nT: '이미 회수 → 현금에 들어 있어 ③ 가산 안 함', law: '상증칙 §17의2 1호 · 「2026 비상장주식평가실무」 p.342·368' },
+      A05: { q: '누락됐던 미수금이 평가기준일에 아직 받지 않은 채로 남아 있나요?', yes: '반영', yT: '미수금이 남아 있음 → ③ 가감', nT: '이미 받음 → 현금에 들어 있어 ③ 가감 안 함', law: '상증칙 §17의2 1호 · 「2026 비상장주식평가실무」 p.544' },
+      A06: { q: '이 대여금을 평가기준일에 돌려받을 수 있나요?', yes: '반영', yT: '회수 가능 → 대여금 원금으로 ③ 가산', nT: '회수 불능 → ③ 가산 안 함', law: '상증령 §58② · 「2026 비상장주식평가실무」 p.529~530' },
+      A09: { q: '부가세대급금을 평가기준일에 환급·공제받을 권리가 확정됐나요?', yes: '반영', yT: '받을 권리 확정 → ③ 가산', nT: '확정 안 됨 → ③ 가산 안 함', law: '상증칙 §17의2 1호 · 「2026 비상장주식평가실무」 p.530·544' },
+      A31: { q: '누락됐던 재고가 평가기준일에 실제로 회사에 있나요?', yes: '반영', yT: '재고 있음 → ③ 가산(상증령 §52②1호 평가)', nT: '재고 없음 → ③ 가산 안 함', law: '상증령 §52②1호 · 「2026 비상장주식평가실무」 p.368' },
+      L04: { q: '미지급비용은 평가기준일에 지급 의무가 확정된 비용인가요?', yes: '제외', yT: '확정 채무 → 장부 부채 그대로(③ 가산 안 함)', nT: '추정치 → 유보만큼 부채 감액(③ 가산)', law: '상증칙 §17의2 3호 · 「2026 비상장주식평가실무」 p.535·550' },
+      L06: { q: '미지급상여는 평가기준일에 지급이 확정(이익처분 결의 등)됐나요?', yes: '제외', yT: '지급 확정 → 장부 부채 그대로(③ 가산 안 함)', nT: '미확정 → 유보만큼 부채 감액(③ 가산)', law: '상증칙 §17의2 3호나 · 「2026 비상장주식평가실무」 p.369~370·405' },
+      L20: { q: '발행한 상품권 중 평가기준일에 아직 회수되지 않아 돌려줘야 할 금액이 남아 있나요?', yes: '제외', yT: '회수 의무 남음 → 장부 부채 그대로(③ 가감 안 함)', nT: '의무 없음 → 유보만큼 ③ 가감', law: '근거 못 찾음 — 상증칙 §17의2 3호 문언' },
+      L27: { q: '미지급 기부금은 기부 약정·어음 발행으로 평가기준일에 지급 의무가 확정됐나요?', yes: '제외', yT: '지급 의무 확정 → 장부 부채 그대로(③ 가산 안 함)', nT: '확정 안 됨 → 부채 아님(③ 가산)', law: '근거 못 찾음 — 상증칙 §17의2 3호나 문언' },
+      T01: { q: '공사 진행률 차이 금액이 평가기준일에 실제로 받을 공사대금(공사미수)으로 남아 있나요?', yes: '반영', yT: '받을 권리 → ③ 가감', nT: '받을 권리 아님 → ③ 가감 안 함', law: '서면4팀-291 · 「2026 비상장주식평가실무」 p.361~363' },
+      T05: { q: '귀속시기 차이 매출이 평가기준일에 실제로 받을 채권으로 남아 있나요?', yes: '반영', yT: '채권 남음 → ③ 가감', nT: '채권 없음 → ③ 가감 안 함', law: '상증칙 §17의2 1호' },
+      T06: { q: '이 매입·비용은 평가기준일에 지급 의무가 확정된 채무인가요?', yes: '제외', yT: '확정 채무 → 장부 부채 그대로(③ 가감 안 함)', nT: '확정 안 됨 → 유보만큼 ③ 가감', law: '상증칙 §17의2 3호' },
+      T07: { q: '손해배상금·보험금을 받을 권리가 평가기준일에 확정됐나요?', yes: '반영', yT: '받을 권리 확정 → ③ 가감', nT: '확정 안 됨 → ③ 가감 안 함', law: '상증칙 §17의2 1호 · 「2026 비상장주식평가실무」 p.342' },
+      T09: { q: '수정신고로 생긴 이 유보가 평가기준일에 실제 자산·부채로 남아 있나요?', yes: '반영', yT: '남아 있음 → ③ 가감', nT: '없음 → ③ 가감 안 함', law: '「2026 비상장주식평가실무」 p.368~369' }
+    },
+    split: {
+      A56: { a: { eff: '제외', t: '제충당금이라 가산·차감 안 함', law: '사전-2017-0641 · 「2026 비상장주식평가실무」 p.537 사례' }, b: { eff: '반영', t: '공사부담금 관련 유보 포함(△까지 차감)', law: '재삼46014-2500(1995)' } },
+      A12: { a: { eff: '제외', t: '보험 = 평가기준일 해지환급금으로 다시 평가, 유보 안 더함', law: '「2026 비상장주식평가실무」 p.725~726' }, b: { eff: '반영', t: '납입보험료 합계 + 이자로, 유보 더함', law: '「2026 비상장주식평가실무」 p.725~726' } },
+      A53: { a: { eff: '반영', t: '△유보 반영해 장부 영업권 제거(차감)', law: '기재부 재산세제과-496' }, b: { eff: '제외', t: '장부 영업권을 자산에 그대로(차감 안 함)', law: '사전-2022-법규재산-0842' } },
+      L14: { a: { eff: '제외', t: '충당금이라 부채 아님(제충당금)', law: '상증칙 §17의2 4호' }, b: { eff: '부채', t: '고객이 이미 적립한 포인트 = 쓰면 줘야 할 의무 → 부채로 남김', law: '재산세과-465' } }
+    }
+  };
   function fromTxadj(list, srcOf) {
     srcOf = srcOf || function () { return ''; };
     
@@ -10588,6 +10852,9 @@ var SEV = (function () {
     var refundQ = [], outQ = [];   
     ds.slice(0, 3).forEach(function (x, i) {
       var d = x.d, f3 = d.f3, y = { yearEnd: f3.fiscalEnd || '', yearStart: f3.fiscalStart || '', taxIncome: S('income.' + i + '.taxIncome', f3.taxIncome, x.file, 'f3'), plus: {}, minus: {}, adj: [], file: x.file };
+      
+      if (num(f3.taxBase) > 0) y.taxBase = num(f3.taxBase);
+      if (num(f3.calcTax) > 0 && num(f3.totalTax) > 0) { var crd0 = num(f3.calcTax) + num(f3.penalty) - num(f3.totalTax); if (crd0 > 0 && crd0 < num(f3.calcTax)) y.taxCredit = crd0; }
       
       var p15f = ((x.formPages || {}).f15) || [], scan15 = !!x.ocr && (!(x.ocrPages && p15f.length) || p15f.some(function (n) { return x.ocrPages.indexOf(n) >= 0; }));
       ((d.net && d.net.plus) || []).forEach(function (it) { var k = rowOfCat(it) || 'plusEtc'; y.plus[k] = num(y.plus[k]) + it.amount; S('income.' + i + '.plus.' + k, it.amount, x.file, 'f15'); PT('income.' + i + '.plus.' + k, it.amount, it.label, x.file, 'f15'); });
@@ -10765,6 +11032,14 @@ var SEV = (function () {
         var why = (rid || '규칙 없음') + (act ? ' ' + act : '') + ' — ' + res + (R0 ? ' : ' + R0.t : '') + (note ? ' · ' + note : '') + (R0 && R0.p ? ' (책 ' + R0.p + ')' : '') +
                   (act === '사실' ? ' [확인 필요] 사실 확인 — 기본값 「' + eff + '」' : '') + (act === '갈림' ? ' ⚠ 갈림 — 기본값 「' + eff + '」' : '') + (ck && act !== '사실' ? ' [확인 필요]' : '');
         var ro = { label: q.label, end: q.end, out: !use, why: why, rule: { id: rid, act: act || '없음', eff: eff, t: R0 ? R0.t : '규칙표에 없는 과목', p: R0 ? R0.p : '' } }; if (stk) ro.stock = stk;
+        
+        if (e) {
+          if (!R0) ro.ask = { kind: 'yuboNone', def: e >= 0 ? 'add' : 'sub' };
+          else if (YUBO_ASK.fact[rid]) ro.ask = { kind: 'yuboFact', def: use ? '반영' : '제외' };
+          else if (act === '갈림' && YUBO_ASK.split[rid]) ro.ask = { kind: 'yuboSplit', def: use ? '반영' : '제외' };
+          else if (eff === '하한' && use) ro.ask = { kind: 'yuboFloor', go: stk ? 'stock' : /^(A3[2-7]|E08)$/.test(rid) ? 're' : 'gap' };
+          if (ro.ask && rid === 'L14' && ph) ro.ask.phv = num(ph.v);
+        }
         var ysrc = srcOf(Math.abs(num(q.end)), top.file, 'f50b'); if (ysrc) ro.src = ysrc;   
         return ro;
       });
@@ -11922,7 +12197,8 @@ var SEV = (function () {
   }
 
   function evalDateOf(inp) {
-    var C = inp.corp || {}; if (C.evalDate) return C.evalDate;
+    var C = inp.corp || {}; if (pdMode() !== 'nextDay') return pdEval(inp);   
+    if (C.evalDate) return C.evalDate;
     var e = ((inp.income || [])[0] || {}).yearEnd; if (!e) return '';
     var d = new Date(e); if (isNaN(d)) return ''; d.setDate(d.getDate() + 1); return d.toISOString().slice(0, 10);
   }
@@ -13149,6 +13425,49 @@ var SEV = (function () {
         opts: [{ c: 'no', label: '없음 — 지금 그대로 (기본)' },
                { c: 'yes', label: '있음 — 회수 불가능 금액만 채권에서 뺌', f: [{ k: 'v', t: 'm', label: '회수 불가능 채권 금액' }] }] });
     }
+    return out.concat(yuboQs(inp)).concat(pdQs(inp));   
+  }
+  
+  function yuboQs(inp) {
+    inp = inp || {}; var A = inp.asset || {}, YI = A.yuboItems || [], ans = inp.ckAns || {}, out = [], fl = [];
+    var amtT = function (v) { return v === 0 ? '③ 가산 안 함' : '③ ' + W0(Math.abs(v)) + '원 ' + (v > 0 ? '가산' : '차감'); };
+    YI.forEach(function (q, i) {
+      var k = q.ask; if (!k) return; var e = num(q.end), rid = (q.rule || {}).id, R0 = rid ? YUBO_RULES.R[rid] : null, key = 'p:yb' + i, nm = '「' + q.label + '」 ' + (e < 0 ? '△' : '') + W0(Math.abs(e)) + '원';
+      var dv = function (eff) { return eff === '반영' ? e : 0; }, def = k.def, mk = function (c, label, amt, d) { return { c: c, label: label + (d ? ' (기본)' : ''), amt: amt, def: !!d }; };
+      if (k.kind === 'yuboFloor') { fl.push({ i: i, label: q.label, end: e, rid: rid, go: k.go, t: R0 ? R0.t : '' }); return; }
+      if (k.kind === 'yuboFact') {
+        var F = YUBO_ASK.fact[rid], ya = dv(F.yes), yn = dv(F.yes === '반영' ? '제외' : '반영');
+        out.push({ key: key, kind: 'yuboFact', idx: i, rid: rid, ans: ans[key] || null, line: F.q + ' — 유보 ' + nm,
+          why: '· 별지50호(을) 유보 ' + nm + ' = 규칙 ' + rid + ' ' + (R0 ? R0.t : '') + '\n· 예 = ' + F.yT + ' / 아니오 = ' + F.nT + '\n· 모름 = 지금처럼 「' + def + '」 [확인 필요]\n· 근거 : ' + F.law + (R0 && R0.p && F.law.indexOf(R0.p) < 0 ? ' · 책 ' + R0.p : ''),
+          opts: [mk('ya', '예 — ' + amtT(ya), ya, dv(def) === ya && def === F.yes), mk('yn', '아니오 — ' + amtT(yn), yn, dv(def) === yn && def !== F.yes)] });
+      }
+      else if (k.kind === 'yuboSplit') {
+        var P = YUBO_ASK.split[rid], am = function (z) { return z.eff === '반영' ? e : 0; }, da = P.a.eff === def;
+        out.push({ key: key, kind: 'yuboSplit', idx: i, rid: rid, phv: k.phv || 0, ans: ans[key] || null, line: '예규·해석이 갈리는 유보 — ' + nm + ' (' + rid + ' ' + (R0 ? R0.t : '') + ')',
+          why: '· A안 = ' + P.a.t + ' (' + P.a.law + ')\n· B안 = ' + P.b.t + ' (' + P.b.law + ')\n· 모름 = 추천안 「' + (da ? 'A안' : 'B안') + '」(지금 계산) ⚠\n· 책 ' + ((R0 && R0.p) || ''),
+          opts: [mk('sa', 'A안 — ' + P.a.t + ' · ' + (P.a.eff === '부채' ? '부채로 남김' : amtT(am(P.a))), am(P.a), da), mk('sb', 'B안 — ' + P.b.t + ' · ' + (P.b.eff === '부채' ? '부채로 남김' : amtT(am(P.b))), am(P.b), !da)] });
+      }
+      else if (k.kind === 'yuboNone') {
+        var ab = Math.abs(e);
+        out.push({ key: key, kind: 'yuboNone', idx: i, rid: null, ans: ans[key] || null, line: '규칙표에 없는 유보 과목 — ' + nm + ' 은 순자산에 어떻게 넣을까요?',
+          why: '· 책 규칙표(122개)에 맞는 과목이 없음 → 지금 = 부호대로 ' + (e >= 0 ? '가산' : '차감') + '(「2026 비상장주식평가실무」 p.352 「실질이 세무상 자산이면 가감」)\n· 모름 = 지금 그대로 [확인 필요]',
+          opts: [mk('add', '가산 — ③ ' + W0(ab) + '원 가산', ab, def === 'add'), mk('sub', '차감 — ③ ' + W0(ab) + '원 차감', -ab, def === 'sub'), mk('ex', '제외 — ③ 가산 안 함', 0, false)] });
+      }
+    });
+    
+    var YA = YUBO_RULES.ask || {};
+    out.forEach(function (it) {
+      if (!/^yubo(Fact|Split|None)$/.test(it.kind)) return; var q = YI[it.idx] || {}, e = num(q.end), R0 = it.rid ? YUBO_RULES.R[it.rid] : null, L = it.rid ? ((R0 && R0.o) || []) : (YA.none || []);
+      var amt = (e < 0 ? '△' : '') + W0(Math.abs(e)) + '원', sub = function (t) { return String(t).replace(/\{금액\}/g, amt); }, dOpt = null;
+      if (R0 && R0.q) it.q = R0.q; else if (!it.rid && YA.noneQ) it.q = YA.noneQ;
+      (it.opts || []).forEach(function (o) { var z = L.filter(function (x) { return x.c === o.c; })[0]; o.desc = z ? z.d.map(sub) : []; o.dl = z ? z.l : ''; if (o.def) dOpt = o; });
+      var dl = dOpt ? (dOpt.dl || dOpt.label.split(' — ')[0]).replace(/\s*\(추천\)/, '') : '', dc = dOpt ? (dOpt.desc.filter(function (t) { return /^계산 : /.test(t); })[0] || '').replace(/^계산 : /, '') : '';
+      it.moDesc = (YA.mo || []).map(function (t) { return String(t).replace(/\{기본\}/g, dl).replace(/\{기본계산\}/g, dc); });
+    });
+    if (fl.length) out.push({ key: 'p:ybfloor', kind: 'yuboFloor', info: true, lines: fl, ans: null, opts: [],
+      line: '평가액을 넣으면 달라질 수 있어요 — 유보 ' + fl.length + '줄을 장부가 그대로(세무상 장부가)로 ③ 에 넣음',
+      why: fl.map(function (z) { return '· 「' + z.label + '」 ' + (z.end < 0 ? '△' : '') + W0(Math.abs(z.end)) + '원 = ' + z.rid + ' ' + z.t; }).join('\n') + '\n· 그 자산을 상증법 평가액 줄로 넣으면 그 줄 하한 비교(장부 + 유보)로 옮겨 감(「2026 비상장주식평가실무」 p.183~184 · 대법원 2015두58775)',
+      go: fl.map(function (z) { return z.go; }).filter(function (x, j, a) { return a.indexOf(x) === j; }) });
     return out;
   }
   function ckAnswer(inp, r, key, c, vals, meta) {   
@@ -13209,6 +13528,28 @@ var SEV = (function () {
       case 'provExtra': if (c === 'amt' && num(vals.v) > 0) set('asset.liabSub.provisions', num((A.liabSub || {}).provisions) - num(vals.v), '충당부채 확정 몫 부채로 남김'); break;
       case 'provRetire': if (c === 'sev') qa('retireEst', { est: num(it.sev) }); if (c === 'amt' && has(vals.est)) qa('retireEst', { est: num(vals.est) }); break;   
       case 'provBad': if (c === 'yes' && num(vals.v) > 0) { A.sub = A.sub || {}; set('asset.sub.etc', num(A.sub.etc) + num(vals.v), '회수 불가능 채권 ' + W0(vals.v) + '원 채권에서 뺌(상증령 §58② 단서)'); } break;   
+      case 'yuboFact': case 'yuboSplit': case 'yuboNone': {   
+        var yo = (it.opts || []).filter(function (o) { return o.c === c; })[0], yp = 'asset.yuboItems.' + it.idx, YQ = (A.yuboItems || [])[it.idx]; if (!yo || !YQ) break;
+        A.add = A.add || {}; var y0 = YQ.out ? 0 : (has(YQ.yAmt) ? num(YQ.yAmt) : num(YQ.end)), y1 = num(yo.amt), wasAuto = has(A.yuboAuto) && num(A.add.yubo) === num(A.yuboAuto);
+        var yt = { ya: '예', yn: '아니오', sa: 'A안', sb: 'B안', add: '가산', sub: '차감', ex: '제외' }[c] || c, res1 = y1 === 0 ? '③ 가산 안 함' : y1 > 0 ? '가산' : '차감';
+        if (y1 !== y0) { var nv = num(A.add.yubo) - y0 + y1; set('asset.add.yubo', nv, '유보 「' + YQ.label + '」 답 : ' + yt + ' → ' + res1 + ' ' + W0(Math.abs(y1 || y0)) + '원'); if (wasAuto) set('asset.yuboAuto', nv, false); }
+        set(yp + '.out', y1 === 0, false); set(yp + '.yAmt', y1, false);
+        if (it.kind === 'yuboSplit' && c === 'sb' && it.rid === 'L14' && num(it.phv) > 0) { var pv0 = num((A.liabSub || {}).provisions), pk = Math.min(num(it.phv), pv0); if (pk > 0) set('asset.liabSub.provisions', pv0 - pk, '포인트 충당부채 ' + W0(pk) + '원 부채로 남김(B안 · 재산세과-465)'); }
+        var w0 = String(YQ.why || '').replace(/ \[확인 필요\] 사실 확인 — 기본값 「[^」]*」/, '').replace(/ ⚠ 갈림 — 기본값 「[^」]*」/, '').replace(/ \[확인 필요\]$/, '').replace(/^([^—]*— )(가산|차감|③ 가산 안 함)/, '$1' + res1);
+        set(yp + '.why', w0 + ' · 답 : ' + yt + '(' + by0 + ' ' + at + ')', false);
+        set(yp + '.ans', { c: c, t: yt, by: by0, at: at }, false);
+        break;
+      }
+      case 'yuboPeriod': {   
+        var PSUB = it.sub, PDP = 'asset.period.';
+        if (PSUB === 'int') { if (c === 'pn') set(PDP + 'interim', { mode: 'none' }, '가결산 자료 없음 — 직전 해와 같은 이익 가정'); if (c === 'py' && (has(vals.pretax) || has(vals.ni))) set(PDP + 'interim', { mode: 'given', pretax: has(vals.pretax) ? num(vals.pretax) : '', tax: has(vals.tax) ? num(vals.tax) : '' }, '가결산 자료 — 경과분 세전이익 ' + W0(vals.pretax) + '원'); }
+        if (PSUB === 'pre') { var pm0 = { pa: 'assume', pe: 'end', pm: 'amt', pl: 'all', p0: 'none' }[c]; if (pm0 && (pm0 !== 'end' || /^\d{4}-\d\d-\d\d$/.test(String(vals.end || ''))) && (pm0 !== 'amt' || has(vals.amt))) set(PDP + 'pre', { mode: pm0, end: vals.end || '', amt: has(vals.amt) ? num(vals.amt) : '' }, '선급비용 기간 답 : ' + ((it.opts || []).filter(function (o) { return o.c === c; })[0] || { dl: c }).dl); }
+        if (PSUB === 'pin') { var pi0 = { iy: 'yes', 'in': 'no' }[c]; if (pi0) set(PDP + 'pin', pi0, '가결산 선급비용 상각 ' + (pi0 === 'yes' ? '반영함' : '안 함(시산표만)')); }
+        if (PSUB === 'cap') { if (c === 'cn') set(PDP + 'cap', { mode: 'none' }, '결산 뒤 자본거래 없음'); if (c === 'cy' && (has(vals.inc) || has(vals.out))) set(PDP + 'cap', { mode: 'given', inc: has(vals.inc) ? num(vals.inc) : '', out: has(vals.out) ? num(vals.out) : '' }, '결산 뒤 자본거래 — 들어온 돈 ' + W0(vals.inc) + '원, 나간 돈 ' + W0(vals.out) + '원'); }
+        if (PSUB === 'dep') { var dm0 = { dk: 'keep', dm: 'amt', ds: 'sold' }[c]; if (dm0 && (dm0 !== 'amt' || has(vals.amt))) set(PDP + 'dep', { mode: dm0, amt: has(vals.amt) ? num(vals.amt) : '' }, '감가상각 부인 유보 기간 답 : ' + dm0); }
+        if (PSUB === 'land' || PSUB === 'stock') { var sm0 = { sn: 'no', sa: 'all', sm: 'amt' }[c]; if (sm0 && (sm0 !== 'amt' || has(vals.amt))) set(PDP + 'sold.' + PSUB, { mode: sm0, amt: has(vals.amt) ? num(vals.amt) : '', price: has(vals.price) ? num(vals.price) : '', book: has(vals.book) ? num(vals.book) : '' }, '결산 뒤 처분 답 : ' + sm0 + (has(vals.price) ? ' · 처분가액 ' + W0(vals.price) + '원' : ' · 처분가액 모름')); }
+        break;
+      }
       case 'provOther': { var pv = c === 'all' ? num(it.amt) : c === 'amt' ? Math.min(num(vals.v), num(it.amt)) : 0; if (pv > 0) set('asset.liabSub.provisions', num((A.liabSub || {}).provisions) - pv, c === 'all' ? '그 밖 충당부채 전액 비용 확정 → 부채로 남김(상증칙 §17의2 4호 가목)' : '그 밖 충당부채 확정 몫 부채로 남김(상증칙 §17의2 4호 가목)'); break; }
     }
     inp.ckAns[key] = rec;
@@ -13651,7 +13992,7 @@ var SEV = (function () {
 
   return { treasuryBoth: treasuryBoth, extraGate: extraGate, corpTaxOf: corpTaxOf, questions: questions, answer: answer, scanText: scanText, rentValue: rentValue, evalDateOf: evalDateOf,
            dartRead: dartRead, cretopRead: cretopRead, mergeExt: mergeExt, splitInfo: splitInfo, splitEff: splitEff, survOff: survOff, survOf: survOf, SURV_LABEL: SURV_LABEL, splitRatio: splitRatio, splitShare: splitShare, splitPct: splitPct,
-           compute: compute, fromTxadj: fromTxadj, cleanOcr: cleanOcr, fix54: fix54, fix54Pages: fix54Pages, fixRead: fixRead, fixRead2: fixRead2, pickSrc: pickSrc, advisor: (typeof TXADJ !== 'undefined' ? TXADJ.ADVISOR : null), advisorAnswered: (typeof TXADJ !== 'undefined' ? TXADJ.ADVISOR_ANSWERED : null), pendingCheck: pendingCheck, read51: read51, fillRects: fillRects, sizeJudge: sizeJudge, ckSplit: ckSplit, ckBook: ckBook, fmtNum: fmtNum, ckKey: ckKey, ckItems: ckItems, ckAnswer: ckAnswer, provItems: provItems, ocrLedger: ocrLedger, parcel: parcel, gapLine: gapLine, yearIncome: yearIncome, num: num, PLUS_ROWS: PLUS_ROWS, MINUS_ROWS: MINUS_ROWS, VERSION: '1.1' };
+           compute: compute, fromTxadj: fromTxadj, cleanOcr: cleanOcr, fix54: fix54, fix54Pages: fix54Pages, fixRead: fixRead, fixRead2: fixRead2, pickSrc: pickSrc, advisor: (typeof TXADJ !== 'undefined' ? TXADJ.ADVISOR : null), advisorAnswered: (typeof TXADJ !== 'undefined' ? TXADJ.ADVISOR_ANSWERED : null), pendingCheck: pendingCheck, read51: read51, fillRects: fillRects, sizeJudge: sizeJudge, ckSplit: ckSplit, ckBook: ckBook, fmtNum: fmtNum, ckKey: ckKey, ckItems: ckItems, ckAnswer: ckAnswer, provItems: provItems, yuboQs: yuboQs, pdQs: pdQs, periodCalc: periodCalc, pdEval: pdEval, evalDefault: function (v) { if (v) PD.def = v === 'nextDay' ? 'nextDay' : 'today'; return PD.def; }, YUBO_ASK: YUBO_ASK, ocrLedger: ocrLedger, parcel: parcel, gapLine: gapLine, yearIncome: yearIncome, num: num, PLUS_ROWS: PLUS_ROWS, MINUS_ROWS: MINUS_ROWS, VERSION: '1.1' };
 })();
 if (typeof module !== 'undefined' && module.exports) module.exports.SEV = SEV;
 
@@ -14088,7 +14429,7 @@ var SEVG = (function () {
     (list || []).forEach(function (P, pi) {
       P = P || {}; var notes = [], prev = sol, byId = {};
       C.forEach(function (c) { byId[c.id] = c; c.inp = c.inp || {}; c.inp.corp = c.inp.corp || {}; c.inp.asset = c.inp.asset || {}; c.inp.shares = c.inp.shares || {}; c.inp.income = c.inp.income || []; });
-      if (P.evalDate) C.forEach(function (c) { c.inp.corp.evalDate = P.evalDate; });
+      if (P.evalDate) C.forEach(function (c) { c.inp.corp.evalDate = P.evalDate; c.inp.corp.evalDateAuto = false; });   
       var issuedOf = function (id) { var r = prev.R[id] && prev.R[id].result; return r ? num(r.shares) - (r.treasuryMode === 'cancel' ? num(r.treasuryShares) : 0) : 0; };
       Object.keys(P.co || {}).forEach(function (id) {
         var c = byId[id], a = P.co[id] || {}; if (!c) return; var I = c.inp;
@@ -19114,7 +19455,7 @@ $('run').addEventListener('click',function(){
     vParams.capitalImpaired=!(+vParams.netAsset>0);
     incomes=(vParams.netIncomes||[]).slice();
     S.sevUse={from:SVR.from, set:SVR.set||[], check:(SVR.res.check||[]).slice(), finalValue:SVR.res.result.finalValue, params:SVR.res.params,
-      netAsset:SVR.res.params.netAsset, oldNetAsset:oldNA, oldIncomes:oldInc, oldShares:oldSh, adopted:SVR.res.adopted||null};
+      netAsset:SVR.res.params.netAsset, oldNetAsset:oldNA, oldIncomes:oldInc, oldShares:oldSh, adopted:SVR.res.adopted||null, period:SVR.res.period||null};   
     
     try{ var sT=((SVR.inp||{}).shares||{}).treasury||{}, sN=TE.num(sT.shares)||0;
       if(!SEV_USER.treasury&&$('treasury')&&sN!==TE.num($('treasury').value)){ $('treasury').value=fmt(sN);
@@ -19133,6 +19474,9 @@ $('run').addEventListener('click',function(){
       (SU.oldIncomes||[]).forEach(function(o,i){ var n=(vParams.netIncomes||[])[i]; if((o===undefined||o===null)!==(n===undefined||n===null)||(o!=null&&n!=null&&Math.abs(o-n)>=1)) dd.push('순손익 '+(usedYears[i]||('직전 '+(i+1)+'년'))+' 툴 표 '+(o==null?'없음':fmt(o))+' / 엔진 '+(n==null?'없음':fmt(n))); });
       if(SU.oldShares!==vParams.shares) dd.push('발행주식총수 툴 '+fmt(SU.oldShares)+' / 엔진 '+fmt(vParams.shares));
       S.valChecks.push('[평가] 1주 값 = 통합 엔진(비상장평가 앱과 같은 계산 · 입력 '+SU.from+(SU.set.length?' · 손 입력 '+SU.set.join(', '):'')+')');
+      
+      if(SU.period&&SU.period.title){ var PDu=SU.period; S.valChecks.push('[평가] '+PDu.title+(PDu.refLine?' · '+PDu.refLine:''));
+        if(PDu.on){ (PDu.lines||[]).forEach(function(t){ S.valChecks.push('[평가] 기간분 : '+t); }); (PDu.assume||[]).forEach(function(t){ S.valChecks.push('[평가] [기본값으로 둔 것] '+t); }); if((PDu.need||[]).length) S.valChecks.push('[평가] 기간 질문 '+PDu.need.length+'개 답 없음 — 기본값(가정)으로 계산 · 질문으로 보고서 만들기 ① 평가 확인에서 답 [확인 필요]'); } }
       if(dd.length) S.valChecks.push('[평가] 통합 엔진 값과 크레탑 툴 표가 다름 — '+dd.join(' · ')+' · 1주 값은 엔진 값, 보고서 표 숫자는 툴 표 [확인 필요]');
       if(SU.adopted&&SU.adopted.market) S.valChecks.push('[평가] 엔진 : '+SU.adopted.src+' — 보고서 1주 값은 보충적 평가액 '+fmt(r.finalValue)+'원 [확인 필요]');
     } else if(SVR&&SVR.keepOld) S.valChecks.push('[평가] '+SVR.msg+' [확인 필요]');
@@ -21779,9 +22123,11 @@ function fiscalEndYmd(){
 function evalBaseDate(){
   var s=evalDateInput();
   if(s) return new Date(+s.slice(0,4),+s.slice(5,7)-1,+s.slice(8,10));
+  
+  var d=new Date(); d.setHours(0,0,0,0);
   var fe=fiscalEndYmd();
-  if(fe){ var d0=new Date(+fe.slice(0,4),+fe.slice(5,7)-1,+fe.slice(8,10)); d0.setDate(d0.getDate()+1); return d0; }
-  var d=new Date(); d.setHours(0,0,0,0); return d;
+  if(fe){ var d0=new Date(+fe.slice(0,4),+fe.slice(5,7)-1,+fe.slice(8,10)); d0.setDate(d0.getDate()+1); if(d<d0) return d0; }
+  return d;
 }
 
 function divPayYear(plus){ var d=(typeof evalBaseDate==='function')?evalBaseDate():new Date(); return d.getFullYear()+(plus||0); }
@@ -21797,7 +22143,7 @@ function divTaxXls(D,O,g){
 }
 function evalBaseLabel(){
   var d=evalBaseDate(), z=function(n){ return ('0'+n).slice(-2); };
-  return d.getFullYear()+'-'+z(d.getMonth()+1)+'-'+z(d.getDate())+(evalDateInput()?'':(fiscalEndYmd()?'(결산 다음날)':'(작성일)'));
+  return d.getFullYear()+'-'+z(d.getMonth()+1)+'-'+z(d.getDate())+(evalDateInput()?'':'(오늘)');   
 }
 
 function isClientOut(){ try{ return window.__simAudience==='client'; }catch(e){ return false; } }
@@ -39216,10 +39562,12 @@ function selGet(m){ if(MOD_ALWAYS[m.id]) return false;
           
           
           var subBase='Ⅱ. 자산가치평가 — '+D.c.name;
-          var subTxt=plain(vc.name)+' '+String(yBase).slice(2)+'년 초 주식가치평가 · '+mLab+
+          var PDs=(S.sevUse&&S.sevUse.period)||null, pdOn=!!(PDs&&PDs.on);   
+          var subTxt=plain(vc.name)+' '+(pdOn?PDs.title.replace(/ 1주 주식가치 .*$/,'')+' 주식가치평가':String(yBase).slice(2)+'년 초 주식가치평가')+' · '+mLab+
             ' · 발행주식총수 '+fmt(vc.tot)+'주 · 단위: 원';
           
           
+          if(pdOn&&PDs.refLine) blk2.push({t:'note',keep:true,text:PDs.title+' · '+PDs.refLine+(PDs.assume&&PDs.assume[0]?' · '+PDs.assume[0]:'')});
           if(blkShare&&(SH2.length>2||CB1||blk2.some(function(b){ return b&&b.t==='note'; }))){
             content(subBase,subTxt,blk2,{bot:7.18});
             content(subBase+' — 주주 현황',
@@ -44279,7 +44627,7 @@ var QFLOW=(function(){
   var Q={
     spouse:{l:'배우자',t:'sel',o:[['yes','생존'],['no','없음']],why:'배우자상속공제 · 2차 상속'},
     kids:{l:'자녀 수',t:'num',u:'명',why:'배우자 법정상속분 · 특정법인 · 이익소각 분할'},
-    evalDate:{l:'평가기준일 (증여·양도 예정일)',t:'date',why:'사업개시 3년 판정 · 평가 시점 — 비우면 직전 결산일 다음날'},
+    evalDate:{l:'평가기준일 (증여·양도 예정일)',t:'date',why:'사업개시 3년 판정 · 평가 시점 — 비우면 오늘(결산일 다음날 ~ 오늘은 직전 해와 같은 이익 가정 · v15.91)'},
     donorAge:{l:'대표(증여자) 만 나이',t:'num',u:'세',why:'증여특례 나이 요건 · 기대여명'},
     pct:{l:'상속 대상 지분율',t:'num',u:'%',why:'상속세 · 20년 추이 · 요약의 고객 지분'},
     re:{l:'법인 부동산 시가 (감정·매매사례)',t:'eok',why:'순자산가액'},
@@ -44330,6 +44678,10 @@ var QFLOW=(function(){
   
   function provEff(key,c,vals){ try{ var X=window.__sevCk; if(!X) return null; var I=JSON.parse(JSON.stringify(X.inp)), r=SEV.compute(I,TE); if((I.ckAns||{})[key]){ SEV.ckAnswer(I,r,key,null); r=SEV.compute(I,TE); }
       var b={na:+r.params.netAsset, fv:+r.result.finalValue}; if(c==='book'||c==='no') return {b:b, x:b}; SEV.ckAnswer(I,r,key,c,vals||{},{by:'질문 흐름 미리 셈'}); var r2=SEV.compute(I,TE); return {b:b, x:{na:+r2.params.netAsset, fv:+r2.result.finalValue}}; }catch(e){ DIAG(e,'qflow.provEff'); return null; } }
+  
+  function qyDesc(L,ef){ L=(L||[]).slice(); if(!L.length) return ''; var i=-1; L.forEach(function(t,j){ if(/^계산 : /.test(t)) i=j; });
+    if(ef) L.splice(i<0?L.length:i+1,0,'결과 : '+String(ef).replace(/^→ /,'').replace(/^순자산가액 (.*?), 1주 (.*)$/,'1주 $2, 순자산가액 $1'));
+    return '<ul class="qyd" style="list-style:none;margin:4px 0 6px;padding:8px 10px;max-width:560px;border-left:4px solid #e3d8bf;background:#fbf8f1;border-radius:0 10px 10px 0;font-size:16px;line-height:1.55;color:#3d2a20;word-break:keep-all;overflow-wrap:anywhere">'+L.map(function(t){ var m=String(t).match(/^([^:]{1,8}) : ([\s\S]*)$/); return '<li style="margin:2px 0;padding-left:1em;text-indent:-1em">· '+(m?'<b>'+esc(m[1])+'</b> : '+esc(m[2]):esc(t))+'</li>'; }).join('')+'</ul>'; }
   function provEffTxt(key,c,vals){ var E=provEff(key,c,vals); if(!E) return ''; var d=function(v){ return v===0?'변동 없음':(v>0?'+':'△')+won(Math.abs(v))+'원'; };
     return '→ 순자산가액 '+won(E.x.na)+'원('+d(E.x.na-E.b.na)+'), 1주 '+won(E.x.fv)+'원('+d(E.x.fv-E.b.fv)+')'; }
   function ckSync(){ var k0=coKey(); if(st.ckFor&&k0&&st.ckFor!==k0){ st.ck={}; } st.ckFor=k0||st.ckFor; var o={}; Object.keys(st.ck).forEach(function(k){ var a=st.ck[k]; if(a&&a.c&&a.c!=='unk') o[k]={c:a.c, vals:a.vals||{}}; });
@@ -44387,7 +44739,8 @@ var QFLOW=(function(){
     var add=function(k,from){ if(seen[k]||!Q[k]||!el(k)) return; seen[k]=1; L.push({k:k, from:from}); };
     var sa=shAsm(); if(sa) L.push({k:'shAsm', from:'평가'});   
     try{ var M=window.MULTI; if(M&&M.bookAsk&&M.st&&M.st.sol) M.bookAsk().forEach(function(b){ L.push({k:'inv:'+b.key, from:'평가 — 확인 필요(여러 회사 지분)', inv:b}); }); }catch(e){}   
-    ckList().forEach(function(it){ var pv=/^prov(Retire|Other|Bad)$/.test(it.kind); L.push({k:'ck:'+it.key, from:it.kind==='provBad'?'평가 — 회수 불가능 채권 (기본 = 없음)':pv?'평가 — 충당부채 처리 (기본 = 「2026 비상장주식평가실무」대로)':'평가 — 확인 필요', ck:{key:it.key, kind:it.kind, line:it.line, why:it.why, input:it.input||'', opts:ckOpts(it), prov:pv}}); });   
+    ckList().forEach(function(it){ var yb=/^yubo/.test(it.kind), pv=/^prov(Retire|Other|Bad)$/.test(it.kind)||yb;   
+      L.push({k:'ck:'+it.key, from:it.kind==='yuboFloor'?'평가 — 유보 안내 (평가액을 넣으면 달라질 수 있어요)':yb?'평가 — 유보 확인 (기본 = 지금 계산)':it.kind==='provBad'?'평가 — 회수 불가능 채권 (기본 = 없음)':pv?'평가 — 충당부채 처리 (기본 = 「2026 비상장주식평가실무」대로)':'평가 — 확인 필요', ck:{key:it.key, kind:it.kind, line:it.line, why:it.why, input:it.input||'', opts:ckOpts(it), prov:pv, moDesc:it.moDesc||null}}); });   
     on.forEach(function(d){ (SEC_Q[d.id]||[]).forEach(function(k){ if(!want[k]) want[k]=d.name; }); });
     COMMON.forEach(function(k){ if(want[k]) add(k,'공통 · '+want[k]); });
     on.forEach(function(d){ (SEC_Q[d.id]||[]).forEach(function(k){ if(spSkip(k)) return; add(k,d.name); }); });
@@ -44648,17 +45001,20 @@ var QFLOW=(function(){
           h.push('<button type="button" class="qlink" data-qinvunk="1">모름 — 장부가 0으로 진행(가정 표시)</button>');
           h.push('<div class="qnav"><button class="qb" data-qback="1">뒤로</button><button class="qb qgo" data-qinvok="1">다음</button></div>'); }
         else { var cq=sx.ck, ca=st.ck[cq.key]||{};
-          h.push('<div style="margin:8px 0;font-size:17px;font-weight:800">'+esc(cq.line)+'</div>'+(cq.why?'<div class="qn">'+esc(cq.why).replace(/\n/g,'<br>')+'</div>':'')+(cq.input?'<div class="qn">· '+esc(cq.input)+'</div>':'')+(cq.prov?'<div class="qn">· '+esc(cq.kind==='provBad'?BAD_LAW:PROV_LAW)+'</div><div class="qn">· 안 고르거나 「모름」 = '+(cq.kind==='provBad'?'없음':'「2026 비상장주식평가실무」대로')+'(지금 계산 그대로)</div>':''));
-          var effL=function(o,oi){ if(!cq.prov) return ''; var vv={}; (o.f||[]).forEach(function(f){ var dv=(ca.c===o.c&&ca.vals&&ca.vals[f.k]!=null)?ca.vals[f.k]:(f.def!=null?f.def:''); vv[f.k]=dv; }); var need=(o.f||[]).some(function(f){ return vv[f.k]===''||vv[f.k]==null; });
+          h.push('<div style="margin:8px 0;font-size:17px;font-weight:800">'+esc(cq.line)+'</div>'+(cq.why?'<div class="qn">'+esc(cq.why).replace(/\n/g,'<br>')+'</div>':'')+(cq.input?'<div class="qn">· '+esc(cq.input)+'</div>':'')+(cq.prov&&!/^yubo/.test(cq.kind)?'<div class="qn">· '+esc(cq.kind==='provBad'?BAD_LAW:PROV_LAW)+'</div><div class="qn">· 안 고르거나 「모름」 = '+(cq.kind==='provBad'?'없음':'「2026 비상장주식평가실무」대로')+'(지금 계산 그대로)</div>':cq.kind==='yuboFloor'?'':/^yubo/.test(cq.kind)?'<div class="qn">· 안 고르거나 「모름」 = 지금 기본값(지금 계산 그대로)</div>':''));
+          if(cq.kind==='yuboFloor'){ h.push('<button class="qb" style="margin-top:8px" data-qygo="1">평가액 넣는 칸으로 (부동산 시가·투자주식)</button>'); h.push('<div class="qnav"><button class="qb" data-qback="1">뒤로</button><button class="qb qgo" data-qcknext="1">다음</button></div>'); }
+          else {
+          var effL=function(o,oi){ if(!cq.prov) return ''; var vv={}; (o.f||[]).forEach(function(f){ var dv=(ca.c===o.c&&ca.vals&&ca.vals[f.k]!=null)?ca.vals[f.k]:(f.def!=null?f.def:''); vv[f.k]=dv; }); var need=(o.f||[]).some(function(f){ return !f.opt&&(vv[f.k]===''||vv[f.k]==null); });
             return '<div class="qn qeff" data-qeff="'+oi+'" style="margin:3px 0 0 2px;color:#513528">'+(need?'→ 금액을 넣으면 순자산가액·1주가 여기 나옴':esc(provEffTxt(cq.key,o.c,vv)))+'</div>'; };
           (cq.opts||[]).forEach(function(o,oi){ if(o.f&&o.f.length){ h.push('<div style="margin-top:8px;max-width:560px;border:1px solid #e3d8bf;border-radius:12px;padding:8px 10px"><b>'+esc(o.label)+'</b>');
               o.f.forEach(function(f){ var dv=(ca.c===o.c&&ca.vals&&ca.vals[f.k]!=null)?ca.vals[f.k]:(f.def!=null?f.def:'');
                 if(f.t==='s') h.push('<div class="qn" style="margin-top:6px">'+esc(f.label)+'</div><select data-qckf="'+oi+'|'+esc(f.k)+'">'+(f.opts||[]).map(function(x){ return '<option value="'+esc(x[0])+'"'+(String(dv)===String(x[0])?' selected':'')+'>'+esc(x[1])+'</option>'; }).join('')+'</select>');
+                else if(f.t==='d') h.push('<div class="qn" style="margin-top:6px">'+esc(f.label)+'</div><input type="date" style="font-size:16px;margin:4px 0" data-qckf="'+oi+'|'+esc(f.k)+'" value="'+esc(dv)+'">');   
                 else h.push('<div class="qn" style="margin-top:6px">'+esc(f.label)+'</div><label class="qu" style="margin:4px 0"><input class="qnum" data-qckf="'+oi+'|'+esc(f.k)+'" type="text" inputmode="numeric" value="'+esc(dv===''?'':fmtN(dv))+'"><i>원</i></label>'); });
               h.push(effL(o,oi)+'<button class="qb qgo" data-qcko="'+oi+'">'+esc(o.label)+'로 답</button></div>'); }
-            else h.push('<button class="qb'+(ca.c===o.c?' qgo':'')+'" style="margin-top:8px" data-qcko="'+oi+'">'+esc(o.label)+'</button>'+effL(o,oi)); });
-          h.push('<button type="button" class="qlink" data-qckunk="1">모름 — 기본값으로 진행(가정 표시)</button>');
-          h.push('<div class="qnav"><button class="qb" data-qback="1">뒤로</button><button class="qb" data-qcknext="1">'+(ca.c?'다음':'건너뛰기(모름)')+'</button></div>'); }
+            else h.push('<button class="qb'+(ca.c===o.c?' qgo':'')+'" style="margin-top:8px" data-qcko="'+oi+'">'+esc(o.label)+'</button>'+effL(o,oi)+(/^yubo/.test(cq.kind)?qyDesc(o.desc,provEffTxt(cq.key,o.c,{})):'')); });
+          h.push('<button type="button" class="qlink" data-qckunk="1">모름 — 기본값으로 진행(가정 표시)</button>'+(/^yubo/.test(cq.kind)?qyDesc(cq.moDesc,provEffTxt(cq.key,'unk',{})):''));
+          h.push('<div class="qnav"><button class="qb" data-qback="1">뒤로</button><button class="qb" data-qcknext="1">'+(ca.c?'다음':'건너뛰기(모름)')+'</button></div>'); } }
         evWrap(h,h0,sx);
       }
       else {
@@ -44716,13 +45072,14 @@ var QFLOW=(function(){
       invSync(); st.msg=v>0?'장부가 '+won(v)+'원으로 다시 묶어 계산':''; next(); });
     on('[data-qinvunk]','click',function(){ var it=curIt(); st.inv[it.inv.key]='unk'; st.how[it.k]='def'; invSync(); next(); });
     on('[data-qcko]','click',function(x){ var it=curIt(), o=(it.ck.opts||[])[+x.dataset.qcko]; if(!o) return; var vals={}, bad='';
-      (o.f||[]).forEach(function(f){ var e=b.querySelector('[data-qckf="'+x.dataset.qcko+'|'+f.k+'"]'), v=e?String(e.value).trim():''; if(e&&e.classList.contains('qnum')) v=v.replace(/,/g,''); if(v===''&&f.t!=='s') bad=f.label; vals[f.k]=(f.t==='s'||!/^-?[\d.]+$/.test(v))?v:+v; });
+      (o.f||[]).forEach(function(f){ var e=b.querySelector('[data-qckf="'+x.dataset.qcko+'|'+f.k+'"]'), v=e?String(e.value).trim():''; if(e&&e.classList.contains('qnum')) v=v.replace(/,/g,''); if(v===''&&f.t!=='s'&&!f.opt) bad=f.label;    vals[f.k]=(f.t==='s'||!/^-?[\d.]+$/.test(v))?v:+v; });
       if(bad){ st.msg='못 넣음 — '+bad+'을(를) 숫자로'; render(); return; }
       st.ck[it.ck.key]={c:o.c, vals:vals, line:it.ck.line}; st.how[it.k]='ans'; var b0=S.result&&S.result.finalValue; if(ckSync()) reRun(); st.msg='답 넣음 — 1주 '+won(b0)+'원 → '+won(S.result&&S.result.finalValue)+'원'; next(); });
     on('[data-qckf]','input',function(x){ var it=curIt(); if(!it||!it.ck||!it.ck.prov) return; var oi=String(x.dataset.qckf).split('|')[0], o=(it.ck.opts||[])[+oi]; if(!o) return; var vv={}, need=false;
-      (o.f||[]).forEach(function(f){ var e=b.querySelector('[data-qckf="'+oi+'|'+f.k+'"]'), v=e?String(e.value).replace(/,/g,'').trim():''; if(!/^-?[\d.]+$/.test(v)) need=true; vv[f.k]=+v; });
+      (o.f||[]).forEach(function(f){ var e=b.querySelector('[data-qckf="'+oi+'|'+f.k+'"]'), v=e?String(e.value).replace(/,/g,'').trim():''; if(f.t==='d'){ if(!/^\d{4}-\d\d-\d\d$/.test(v)) need=true; vv[f.k]=v; return; } if(v===''&&f.opt){ vv[f.k]=''; return; } if(!/^-?[\d.]+$/.test(v)) need=true; vv[f.k]=+v; });   
       var t=b.querySelector('[data-qeff="'+oi+'"]'); if(t) t.textContent=need?'→ 금액을 넣으면 순자산가액·1주가 여기 나옴':provEffTxt(it.ck.key,o.c,vv); });   
     on('[data-qckunk]','click',function(){ var it=curIt(); st.ck[it.ck.key]={c:'unk', vals:{}, line:it.ck.line}; st.how[it.k]='def'; if(ckSync()) reRun(); next(); });
+    on('[data-qygo]','click',function(){ var j=-1; st.list.forEach(function(x,i){ if(j<0&&i>st.qi&&(x.k==='re'||x.k==='reStd'||/^inv:/.test(x.k))) j=i; }); if(j>=0){ st.qi=j; render(); return; } var e=el('re'); st.msg='평가액 칸 = 아래 입력 칸(부동산 시가·감정가, 투자주식 평가액) — 질문 목록에 없어 입력 칸으로 옮김'; if(e&&e.scrollIntoView){ e.scrollIntoView({block:'center'}); try{ e.focus(); }catch(_){} } render(); });   
     on('[data-qcknext]','click',function(){ var it=curIt(); if(!st.ck[it.ck.key]){ st.ck[it.ck.key]={c:'unk', vals:{}, line:it.ck.line}; st.how[it.k]='def'; } next(); });
     on('[data-qsh]','click',function(x){ var m=x.dataset.qsh;
       if(m==='ok'){ st.how.shAsm=shAsm()?'assume':'ans'; next(); return; }
